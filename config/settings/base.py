@@ -42,6 +42,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
+
+            # DELISKY BI applications
+    'apps.accounts.apps.AccountsConfig',
+    'apps.workforce.apps.WorkforceConfig',
+    'apps.fleet.apps.FleetConfig',
 ]
 
 MIDDLEWARE = [
