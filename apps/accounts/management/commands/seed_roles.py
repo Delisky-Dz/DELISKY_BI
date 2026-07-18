@@ -16,6 +16,11 @@ MODEL_PERMISSIONS = {
         "truck": ("view", "add", "change", "delete"),
         "workertruckassignment": ("view", "add", "change", "delete"),
     },
+    "imports": {
+        "distributionbrand": ("view", "add", "change", "delete"),
+        "importbatch": ("view", "add", "change", "delete"),
+        "importrow": ("view",),
+    },
 }
 
 
