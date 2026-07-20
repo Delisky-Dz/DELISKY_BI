@@ -2,23 +2,77 @@
     class="dashboard-section"
     aria-labelledby="coverage-summary-title"
 >
-    <h2 id="coverage-summary-title">
-        التغطية الزمنية والاستبعادات
-    </h2>
+    <header class="section-heading">
+        <div>
+            <p class="section-eyebrow">
+                نطاق البيانات
+            </p>
 
-    <p>
-        يوضح هذا القسم عدد الصفوف المتاحة، والصفوف الداخلة
-        في التحليل، والصفوف المستبعدة بسبب الفترة المحددة.
-    </p>
+            <h2 id="coverage-summary-title">
+                التغطية الزمنية والاستبعادات
+            </h2>
+
+            <p class="section-description">
+                يوضح هذا القسم الصفوف المتاحة، والداخلة في
+                التحليل، والمستبعدة بسبب الفترة المحددة.
+            </p>
+        </div>
+
+        {% if coverage.period_excluded_row_count or coverage.has_partial_period_exclusions %}
+            <span class="section-status section-status--warning">
+                توجد استبعادات زمنية
+            </span>
+        {% else %}
+            <span class="section-status section-status--success">
+                تغطية كاملة
+            </span>
+        {% endif %}
+    </header>
 
     <div class="metric-grid">
-        <article class="metric-card">
-            <h3>إجمالي الاستبعادات الزمنية</h3>
-            <p>{{ coverage.period_excluded_row_count }}</p>
+        <article
+            class="metric-card {% if coverage.period_excluded_row_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    إجمالي الاستبعادات الزمنية
+                </h3>
+
+                {% if coverage.period_excluded_row_count %}
+                    <span class="metric-status metric-status--warning">
+                        مستبعد
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        لا توجد استبعادات
+                    </span>
+                {% endif %}
+            </div>
+
+            <p>
+                {{ coverage.period_excluded_row_count }}
+            </p>
         </article>
 
-        <article class="metric-card">
-            <h3>وجود تداخلات جزئية مستبعدة</h3>
+        <article
+            class="metric-card {% if coverage.has_partial_period_exclusions %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    تداخلات جزئية مستبعدة
+                </h3>
+
+                {% if coverage.has_partial_period_exclusions %}
+                    <span class="metric-status metric-status--warning">
+                        تحتاج انتباهًا
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        لا توجد
+                    </span>
+                {% endif %}
+            </div>
+
             <p>
                 {% if coverage.has_partial_period_exclusions %}
                     نعم
@@ -29,72 +83,267 @@
         </article>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th scope="col">مصدر البيانات</th>
-                <th scope="col">الصفوف المتاحة</th>
-                <th scope="col">الصفوف المشمولة</th>
-                <th scope="col">خارج الفترة</th>
-                <th scope="col">تداخل جزئي</th>
-            </tr>
-        </thead>
+    <div class="coverage-legend" aria-label="دليل ألوان التغطية">
+        <span class="coverage-legend__item">
+            <span
+                class="coverage-legend__dot coverage-legend__dot--neutral"
+                aria-hidden="true"
+            ></span>
+            متاح في المصدر
+        </span>
 
-        <tbody>
-            <tr>
-                <th scope="row">المبيعات</th>
-                <td>{{ coverage.sales_source_row_count }}</td>
-                <td>{{ coverage.sales_included_row_count }}</td>
-                <td>{{ coverage.sales_outside_period_count }}</td>
-                <td>—</td>
-            </tr>
+        <span class="coverage-legend__item">
+            <span
+                class="coverage-legend__dot coverage-legend__dot--success"
+                aria-hidden="true"
+            ></span>
+            مشمول في التحليل
+        </span>
 
-            <tr>
-                <th scope="row">الزيارات</th>
-                <td>{{ coverage.pos_source_row_count }}</td>
-                <td>{{ coverage.pos_included_row_count }}</td>
-                <td>{{ coverage.pos_outside_period_count }}</td>
-                <td>—</td>
-            </tr>
+        <span class="coverage-legend__item">
+            <span
+                class="coverage-legend__dot coverage-legend__dot--warning"
+                aria-hidden="true"
+            ></span>
+            مستبعد بسبب الفترة
+        </span>
+    </div>
 
-            <tr>
-                <th scope="row">المنتجات المباعة</th>
-                <td>{{ coverage.items_source_row_count }}</td>
-                <td>{{ coverage.items_included_row_count }}</td>
-                <td>{{ coverage.items_outside_period_count }}</td>
-                <td>{{ coverage.items_partial_overlap_count }}</td>
-            </tr>
+    <div class="data-table-block">
+        <header class="data-table-block__header">
+            <div>
+                <h3>
+                    تفاصيل التغطية حسب المصدر
+                </h3>
 
-            <tr>
-                <th scope="row">الرصيد الافتتاحي</th>
-                <td>{{ coverage.opening_stock_source_row_count }}</td>
-                <td>{{ coverage.opening_stock_included_row_count }}</td>
-                <td>{{ coverage.opening_stock_outside_period_count }}</td>
-                <td>{{ coverage.opening_stock_partial_overlap_count }}</td>
-            </tr>
+                <p>
+                    الأعداد التالية مأخوذة من نطاق البيانات
+                    الفعلي لكل مصدر.
+                </p>
+            </div>
+        </header>
 
-            <tr>
-                <th scope="row">التحميل</th>
-                <td>{{ coverage.chargement_source_row_count }}</td>
-                <td>{{ coverage.chargement_included_row_count }}</td>
-                <td>{{ coverage.chargement_outside_period_count }}</td>
-                <td>{{ coverage.chargement_partial_overlap_count }}</td>
-            </tr>
+        <table class="coverage-table">
+            <thead>
+                <tr>
+                    <th scope="col">
+                        مصدر البيانات
+                    </th>
 
-            <tr>
-                <th scope="row">الأدلة التشغيلية</th>
-                <td>{{ coverage.operational_source_row_count }}</td>
-                <td>{{ coverage.operational_included_row_count }}</td>
-                <td>{{ coverage.operational_outside_period_count }}</td>
-                <td>{{ coverage.operational_partial_overlap_count }}</td>
-            </tr>
-        </tbody>
-    </table>
+                    <th scope="col">
+                        الصفوف المتاحة
+                    </th>
+
+                    <th scope="col">
+                        الصفوف المشمولة
+                    </th>
+
+                    <th scope="col">
+                        خارج الفترة
+                    </th>
+
+                    <th scope="col">
+                        تداخل جزئي
+                    </th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <tr>
+                    <th scope="row">المبيعات</th>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            {{ coverage.sales_source_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.sales_included_row_count %}count-badge--success{% else %}count-badge--neutral{% endif %}">
+                            {{ coverage.sales_included_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.sales_outside_period_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.sales_outside_period_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            غير مطبق
+                        </span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">الزيارات</th>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            {{ coverage.pos_source_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.pos_included_row_count %}count-badge--success{% else %}count-badge--neutral{% endif %}">
+                            {{ coverage.pos_included_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.pos_outside_period_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.pos_outside_period_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            غير مطبق
+                        </span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        المنتجات المباعة
+                    </th>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            {{ coverage.items_source_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.items_included_row_count %}count-badge--success{% else %}count-badge--neutral{% endif %}">
+                            {{ coverage.items_included_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.items_outside_period_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.items_outside_period_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.items_partial_overlap_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.items_partial_overlap_count }}
+                        </span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        الرصيد الافتتاحي
+                    </th>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            {{ coverage.opening_stock_source_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.opening_stock_included_row_count %}count-badge--success{% else %}count-badge--neutral{% endif %}">
+                            {{ coverage.opening_stock_included_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.opening_stock_outside_period_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.opening_stock_outside_period_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.opening_stock_partial_overlap_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.opening_stock_partial_overlap_count }}
+                        </span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">التحميل</th>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            {{ coverage.chargement_source_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.chargement_included_row_count %}count-badge--success{% else %}count-badge--neutral{% endif %}">
+                            {{ coverage.chargement_included_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.chargement_outside_period_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.chargement_outside_period_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.chargement_partial_overlap_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.chargement_partial_overlap_count }}
+                        </span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        الأدلة التشغيلية
+                    </th>
+
+                    <td>
+                        <span class="count-badge count-badge--neutral">
+                            {{ coverage.operational_source_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.operational_included_row_count %}count-badge--success{% else %}count-badge--neutral{% endif %}">
+                            {{ coverage.operational_included_row_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.operational_outside_period_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.operational_outside_period_count }}
+                        </span>
+                    </td>
+
+                    <td>
+                        <span class="count-badge {% if coverage.operational_partial_overlap_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ coverage.operational_partial_overlap_count }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
     {% if coverage.has_partial_period_exclusions %}
-        <p>
-            بعض ملفات الفترات تداخلت جزئيًا مع الفترة المطلوبة.
-            تم استبعادها بدل تقسيم الكميات افتراضيًا على الأيام.
-        </p>
+        <div class="section-note section-note--warning">
+            <span aria-hidden="true">!</span>
+
+            <p>
+                بعض ملفات الفترات تداخلت جزئيًا مع الفترة
+                المطلوبة. تم استبعادها بدل تقسيم الكميات
+                افتراضيًا على الأيام.
+            </p>
+        </div>
+    {% else %}
+        <div class="section-note section-note--neutral">
+            <span aria-hidden="true">i</span>
+
+            <p>
+                لا توجد ملفات ذات تداخل جزئي مستبعدة ضمن
+                الفترة الحالية.
+            </p>
+        </div>
     {% endif %}
 </section>

@@ -1498,3 +1498,78 @@ tbody tr:hover {
         gap: 6px;
     }
 }
+
+/* =========================================================
+   Analytical coverage
+   ========================================================= */
+
+.section-description {
+    max-width: 760px;
+    margin: 5px 0 0;
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+
+.coverage-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 18px;
+    margin: 4px 0 20px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border-soft);
+    border-radius: 11px;
+    background: var(--color-surface-soft);
+}
+
+.coverage-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.coverage-legend__dot {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+}
+
+.coverage-legend__dot--neutral {
+    background: #64748b;
+}
+
+.coverage-legend__dot--success {
+    background: var(--color-success);
+}
+
+.coverage-legend__dot--warning {
+    background: var(--color-warning);
+}
+
+.count-badge--neutral {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.coverage-table td {
+    min-width: 120px;
+}
+
+.coverage-table th:first-child {
+    min-width: 175px;
+}
+
+@media (max-width: 620px) {
+    .coverage-legend {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .coverage-table td {
+        min-width: 105px;
+    }
+}
