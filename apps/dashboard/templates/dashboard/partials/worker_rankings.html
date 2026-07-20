@@ -1,176 +1,376 @@
 ﻿<section
-    class="dashboard-section"
+    class="dashboard-section worker-rankings"
     aria-labelledby="worker-rankings-title"
 >
-    <h2 id="worker-rankings-title">
-        ترتيب البائعين حسب المؤشرات
-    </h2>
-
-    <p>
-        كل ترتيب مستقل عن الآخر، ولا توجد درجة أداء عامة
-        أو تصنيف عشوائي للبائعين.
-    </p>
-
-    {% if top_sales_workers %}
-        <section aria-labelledby="top-sales-workers-title">
-            <h3 id="top-sales-workers-title">
-                أعلى البائعين مبيعًا
-            </h3>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">البائع</th>
-                        <th scope="col">إجمالي المبيعات</th>
-                        <th scope="col">العمليات الإيجابية</th>
-                        <th scope="col">متوسط البيع الإيجابي</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for worker in top_sales_workers %}
-                        <tr>
-                            <th scope="row">
-                                {{ worker.worker_name }}
-                            </th>
-                            <td>
-                                {{ worker.total_sales|floatformat:2 }}
-                                دج
-                            </td>
-                            <td>
-                                {{ worker.positive_sale_record_count }}
-                            </td>
-                            <td>
-                                {% if worker.average_positive_sale_value == None %}
-                                    لا توجد بيانات
-                                {% else %}
-                                    {{ worker.average_positive_sale_value|floatformat:2 }}
-                                    دج
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    {% endif %}
-
-    {% if lowest_sales_workers %}
-        <section aria-labelledby="lowest-sales-workers-title">
-            <h3 id="lowest-sales-workers-title">
-                أقل البائعين مبيعًا ضمن المقاس أداؤهم
-            </h3>
-
-            <p>
-                لا تشمل هذه القائمة البائعين الذين لا توجد لهم
-                بيانات مبيعات قابلة للقياس خلال الفترة.
+    <header class="section-heading">
+        <div>
+            <p class="section-eyebrow">
+                مقارنة المؤشرات
             </p>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">البائع</th>
-                        <th scope="col">إجمالي المبيعات</th>
-                        <th scope="col">سجلات المبيعات</th>
-                        <th scope="col">السجلات الصفرية</th>
-                    </tr>
-                </thead>
+            <h2 id="worker-rankings-title">
+                ترتيب البائعين حسب المؤشرات
+            </h2>
 
-                <tbody>
-                    {% for worker in lowest_sales_workers %}
-                        <tr>
-                            <th scope="row">
-                                {{ worker.worker_name }}
-                            </th>
-                            <td>
-                                {{ worker.total_sales|floatformat:2 }}
-                                دج
-                            </td>
-                            <td>{{ worker.sale_record_count }}</td>
-                            <td>{{ worker.zero_total_record_count }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    {% endif %}
-
-    {% if highest_non_visit_workers %}
-        <section aria-labelledby="highest-non-visit-title">
-            <h3 id="highest-non-visit-title">
-                أعلى نسب عدم الزيارة
-            </h3>
-
-            <p>
-                يشمل الترتيب البائعين الذين لديهم ثلاثة سجلات
-                زيارة على الأقل خلال الفترة.
+            <p class="section-description">
+                كل ترتيب مستقل عن الآخر، ولا توجد درجة أداء
+                عامة أو تصنيف عشوائي للبائعين.
             </p>
+        </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">البائع</th>
-                        <th scope="col">نسبة عدم الزيارة</th>
-                        <th scope="col">عدم الزيارة</th>
-                        <th scope="col">إجمالي السجلات</th>
-                    </tr>
-                </thead>
+        <span class="section-status section-status--neutral">
+            مؤشرات مستقلة
+        </span>
+    </header>
 
-                <tbody>
-                    {% for worker in highest_non_visit_workers %}
+    <div class="ranking-panel-list">
+        {% if top_sales_workers %}
+            <section
+                class="ranking-panel ranking-panel--success"
+                aria-labelledby="top-sales-workers-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            مؤشر المبيعات
+                        </p>
+
+                        <h3 id="top-sales-workers-title">
+                            أعلى البائعين مبيعًا
+                        </h3>
+
+                        <p>
+                            الترتيب حسب إجمالي المبيعات
+                            المثبتة خلال الفترة.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        الأعلى مبيعًا
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
                         <tr>
-                            <th scope="row">
-                                {{ worker.worker_name }}
-                            </th>
-                            <td>
-                                {% if worker.non_visit_percentage == None %}
-                                    لا توجد بيانات
-                                {% else %}
-                                    {{ worker.non_visit_percentage|floatformat:1 }}%
-                                {% endif %}
-                            </td>
-                            <td>
-                                {{ worker.not_visited_record_count }}
-                            </td>
-                            <td>{{ worker.pos_record_count }}</td>
+                            <th scope="col">المركز</th>
+                            <th scope="col">البائع</th>
+                            <th scope="col">إجمالي المبيعات</th>
+                            <th scope="col">العمليات الإيجابية</th>
+                            <th scope="col">متوسط البيع الإيجابي</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    {% endif %}
+                    </thead>
 
-    {% if most_not_sold_workers %}
-        <section aria-labelledby="most-not-sold-title">
-            <h3 id="most-not-sold-title">
-                البائعون ذوو أكبر عدد من المنتجات غير المباعة
-            </h3>
+                    <tbody>
+                        {% for worker in top_sales_workers %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--{{ forloop.counter }}">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th scope="col">البائع</th>
-                        <th scope="col">المنتجات غير المباعة</th>
-                        <th scope="col">المنتجات المباعة</th>
-                        <th scope="col">إجمالي المنتجات المقاسة</th>
-                    </tr>
-                </thead>
+                                <th scope="row">
+                                    <span class="worker-identity">
+                                        <span class="worker-identity__name">
+                                            {{ worker.worker_name }}
+                                        </span>
 
-                <tbody>
-                    {% for worker in most_not_sold_workers %}
+                                        {% if worker.employee_code %}
+                                            <span class="worker-identity__code">
+                                                {{ worker.employee_code }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </th>
+
+                                <td>
+                                    <strong class="table-value table-value--success">
+                                        {{ worker.total_sales|floatformat:2 }}
+                                        دج
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ worker.positive_sale_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if worker.average_positive_sale_value == None %}
+                                        <span class="table-empty">
+                                            لا توجد بيانات
+                                        </span>
+                                    {% else %}
+                                        {{ worker.average_positive_sale_value|floatformat:2 }}
+                                        دج
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        {% if lowest_sales_workers %}
+            <section
+                class="ranking-panel ranking-panel--warning"
+                aria-labelledby="lowest-sales-workers-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            متابعة المبيعات
+                        </p>
+
+                        <h3 id="lowest-sales-workers-title">
+                            أقل البائعين مبيعًا ضمن المقاس أداؤهم
+                        </h3>
+
+                        <p>
+                            لا تشمل هذه القائمة البائعين الذين لا توجد
+                            لهم بيانات مبيعات قابلة للقياس خلال الفترة.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        يحتاج متابعة
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
                         <tr>
-                            <th scope="row">
-                                {{ worker.worker_name }}
-                            </th>
-                            <td>
-                                {{ worker.not_sold_product_count }}
-                            </td>
-                            <td>{{ worker.sold_product_count }}</td>
-                            <td>{{ worker.brand_product_count }}</td>
+                            <th scope="col">المركز</th>
+                            <th scope="col">البائع</th>
+                            <th scope="col">إجمالي المبيعات</th>
+                            <th scope="col">سجلات المبيعات</th>
+                            <th scope="col">السجلات الصفرية</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </section>
-    {% endif %}
+                    </thead>
+
+                    <tbody>
+                        {% for worker in lowest_sales_workers %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--warning">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+
+                                <th scope="row">
+                                    <span class="worker-identity">
+                                        <span class="worker-identity__name">
+                                            {{ worker.worker_name }}
+                                        </span>
+
+                                        {% if worker.employee_code %}
+                                            <span class="worker-identity__code">
+                                                {{ worker.employee_code }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </th>
+
+                                <td>
+                                    <strong class="table-value">
+                                        {{ worker.total_sales|floatformat:2 }}
+                                        دج
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ worker.sale_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge {% if worker.zero_total_record_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                                        {{ worker.zero_total_record_count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        {% if highest_non_visit_workers %}
+            <section
+                class="ranking-panel ranking-panel--warning"
+                aria-labelledby="highest-non-visit-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            متابعة الزيارات
+                        </p>
+
+                        <h3 id="highest-non-visit-title">
+                            أعلى نسب عدم الزيارة
+                        </h3>
+
+                        <p>
+                            يشمل الترتيب البائعين الذين لديهم ثلاثة سجلات
+                            زيارة على الأقل خلال الفترة.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        حد أدنى: 3 سجلات
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">المركز</th>
+                            <th scope="col">البائع</th>
+                            <th scope="col">نسبة عدم الزيارة</th>
+                            <th scope="col">عدم الزيارة</th>
+                            <th scope="col">إجمالي السجلات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for worker in highest_non_visit_workers %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--warning">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+
+                                <th scope="row">
+                                    <span class="worker-identity">
+                                        <span class="worker-identity__name">
+                                            {{ worker.worker_name }}
+                                        </span>
+
+                                        {% if worker.employee_code %}
+                                            <span class="worker-identity__code">
+                                                {{ worker.employee_code }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </th>
+
+                                <td>
+                                    {% if worker.non_visit_percentage == None %}
+                                        <span class="table-empty">
+                                            لا توجد بيانات
+                                        </span>
+                                    {% else %}
+                                        <strong class="table-value table-value--warning">
+                                            {{ worker.non_visit_percentage|floatformat:1 }}%
+                                        </strong>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <span class="count-badge {% if worker.not_visited_record_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                                        {{ worker.not_visited_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ worker.pos_record_count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        {% if most_not_sold_workers %}
+            <section
+                class="ranking-panel ranking-panel--warning"
+                aria-labelledby="most-not-sold-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            متابعة المنتجات
+                        </p>
+
+                        <h3 id="most-not-sold-title">
+                            البائعون ذوو أكبر عدد من المنتجات غير المباعة
+                        </h3>
+
+                        <p>
+                            الترتيب خاص بعدد المنتجات غير المباعة
+                            ضمن المنتجات التي أمكن قياسها.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        مراجعة المنتجات
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">المركز</th>
+                            <th scope="col">البائع</th>
+                            <th scope="col">المنتجات غير المباعة</th>
+                            <th scope="col">المنتجات المباعة</th>
+                            <th scope="col">إجمالي المنتجات المقاسة</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for worker in most_not_sold_workers %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--warning">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+
+                                <th scope="row">
+                                    <span class="worker-identity">
+                                        <span class="worker-identity__name">
+                                            {{ worker.worker_name }}
+                                        </span>
+
+                                        {% if worker.employee_code %}
+                                            <span class="worker-identity__code">
+                                                {{ worker.employee_code }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </th>
+
+                                <td>
+                                    <span class="count-badge {% if worker.not_sold_product_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                                        {{ worker.not_sold_product_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--success">
+                                        {{ worker.sold_product_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ worker.brand_product_count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+    </div>
 </section>

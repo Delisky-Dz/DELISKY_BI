@@ -1,24 +1,117 @@
 ﻿<section
-    class="dashboard-section"
+    class="dashboard-section workers-coverage"
     aria-labelledby="workers-summary-title"
 >
-    <h2 id="workers-summary-title">
-        تغطية البائعين
-    </h2>
+    <header class="section-heading">
+        <div>
+            <p class="section-eyebrow">
+                توفر القياس
+            </p>
+
+            <h2 id="workers-summary-title">
+                تغطية البائعين
+            </h2>
+
+            <p class="section-description">
+                يوضح هذا القسم عدد البائعين المشمولين ومدى
+                توفر بيانات مبيعات قابلة للقياس خلال الفترة.
+            </p>
+        </div>
+
+        {% if summary.worker_count %}
+            {% if summary.measured_sales_worker_count == summary.worker_count %}
+                <span class="section-status section-status--success">
+                    تغطية مبيعات كاملة
+                </span>
+            {% else %}
+                <span class="section-status section-status--warning">
+                    تغطية مبيعات جزئية
+                </span>
+            {% endif %}
+        {% else %}
+            <span class="section-status section-status--neutral">
+                لا يوجد بائعون
+            </span>
+        {% endif %}
+    </header>
 
     <div class="metric-grid">
-        <article class="metric-card">
-            <h3>البائعون المشمولون في التحليل</h3>
+        <article class="metric-card metric-card--neutral">
+            <div class="metric-card__header">
+                <h3>
+                    البائعون المشمولون في التحليل
+                </h3>
+
+                <span class="metric-status metric-status--neutral">
+                    إجمالي
+                </span>
+            </div>
+
             <p>{{ summary.worker_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>البائعون ذوو قياس مبيعات</h3>
+        <article
+            class="metric-card {% if summary.measured_sales_worker_count %}metric-card--success{% else %}metric-card--neutral{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    البائعون ذوو قياس مبيعات
+                </h3>
+
+                {% if summary.measured_sales_worker_count %}
+                    <span class="metric-status metric-status--success">
+                        بيانات متوفرة
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--neutral">
+                        غير متوفرة
+                    </span>
+                {% endif %}
+            </div>
+
             <p>
                 {{ summary.measured_sales_worker_count }}
-                من
-                {{ summary.worker_count }}
+                <span class="metric-value-context">
+                    من {{ summary.worker_count }}
+                </span>
             </p>
         </article>
     </div>
+
+    {% if summary.worker_count %}
+        <div class="coverage-progress">
+            <div class="coverage-progress__header">
+                <span>تغطية قياس المبيعات</span>
+
+                <span>
+                    {{ summary.measured_sales_worker_count }}
+                    من
+                    {{ summary.worker_count }}
+                </span>
+            </div>
+
+            <progress
+                value="{{ summary.measured_sales_worker_count }}"
+                max="{{ summary.worker_count }}"
+            >
+                {{ summary.measured_sales_worker_count }}
+                من
+                {{ summary.worker_count }}
+            </progress>
+
+            <p>
+                البائع الذي لا توجد له بيانات قياس لا يُصنف
+                تلقائيًا كبائع منخفض الأداء.
+            </p>
+        </div>
+    {% else %}
+        <div class="section-note section-note--neutral">
+            <span aria-hidden="true">i</span>
+
+            <p>
+                لا توجد بيانات بائعين قابلة للعرض ضمن الفترة
+                والفلاتر المحددة.
+            </p>
+        </div>
+    {% endif %}
 </section>
