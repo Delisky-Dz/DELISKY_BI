@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'apps.workforce.apps.WorkforceConfig',
     'apps.fleet.apps.FleetConfig',
     'apps.imports.apps.ImportsConfig',
+    'apps.analytics.apps.AnalyticsConfig',
 ]
 
 MIDDLEWARE = [
