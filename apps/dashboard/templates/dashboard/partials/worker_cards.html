@@ -1,0 +1,294 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="worker-cards-title"
+>
+    <h2 id="worker-cards-title">
+        بطاقات البائعين
+    </h2>
+
+    <p>
+        تعرض كل بطاقة المؤشرات التي يمكن إثباتها خلال الفترة،
+        دون إنشاء درجة أداء عامة أو اعتبار غياب البيانات فشلًا.
+    </p>
+
+    <div class="worker-card-list">
+        {% for card in worker_cards %}
+            <article class="worker-card">
+                <header>
+                    <h3>{{ card.worker_name }}</h3>
+
+                    {% if card.employee_code %}
+                        <p>
+                            الرمز:
+                            {{ card.employee_code }}
+                        </p>
+                    {% endif %}
+                </header>
+
+                <div class="measurement-status">
+                    <p>
+                        {% if card.has_sales_measurement %}
+                            مبيعات مقاسة
+                        {% else %}
+                            لا توجد بيانات مبيعات قابلة للقياس
+                        {% endif %}
+                    </p>
+
+                    <p>
+                        {% if card.has_visit_measurement %}
+                            زيارات مقاسة
+                        {% else %}
+                            لا توجد بيانات زيارات قابلة للقياس
+                        {% endif %}
+                    </p>
+
+                    <p>
+                        {% if card.has_product_measurement %}
+                            منتجات مقاسة
+                        {% else %}
+                            لا توجد بيانات منتجات قابلة للقياس
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="metric-grid">
+                    <section class="metric-card">
+                        <h4>إجمالي المبيعات</h4>
+
+                        {% if card.has_sales_measurement %}
+                            <p>
+                                {{ card.metrics.total_sales|floatformat:2 }}
+                                دج
+                            </p>
+                        {% else %}
+                            <p>لا توجد بيانات كافية.</p>
+                        {% endif %}
+                    </section>
+
+                    <section class="metric-card">
+                        <h4>متوسط البيع الإيجابي</h4>
+
+                        {% if card.metrics.average_positive_sale_value == None %}
+                            <p>لا توجد بيانات كافية.</p>
+                        {% else %}
+                            <p>
+                                {{ card.metrics.average_positive_sale_value|floatformat:2 }}
+                                دج
+                            </p>
+                        {% endif %}
+                    </section>
+
+                    <section class="metric-card">
+                        <h4>نسبة نجاح الزيارة</h4>
+
+                        {% if card.metrics.visit_success_percentage == None %}
+                            <p>لا توجد بيانات كافية.</p>
+                        {% else %}
+                            <p>
+                                {{ card.metrics.visit_success_percentage|floatformat:1 }}%
+                            </p>
+                        {% endif %}
+                    </section>
+
+                    <section class="metric-card">
+                        <h4>نسبة عدم الزيارة</h4>
+
+                        {% if card.metrics.non_visit_percentage == None %}
+                            <p>لا توجد بيانات كافية.</p>
+                        {% else %}
+                            <p>
+                                {{ card.metrics.non_visit_percentage|floatformat:1 }}%
+                            </p>
+                        {% endif %}
+                    </section>
+
+                    <section class="metric-card">
+                        <h4>المنتجات المباعة</h4>
+                        <p>
+                            {{ card.metrics.sold_product_count }}
+                        </p>
+                    </section>
+
+                    <section class="metric-card">
+                        <h4>المنتجات غير المباعة</h4>
+                        <p>
+                            {{ card.metrics.not_sold_product_count }}
+                        </p>
+                    </section>
+                </div>
+
+                {% if card.has_non_visit_attention %}
+                    <p>
+                        توجد حالات عدم زيارة تحتاج إلى المراجعة.
+                    </p>
+                {% endif %}
+
+                {% if card.not_sold_products %}
+                    <details>
+                        <summary>
+                            المنتجات غير المباعة خلال الفترة
+                        </summary>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">العلامة</th>
+                                    <th scope="col">المنتج</th>
+                                    <th scope="col">الكمية المزودة</th>
+                                    <th scope="col">الكمية المباعة</th>
+                                    <th scope="col">الفجوة التحليلية</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for product in card.not_sold_products %}
+                                    <tr>
+                                        <td>{{ product.brand_name }}</td>
+                                        <th scope="row">
+                                            {{ product.article }}
+                                        </th>
+                                        <td>
+                                            {{ product.supplied_quantity|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            {{ product.sold_quantity|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            {{ product.analytical_quantity_gap|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                {% endif %}
+
+                {% if card.least_sold_products %}
+                    <details>
+                        <summary>
+                            المنتجات الأقل مبيعًا خلال الفترة
+                        </summary>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">العلامة</th>
+                                    <th scope="col">المنتج</th>
+                                    <th scope="col">الكمية المباعة</th>
+                                    <th scope="col">الكمية المزودة</th>
+                                    <th scope="col">نسبة المباع إلى المزود</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for product in card.least_sold_products %}
+                                    <tr>
+                                        <td>{{ product.brand_name }}</td>
+                                        <th scope="row">
+                                            {{ product.article }}
+                                        </th>
+                                        <td>
+                                            {{ product.sold_quantity|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            {{ product.supplied_quantity|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            {% if product.sold_to_supplied_percentage == None %}
+                                                غير متاحة
+                                            {% else %}
+                                                {{ product.sold_to_supplied_percentage|floatformat:1 }}%
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                {% endif %}
+
+                {% if card.negative_gap_products %}
+                    <details>
+                        <summary>
+                            تحذيرات الفجوة الحسابية السالبة
+                        </summary>
+
+                        <p>
+                            هذه الفجوة مؤشر تحليلي وليست مخزونًا
+                            نهائيًا مؤكدًا أو فشلًا مباشرًا للبائع.
+                        </p>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">العلامة</th>
+                                    <th scope="col">المنتج</th>
+                                    <th scope="col">الكمية المزودة</th>
+                                    <th scope="col">الكمية المباعة</th>
+                                    <th scope="col">الفجوة التحليلية</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for product in card.negative_gap_products %}
+                                    <tr>
+                                        <td>{{ product.brand_name }}</td>
+                                        <th scope="row">
+                                            {{ product.article }}
+                                        </th>
+                                        <td>
+                                            {{ product.supplied_quantity|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            {{ product.sold_quantity|floatformat:2 }}
+                                        </td>
+                                        <td>
+                                            {{ product.analytical_quantity_gap|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                {% endif %}
+
+                {% if card.sold_without_supply_context_products %}
+                    <details>
+                        <summary>
+                            مبيعات دون سياق تزويد ظاهر
+                        </summary>
+
+                        <p>
+                            قد تنتج هذه الحالات عن نقص تغطية الملفات
+                            أو مشكلة في الربط، ولا تثبت خطأً من البائع.
+                        </p>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th scope="col">العلامة</th>
+                                    <th scope="col">المنتج</th>
+                                    <th scope="col">الكمية المباعة</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {% for product in card.sold_without_supply_context_products %}
+                                    <tr>
+                                        <td>{{ product.brand_name }}</td>
+                                        <th scope="row">
+                                            {{ product.article }}
+                                        </th>
+                                        <td>
+                                            {{ product.sold_quantity|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </details>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+</section>

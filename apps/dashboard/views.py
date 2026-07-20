@@ -3,6 +3,7 @@
 from apps.analytics.services.manager_dashboard import (
     build_manager_dashboard,
 )
+from apps.imports.models import DistributionBrand
 from apps.workforce.models import Worker
 
 from .access import manager_required
@@ -11,6 +12,7 @@ from .presenters import (
     present_analytical_coverage,
     present_data_quality,
     present_manager_dashboard_summary,
+    present_worker_dashboard_card,
     present_worker_ranking,
 )
 
@@ -31,7 +33,9 @@ def _ranking_result(method, **kwargs):
     return tuple(method(**kwargs))
 
 
-def _build_worker_rankings(dashboard_result):
+def _collect_worker_ranking_kpis(
+    dashboard_result,
+) -> dict[str, tuple]:
     top_sales_kpis = _ranking_result(
         getattr(
             dashboard_result,
@@ -77,58 +81,158 @@ def _build_worker_rankings(dashboard_result):
         limit=WORKER_RANKING_LIMIT,
     )
 
-    ranking_groups = (
-        top_sales_kpis,
-        lowest_sales_kpis,
-        highest_non_visit_kpis,
-        most_not_sold_kpis,
-    )
+    return {
+        "top_sales_workers": top_sales_kpis,
+        "lowest_sales_workers": lowest_sales_kpis,
+        "highest_non_visit_workers": (
+            highest_non_visit_kpis
+        ),
+        "most_not_sold_workers": (
+            most_not_sold_kpis
+        ),
+    }
 
+
+def _collect_worker_ids(
+    ranking_kpis: dict[str, tuple],
+    worker_cards: tuple,
+) -> set[int]:
     worker_ids = {
         kpi.worker_id
-        for group in ranking_groups
+        for group in ranking_kpis.values()
         for kpi in group
     }
 
-    if worker_ids:
-        workers_by_id = {
-            worker.pk: worker
-            for worker in Worker.objects.filter(
-                pk__in=worker_ids,
+    worker_ids.update(
+        card.worker_id
+        for card in worker_cards
+    )
+
+    return worker_ids
+
+
+def _collect_card_brand_ids(
+    worker_cards: tuple,
+) -> set[int]:
+    brand_ids: set[int] = set()
+
+    product_group_names = (
+        "not_sold_products",
+        "least_sold_products",
+        "negative_gap_products",
+        "sold_without_supply_context_products",
+    )
+
+    for card in worker_cards:
+        for group_name in product_group_names:
+            products = (
+                getattr(card, group_name, ())
+                or ()
             )
-        }
-    else:
-        workers_by_id = {}
+
+            brand_ids.update(
+                product.brand_id
+                for product in products
+            )
+
+    return brand_ids
+
+
+def _load_workers_by_id(
+    worker_ids: set[int],
+) -> dict[int, Worker]:
+    if not worker_ids:
+        return {}
 
     return {
-        "top_sales_workers": tuple(
+        worker.pk: worker
+        for worker in Worker.objects.filter(
+            pk__in=worker_ids,
+        )
+    }
+
+
+def _load_brands_by_id(
+    brand_ids: set[int],
+) -> dict[int, DistributionBrand]:
+    if not brand_ids:
+        return {}
+
+    return {
+        brand.pk: brand
+        for brand in DistributionBrand.objects.filter(
+            pk__in=brand_ids,
+        )
+    }
+
+
+def _present_worker_rankings(
+    ranking_kpis: dict[str, tuple],
+    workers_by_id: dict[int, Worker],
+) -> dict[str, tuple]:
+    return {
+        ranking_name: tuple(
             present_worker_ranking(
                 kpi,
                 workers_by_id,
             )
-            for kpi in top_sales_kpis
-        ),
-        "lowest_sales_workers": tuple(
-            present_worker_ranking(
-                kpi,
-                workers_by_id,
-            )
-            for kpi in lowest_sales_kpis
-        ),
-        "highest_non_visit_workers": tuple(
-            present_worker_ranking(
-                kpi,
-                workers_by_id,
-            )
-            for kpi in highest_non_visit_kpis
-        ),
-        "most_not_sold_workers": tuple(
-            present_worker_ranking(
-                kpi,
-                workers_by_id,
-            )
-            for kpi in most_not_sold_kpis
-        ),
+            for kpi in kpis
+        )
+        for ranking_name, kpis
+        in ranking_kpis.items()
+    }
+
+
+def _build_worker_presentations(
+    dashboard_result,
+) -> dict[str, object]:
+    ranking_kpis = (
+        _collect_worker_ranking_kpis(
+            dashboard_result
+        )
+    )
+
+    raw_worker_cards = tuple(
+        getattr(
+            dashboard_result,
+            "worker_cards",
+            (),
+        )
+        or ()
+    )
+
+    worker_ids = _collect_worker_ids(
+        ranking_kpis,
+        raw_worker_cards,
+    )
+    brand_ids = _collect_card_brand_ids(
+        raw_worker_cards
+    )
+
+    workers_by_id = _load_workers_by_id(
+        worker_ids
+    )
+    brands_by_id = _load_brands_by_id(
+        brand_ids
+    )
+
+    worker_rankings = _present_worker_rankings(
+        ranking_kpis,
+        workers_by_id,
+    )
+
+    worker_cards = tuple(
+        present_worker_dashboard_card(
+            card,
+            workers_by_id,
+            brands_by_id,
+        )
+        for card in raw_worker_cards
+    )
+
+    return {
+        **worker_rankings,
+        "worker_cards": worker_cards,
     }
 
 
@@ -143,11 +247,12 @@ def manager_dashboard(request):
     coverage_presentation = None
     data_quality_presentation = None
 
-    worker_rankings = {
+    worker_presentations = {
         "top_sales_workers": (),
         "lowest_sales_workers": (),
         "highest_non_visit_workers": (),
         "most_not_sold_workers": (),
+        "worker_cards": (),
     }
 
     response_status = 200
@@ -213,8 +318,10 @@ def manager_dashboard(request):
                 )
             )
 
-        worker_rankings = _build_worker_rankings(
-            dashboard_result
+        worker_presentations = (
+            _build_worker_presentations(
+                dashboard_result
+            )
         )
     else:
         response_status = 400
@@ -225,7 +332,7 @@ def manager_dashboard(request):
         "summary": summary_presentation,
         "coverage": coverage_presentation,
         "data_quality": data_quality_presentation,
-        **worker_rankings,
+        **worker_presentations,
     }
 
     return render(

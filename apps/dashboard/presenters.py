@@ -4,6 +4,10 @@ from decimal import Decimal
 from apps.analytics.services.manager_dashboard import (
     AnalyticalCoverageSummary,
     ManagerDashboardSummary,
+    WorkerDashboardCard,
+)
+from apps.analytics.services.product_performance import (
+    WorkerProductPerformance,
 )
 from apps.analytics.services.worker_performance import (
     PerformanceDataQualitySummary,
@@ -437,5 +441,188 @@ def present_worker_ranking(
         ),
         has_product_measurement=(
             kpi.has_product_measurement
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerProductPresentation:
+    brand_id: int
+    brand_name: str
+    article: str
+
+    opening_quantity: Decimal
+    chargement_quantity: Decimal
+    supplied_quantity: Decimal
+    sold_quantity: Decimal
+
+    analytical_quantity_gap: Decimal
+    sold_to_supplied_percentage: Decimal | None
+
+    is_not_sold: bool
+    is_sold_without_supply_context: bool
+    has_negative_quantity_gap: bool
+
+
+@dataclass(frozen=True, slots=True)
+class WorkerDashboardCardPresentation:
+    worker_id: int
+    worker_name: str
+    employee_code: str | None
+
+    metrics: WorkerRankingPresentation
+
+    not_sold_products: tuple[
+        WorkerProductPresentation,
+        ...,
+    ]
+    least_sold_products: tuple[
+        WorkerProductPresentation,
+        ...,
+    ]
+    negative_gap_products: tuple[
+        WorkerProductPresentation,
+        ...,
+    ]
+    sold_without_supply_context_products: tuple[
+        WorkerProductPresentation,
+        ...,
+    ]
+
+    has_product_attention_items: bool
+    has_non_visit_attention: bool
+    has_sales_measurement: bool
+    has_visit_measurement: bool
+    has_product_measurement: bool
+
+
+def _brand_display_name(
+    brand_id: int,
+    brands_by_id: dict[int, object],
+) -> str:
+    brand = brands_by_id.get(brand_id)
+
+    if brand is None:
+        return f"العلامة رقم {brand_id}"
+
+    brand_name = str(
+        getattr(brand, "name", "") or ""
+    ).strip()
+
+    if brand_name:
+        return brand_name
+
+    brand_code = str(
+        getattr(brand, "code", "") or ""
+    ).strip()
+
+    if brand_code:
+        return brand_code
+
+    return f"العلامة رقم {brand_id}"
+
+
+def present_worker_product(
+    product: WorkerProductPerformance,
+    brands_by_id: dict[int, object],
+) -> WorkerProductPresentation:
+    quantities = product.quantities
+
+    return WorkerProductPresentation(
+        brand_id=product.brand_id,
+        brand_name=_brand_display_name(
+            product.brand_id,
+            brands_by_id,
+        ),
+        article=product.article,
+        opening_quantity=(
+            quantities.opening_quantity
+        ),
+        chargement_quantity=(
+            quantities.chargement_quantity
+        ),
+        supplied_quantity=(
+            quantities.supplied_quantity
+        ),
+        sold_quantity=quantities.sold_quantity,
+        analytical_quantity_gap=(
+            quantities.analytical_quantity_gap
+        ),
+        sold_to_supplied_percentage=(
+            _rate_to_percentage(
+                quantities.sold_to_supplied_ratio
+            )
+        ),
+        is_not_sold=quantities.is_not_sold,
+        is_sold_without_supply_context=(
+            quantities
+            .is_sold_without_supply_context
+        ),
+        has_negative_quantity_gap=(
+            quantities.has_negative_quantity_gap
+        ),
+    )
+
+
+def present_worker_dashboard_card(
+    card: WorkerDashboardCard,
+    workers_by_id: dict[int, object],
+    brands_by_id: dict[int, object],
+) -> WorkerDashboardCardPresentation:
+    metrics = present_worker_ranking(
+        card.kpi,
+        workers_by_id,
+    )
+
+    return WorkerDashboardCardPresentation(
+        worker_id=card.worker_id,
+        worker_name=metrics.worker_name,
+        employee_code=metrics.employee_code,
+        metrics=metrics,
+        not_sold_products=tuple(
+            present_worker_product(
+                product,
+                brands_by_id,
+            )
+            for product in card.not_sold_products
+        ),
+        least_sold_products=tuple(
+            present_worker_product(
+                product,
+                brands_by_id,
+            )
+            for product in card.least_sold_products
+        ),
+        negative_gap_products=tuple(
+            present_worker_product(
+                product,
+                brands_by_id,
+            )
+            for product in card.negative_gap_products
+        ),
+        sold_without_supply_context_products=tuple(
+            present_worker_product(
+                product,
+                brands_by_id,
+            )
+            for product in (
+                card
+                .sold_without_supply_context_products
+            )
+        ),
+        has_product_attention_items=(
+            card.has_product_attention_items
+        ),
+        has_non_visit_attention=(
+            card.has_non_visit_attention
+        ),
+        has_sales_measurement=(
+            card.has_sales_measurement
+        ),
+        has_visit_measurement=(
+            card.kpi.has_visit_measurement
+        ),
+        has_product_measurement=(
+            card.kpi.has_product_measurement
         ),
     )

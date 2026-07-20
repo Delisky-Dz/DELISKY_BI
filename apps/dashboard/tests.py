@@ -1,4 +1,4 @@
-﻿from io import StringIO
+from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
@@ -1488,4 +1488,509 @@ class ManagerDashboardWorkerRankingViewTests(
         self.assertTemplateNotUsed(
             response,
             "dashboard/partials/worker_rankings.html",
+        )
+
+
+from apps.analytics.services.manager_dashboard import (
+    WorkerDashboardCard,
+)
+from apps.analytics.services.product_performance import (
+    ProductQuantityContext,
+    WorkerProductPerformance,
+)
+
+from .presenters import (
+    present_worker_dashboard_card,
+    present_worker_product,
+)
+
+
+class WorkerDashboardCardPresenterTests(
+    SimpleTestCase
+):
+    def build_kpi(self):
+        return WorkerPerformanceKpi(
+            worker_id=7,
+            total_sales=Decimal("1500.00"),
+            sale_record_count=5,
+            positive_sale_record_count=4,
+            zero_total_record_count=1,
+            pos_record_count=5,
+            visited_record_count=3,
+            not_visited_record_count=2,
+            unique_client_day_count=4,
+            distinct_brand_client_count=4,
+            brand_product_count=6,
+            sold_product_count=4,
+            not_sold_product_count=2,
+            negative_gap_product_count=1,
+            sold_without_supply_context_count=1,
+        )
+
+    def build_product(
+        self,
+        *,
+        opening,
+        chargement,
+        sold,
+        article="Test Product",
+        brand_id=3,
+    ):
+        return WorkerProductPerformance(
+            brand_id=brand_id,
+            worker_id=7,
+            article=article,
+            article_normalized=article.lower(),
+            quantities=ProductQuantityContext(
+                opening_quantity=Decimal(opening),
+                chargement_quantity=Decimal(
+                    chargement
+                ),
+                sold_quantity=Decimal(sold),
+            ),
+        )
+
+    def test_product_quantities_are_presented(self):
+        product = self.build_product(
+            opening="10",
+            chargement="5",
+            sold="3",
+        )
+
+        presentation = present_worker_product(
+            product,
+            {
+                3: SimpleNamespace(
+                    name="BIFA",
+                    code="BIFA",
+                )
+            },
+        )
+
+        self.assertEqual(
+            presentation.brand_name,
+            "BIFA",
+        )
+        self.assertEqual(
+            presentation.supplied_quantity,
+            Decimal("15"),
+        )
+        self.assertEqual(
+            presentation.sold_quantity,
+            Decimal("3"),
+        )
+        self.assertEqual(
+            presentation.analytical_quantity_gap,
+            Decimal("12"),
+        )
+        self.assertEqual(
+            presentation.sold_to_supplied_percentage,
+            Decimal("20"),
+        )
+
+    def test_missing_brand_has_safe_name(self):
+        product = self.build_product(
+            opening="4",
+            chargement="0",
+            sold="0",
+            brand_id=9,
+        )
+
+        presentation = present_worker_product(
+            product,
+            {},
+        )
+
+        self.assertEqual(
+            presentation.brand_name,
+            "العلامة رقم 9",
+        )
+        self.assertTrue(
+            presentation.is_not_sold
+        )
+
+    def test_worker_card_identity_and_flags_are_presented(
+        self,
+    ):
+        not_sold_product = self.build_product(
+            opening="10",
+            chargement="0",
+            sold="0",
+            article="Unsold Product",
+        )
+        least_sold_product = self.build_product(
+            opening="10",
+            chargement="0",
+            sold="1",
+            article="Least Sold Product",
+        )
+        negative_gap_product = self.build_product(
+            opening="1",
+            chargement="0",
+            sold="3",
+            article="Negative Gap Product",
+        )
+        no_supply_product = self.build_product(
+            opening="0",
+            chargement="0",
+            sold="2",
+            article="No Supply Product",
+        )
+
+        card = WorkerDashboardCard(
+            kpi=self.build_kpi(),
+            not_sold_products=(
+                not_sold_product,
+            ),
+            least_sold_products=(
+                least_sold_product,
+            ),
+            negative_gap_products=(
+                negative_gap_product,
+            ),
+            sold_without_supply_context_products=(
+                no_supply_product,
+            ),
+        )
+
+        presentation = (
+            present_worker_dashboard_card(
+                card,
+                {
+                    7: SimpleNamespace(
+                        first_name="Ahmed",
+                        last_name="Benali",
+                        employee_code="EMP-007",
+                    )
+                },
+                {
+                    3: SimpleNamespace(
+                        name="BIFA",
+                        code="BIFA",
+                    )
+                },
+            )
+        )
+
+        self.assertEqual(
+            presentation.worker_name,
+            "Ahmed Benali",
+        )
+        self.assertEqual(
+            presentation.employee_code,
+            "EMP-007",
+        )
+        self.assertEqual(
+            presentation.metrics.total_sales,
+            Decimal("1500.00"),
+        )
+
+        self.assertEqual(
+            presentation
+            .not_sold_products[0]
+            .article,
+            "Unsold Product",
+        )
+        self.assertEqual(
+            presentation
+            .least_sold_products[0]
+            .sold_quantity,
+            Decimal("1"),
+        )
+        self.assertTrue(
+            presentation
+            .negative_gap_products[0]
+            .has_negative_quantity_gap
+        )
+        self.assertTrue(
+            presentation
+            .sold_without_supply_context_products[0]
+            .is_sold_without_supply_context
+        )
+
+        self.assertTrue(
+            presentation.has_product_attention_items
+        )
+        self.assertTrue(
+            presentation.has_non_visit_attention
+        )
+        self.assertTrue(
+            presentation.has_sales_measurement
+        )
+        self.assertTrue(
+            presentation.has_visit_measurement
+        )
+        self.assertTrue(
+            presentation.has_product_measurement
+        )
+
+
+class ManagerDashboardWorkerCardViewTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        call_command(
+            "seed_roles",
+            stdout=StringIO(),
+        )
+
+        User = get_user_model()
+
+        cls.manager = User.objects.create_user(
+            username="dashboard_card_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.manager.groups.add(
+            Group.objects.get(name="Manager")
+        )
+
+    def setUp(self):
+        self.client.force_login(self.manager)
+
+    def dashboard_url(self):
+        return reverse(
+            "dashboard:manager_dashboard"
+        )
+
+    def build_kpi(self):
+        return WorkerPerformanceKpi(
+            worker_id=7,
+            total_sales=Decimal("1500.00"),
+            sale_record_count=5,
+            positive_sale_record_count=4,
+            zero_total_record_count=1,
+            pos_record_count=5,
+            visited_record_count=3,
+            not_visited_record_count=2,
+            unique_client_day_count=4,
+            distinct_brand_client_count=4,
+            brand_product_count=4,
+            sold_product_count=3,
+            not_sold_product_count=1,
+            negative_gap_product_count=1,
+            sold_without_supply_context_count=1,
+        )
+
+    def build_product(
+        self,
+        *,
+        article,
+        opening,
+        chargement,
+        sold,
+    ):
+        return WorkerProductPerformance(
+            brand_id=3,
+            worker_id=7,
+            article=article,
+            article_normalized=article.lower(),
+            quantities=ProductQuantityContext(
+                opening_quantity=Decimal(opening),
+                chargement_quantity=Decimal(chargement),
+                sold_quantity=Decimal(sold),
+            ),
+        )
+
+    @patch(
+        "apps.dashboard.views._load_brands_by_id"
+    )
+    @patch(
+        "apps.dashboard.views._load_workers_by_id"
+    )
+    @patch(
+        "apps.dashboard.views.build_manager_dashboard"
+    )
+    def test_worker_cards_use_shared_lookups_and_render(
+        self,
+        mocked_build_dashboard,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        not_sold = self.build_product(
+            article="Unsold Product",
+            opening="10",
+            chargement="0",
+            sold="0",
+        )
+        least_sold = self.build_product(
+            article="Least Sold Product",
+            opening="10",
+            chargement="0",
+            sold="1",
+        )
+        negative_gap = self.build_product(
+            article="Negative Gap Product",
+            opening="1",
+            chargement="0",
+            sold="3",
+        )
+        no_supply = self.build_product(
+            article="No Supply Product",
+            opening="0",
+            chargement="0",
+            sold="2",
+        )
+
+        kpi = self.build_kpi()
+
+        card = WorkerDashboardCard(
+            kpi=kpi,
+            not_sold_products=(not_sold,),
+            least_sold_products=(least_sold,),
+            negative_gap_products=(negative_gap,),
+            sold_without_supply_context_products=(
+                no_supply,
+            ),
+        )
+
+        mocked_build_dashboard.return_value = (
+            SimpleNamespace(
+                summary=None,
+                coverage=None,
+                data_quality=None,
+                worker_cards=(card,),
+                top_sales_workers=Mock(
+                    return_value=(kpi,)
+                ),
+                lowest_sales_workers=Mock(
+                    return_value=()
+                ),
+                highest_non_visit_rate_workers=Mock(
+                    return_value=()
+                ),
+                worker_performance=SimpleNamespace(
+                    most_not_sold_products_workers=Mock(
+                        return_value=()
+                    )
+                ),
+            )
+        )
+
+        mocked_load_workers.return_value = {
+            7: SimpleNamespace(
+                pk=7,
+                first_name="Ahmed",
+                last_name="Benali",
+                employee_code="EMP-007",
+            )
+        }
+
+        mocked_load_brands.return_value = {
+            3: SimpleNamespace(
+                pk=3,
+                name="BIFA",
+                code="BIFA",
+            )
+        }
+
+        response = self.client.get(
+            self.dashboard_url()
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        mocked_load_workers.assert_called_once_with(
+            {7},
+        )
+        mocked_load_brands.assert_called_once_with(
+            {3},
+        )
+
+        self.assertEqual(
+            len(response.context["worker_cards"]),
+            1,
+        )
+        self.assertEqual(
+            response.context[
+                "worker_cards"
+            ][0].worker_name,
+            "Ahmed Benali",
+        )
+
+        self.assertTemplateUsed(
+            response,
+            "dashboard/partials/worker_cards.html",
+        )
+        self.assertContains(
+            response,
+            "بطاقات البائعين",
+        )
+        self.assertContains(
+            response,
+            "Ahmed Benali",
+        )
+        self.assertContains(
+            response,
+            "BIFA",
+        )
+        self.assertContains(
+            response,
+            "Unsold Product",
+        )
+        self.assertContains(
+            response,
+            "Least Sold Product",
+        )
+        self.assertContains(
+            response,
+            "Negative Gap Product",
+        )
+        self.assertContains(
+            response,
+            "No Supply Product",
+        )
+
+    @patch(
+        "apps.dashboard.views._load_brands_by_id"
+    )
+    @patch(
+        "apps.dashboard.views._load_workers_by_id"
+    )
+    @patch(
+        "apps.dashboard.views.build_manager_dashboard"
+    )
+    def test_empty_cards_and_rankings_skip_lookups(
+        self,
+        mocked_build_dashboard,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        mocked_build_dashboard.return_value = (
+            SimpleNamespace(
+                summary=None,
+                coverage=None,
+                data_quality=None,
+                worker_cards=(),
+                top_sales_workers=Mock(
+                    return_value=()
+                ),
+                lowest_sales_workers=Mock(
+                    return_value=()
+                ),
+                highest_non_visit_rate_workers=Mock(
+                    return_value=()
+                ),
+                worker_performance=SimpleNamespace(
+                    most_not_sold_products_workers=Mock(
+                        return_value=()
+                    )
+                ),
+            )
+        )
+
+        response = self.client.get(
+            self.dashboard_url()
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mocked_load_workers.assert_called_once_with(set())
+        mocked_load_brands.assert_called_once_with(set())
+
+        self.assertEqual(
+            response.context["worker_cards"],
+            (),
+        )
+        self.assertTemplateNotUsed(
+            response,
+            "dashboard/partials/worker_cards.html",
         )

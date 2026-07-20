@@ -20,6 +20,10 @@
             {% include "dashboard/partials/worker_rankings.html" %}
         {% endif %}
 
+        {% if worker_cards %}
+            {% include "dashboard/partials/worker_cards.html" %}
+        {% endif %}
+
         {% if coverage %}
             {% include "dashboard/partials/coverage_summary.html" %}
         {% endif %}
