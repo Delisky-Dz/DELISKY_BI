@@ -1,0 +1,39 @@
+﻿{% extends "dashboard/base.html" %}
+
+{% block title %}
+    لوحة المدير | DELISKY BI
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if summary %}
+        {% include "dashboard/partials/sales_summary.html" %}
+        {% include "dashboard/partials/visits_summary.html" %}
+        {% include "dashboard/partials/workers_summary.html" %}
+        {% include "dashboard/partials/attention_summary.html" %}
+        {% include "dashboard/partials/truck_status.html" %}
+    {% elif filter_form.errors %}
+        <section aria-labelledby="filter-errors-title">
+            <h2 id="filter-errors-title">
+                تعذر تطبيق الفلتر
+            </h2>
+
+            <p>
+                صحح الأخطاء الظاهرة في الفترة أو العلامة
+                ثم أعد المحاولة.
+            </p>
+        </section>
+    {% else %}
+        <section aria-labelledby="empty-dashboard-title">
+            <h2 id="empty-dashboard-title">
+                لا توجد نتائج
+            </h2>
+
+            <p>
+                لم تتوفر بيانات قابلة للعرض خلال الفترة
+                والفلتر المحددين.
+            </p>
+        </section>
+    {% endif %}
+{% endblock %}

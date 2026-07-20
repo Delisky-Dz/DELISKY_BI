@@ -1,0 +1,45 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="sales-summary-title"
+>
+    <h2 id="sales-summary-title">
+        ملخص المبيعات
+    </h2>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>إجمالي المبيعات</h3>
+            <p>
+                {{ summary.total_sales|floatformat:2 }}
+                دج
+            </p>
+        </article>
+
+        <article class="metric-card">
+            <h3>عمليات البيع الإيجابية</h3>
+            <p>
+                {{ summary.positive_sale_record_count }}
+                من
+                {{ summary.sale_record_count }}
+            </p>
+        </article>
+
+        <article class="metric-card">
+            <h3>السجلات ذات القيمة الصفرية</h3>
+            <p>{{ summary.zero_total_record_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>متوسط البيع الإيجابي</h3>
+
+            {% if summary.average_positive_sale_value == None %}
+                <p>لا توجد بيانات كافية.</p>
+            {% else %}
+                <p>
+                    {{ summary.average_positive_sale_value|floatformat:2 }}
+                    دج
+                </p>
+            {% endif %}
+        </article>
+    </div>
+</section>

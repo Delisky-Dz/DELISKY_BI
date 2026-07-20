@@ -1,0 +1,42 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="attention-summary-title"
+>
+    <h2 id="attention-summary-title">
+        نقاط تحتاج إلى الانتباه
+    </h2>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>
+                حالات المنتجات غير المباعة حسب البائع
+            </h3>
+            <p>{{ summary.worker_not_sold_product_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>
+                حالات المنتجات غير المباعة حسب الشاحنة
+            </h3>
+            <p>{{ summary.truck_not_sold_product_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>
+                الفجوات الحسابية السالبة حسب البائع
+            </h3>
+            <p>{{ summary.worker_negative_gap_product_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>
+                الفجوات الحسابية السالبة حسب الشاحنة
+            </h3>
+            <p>{{ summary.truck_negative_gap_product_count }}</p>
+        </article>
+    </div>
+
+    <p>
+        الفجوة الحسابية مؤشر تحليلي، وليست مخزونًا نهائيًا مؤكدًا.
+    </p>
+</section>

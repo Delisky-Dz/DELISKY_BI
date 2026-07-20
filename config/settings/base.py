@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.fleet.apps.FleetConfig',
     'apps.imports.apps.ImportsConfig',
     'apps.analytics.apps.AnalyticsConfig',
+    'apps.dashboard.apps.DashboardConfig',
 ]
 
 MIDDLEWARE = [
@@ -93,6 +94,7 @@ DATABASES = {
         "PASSWORD": os.environ["DB_PASSWORD"],
         "HOST": os.getenv("DB_HOST", "127.0.0.1"),
         "PORT": os.getenv("DB_PORT", "5432"),
+        "TEST": {"NAME": os.getenv("DB_TEST_NAME", "test_delisky_bi")},
     }
 }
 

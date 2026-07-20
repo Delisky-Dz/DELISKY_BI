@@ -1,0 +1,40 @@
+﻿<section
+    class="dashboard-section dashboard-filters"
+    aria-labelledby="dashboard-filters-title"
+>
+    <h2 id="dashboard-filters-title">
+        الفترة والعلامة
+    </h2>
+
+    <form method="get">
+        {{ filter_form.non_field_errors }}
+
+        <div class="filter-field">
+            {{ filter_form.period_start.label_tag }}
+            {{ filter_form.period_start }}
+            {{ filter_form.period_start.errors }}
+        </div>
+
+        <div class="filter-field">
+            {{ filter_form.period_end.label_tag }}
+            {{ filter_form.period_end }}
+            {{ filter_form.period_end.errors }}
+        </div>
+
+        <div class="filter-field">
+            {{ filter_form.brand.label_tag }}
+            {{ filter_form.brand }}
+            {{ filter_form.brand.errors }}
+        </div>
+
+        <div class="filter-actions">
+            <button type="submit">
+                تطبيق الفلتر
+            </button>
+
+            <a href="{% url 'dashboard:manager_dashboard' %}">
+                إعادة الضبط
+            </a>
+        </div>
+    </form>
+</section>

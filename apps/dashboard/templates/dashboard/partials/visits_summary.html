@@ -1,0 +1,50 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="visits-summary-title"
+>
+    <h2 id="visits-summary-title">
+        الزيارات والزبائن
+    </h2>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>إجمالي سجلات الزيارات</h3>
+            <p>{{ summary.pos_record_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>الزيارات الناجحة</h3>
+            <p>{{ summary.visited_record_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>حالات عدم الزيارة</h3>
+            <p>{{ summary.not_visited_record_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>نسبة نجاح الزيارة</h3>
+
+            {% if summary.visit_success_percentage == None %}
+                <p>لا توجد بيانات كافية.</p>
+            {% else %}
+                <p>{{ summary.visit_success_percentage|floatformat:1 }}%</p>
+            {% endif %}
+        </article>
+
+        <article class="metric-card">
+            <h3>نسبة عدم الزيارة</h3>
+
+            {% if summary.non_visit_percentage == None %}
+                <p>لا توجد بيانات كافية.</p>
+            {% else %}
+                <p>{{ summary.non_visit_percentage|floatformat:1 }}%</p>
+            {% endif %}
+        </article>
+
+        <article class="metric-card">
+            <h3>الزبائن المسجلون حسب العلامة</h3>
+            <p>{{ summary.distinct_brand_client_count }}</p>
+        </article>
+    </div>
+</section>

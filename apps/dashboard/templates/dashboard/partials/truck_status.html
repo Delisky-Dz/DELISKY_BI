@@ -1,0 +1,29 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="truck-status-title"
+>
+    <h2 id="truck-status-title">
+        حالة الشاحنات
+    </h2>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>متوقفة مؤكدًا</h3>
+            <p>{{ summary.confirmed_stopped_truck_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>توقف محتمل</h3>
+            <p>{{ summary.possible_stopped_truck_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>أدلة تشغيلية متعارضة</h3>
+            <p>{{ summary.conflicting_truck_state_count }}</p>
+        </article>
+    </div>
+
+    <p>
+        الشاحنة المتوقفة لا تُعتبر فشلًا للبائع.
+    </p>
+</section>

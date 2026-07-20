@@ -1,0 +1,24 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="workers-summary-title"
+>
+    <h2 id="workers-summary-title">
+        تغطية البائعين
+    </h2>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>البائعون المشمولون في التحليل</h3>
+            <p>{{ summary.worker_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>البائعون ذوو قياس مبيعات</h3>
+            <p>
+                {{ summary.measured_sales_worker_count }}
+                من
+                {{ summary.worker_count }}
+            </p>
+        </article>
+    </div>
+</section>
