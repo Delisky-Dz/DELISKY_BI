@@ -1265,3 +1265,236 @@ tbody tr:hover {
         width: 100%;
     }
 }
+
+/* =========================================================
+   Semantic metric states
+   ========================================================= */
+
+.section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.section-heading h2 {
+    margin: 2px 0 0;
+    color: var(--color-heading);
+    font-size: clamp(19px, 2vw, 24px);
+}
+
+.section-status,
+.metric-status,
+.count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.section-status {
+    min-height: 32px;
+    padding: 5px 11px;
+    font-size: 11px;
+}
+
+.metric-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.metric-card__header h3 {
+    margin: 0;
+}
+
+.metric-status {
+    flex: 0 0 auto;
+    min-height: 24px;
+    padding: 3px 8px;
+    font-size: 9px;
+}
+
+.metric-card--success {
+    border-color: #b9dfca;
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0%,
+            var(--color-success-light) 100%
+        );
+}
+
+.metric-card--success::after {
+    background: var(--color-success) !important;
+}
+
+.metric-card--warning {
+    border-color: #eed39e;
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0%,
+            var(--color-warning-light) 100%
+        );
+}
+
+.metric-card--warning::after {
+    background: var(--color-warning) !important;
+}
+
+.metric-card--danger {
+    border-color: #efc0bc;
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0%,
+            var(--color-danger-light) 100%
+        );
+}
+
+.metric-card--danger::after {
+    background: var(--color-danger) !important;
+}
+
+.metric-card--neutral {
+    border-color: #cbd5e1;
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0%,
+            #f1f5f9 100%
+        );
+}
+
+.metric-card--neutral::after {
+    background: #64748b !important;
+}
+
+.section-status--success,
+.metric-status--success,
+.count-badge--success {
+    border-color: #a9d9bd;
+    background: var(--color-success-light);
+    color: var(--color-success);
+}
+
+.section-status--warning,
+.metric-status--warning,
+.count-badge--warning {
+    border-color: #e9c98a;
+    background: var(--color-warning-light);
+    color: var(--color-warning);
+}
+
+.section-status--danger,
+.metric-status--danger,
+.count-badge--danger {
+    border-color: #edb5b0;
+    background: var(--color-danger-light);
+    color: var(--color-danger);
+}
+
+.section-status--neutral,
+.metric-status--neutral {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.count-badge {
+    min-width: 34px;
+    min-height: 26px;
+    padding: 3px 9px;
+    font-size: 11px;
+}
+
+.section-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 18px;
+    padding: 12px 14px;
+    border: 1px solid;
+    border-radius: 11px;
+}
+
+.section-note > span {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.section-note p {
+    margin: 0;
+    font-size: 12px;
+}
+
+.section-note--warning {
+    border-color: #ead09b;
+    background: var(--color-warning-light);
+    color: #7a4700;
+}
+
+.section-note--warning > span {
+    background: var(--color-warning);
+    color: #ffffff;
+}
+
+.section-note--neutral {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+}
+
+.section-note--neutral > span {
+    background: #64748b;
+    color: #ffffff;
+}
+
+.data-table-block {
+    margin-top: 24px;
+}
+
+.data-table-block__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.data-table-block__header h3 {
+    margin: 0 0 3px;
+    color: var(--color-heading);
+    font-size: 16px;
+}
+
+.data-table-block__header p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
+
+@media (max-width: 620px) {
+    .section-heading {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .metric-card__header {
+        flex-direction: column;
+        gap: 6px;
+    }
+}

@@ -2,117 +2,222 @@
     class="dashboard-section"
     aria-labelledby="data-quality-summary-title"
 >
-    <h2 id="data-quality-summary-title">
-        جودة البيانات والتحذيرات
-    </h2>
+    <header class="section-heading">
+        <div>
+            <p class="section-eyebrow">
+                موثوقية التحليل
+            </p>
+
+            <h2 id="data-quality-summary-title">
+                جودة البيانات والتحذيرات
+            </h2>
+        </div>
+
+        {% if data_quality.total_issue_and_warning_count %}
+            <span class="section-status section-status--warning">
+                توجد ملاحظات
+            </span>
+        {% else %}
+            <span class="section-status section-status--success">
+                لا توجد ملاحظات
+            </span>
+        {% endif %}
+    </header>
 
     <div class="metric-grid">
-        <article class="metric-card">
-            <h3>إجمالي المشاكل والتحذيرات</h3>
+        <article
+            class="metric-card {% if data_quality.total_issue_and_warning_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>إجمالي المشاكل والتحذيرات</h3>
+
+                {% if data_quality.total_issue_and_warning_count %}
+                    <span class="metric-status metric-status--warning">
+                        مراجعة
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>
                 {{ data_quality.total_issue_and_warning_count }}
             </p>
         </article>
 
-        <article class="metric-card">
-            <h3>مشاكل الربط والإسناد</h3>
+        <article
+            class="metric-card {% if data_quality.attribution_issue_count %}metric-card--danger{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>مشاكل الربط والإسناد</h3>
+
+                {% if data_quality.attribution_issue_count %}
+                    <span class="metric-status metric-status--danger">
+                        تحقق
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ data_quality.attribution_issue_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>تحذيرات بيانات الزيارات</h3>
+        <article
+            class="metric-card {% if data_quality.warning_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>تحذيرات بيانات الزيارات</h3>
+
+                {% if data_quality.warning_count %}
+                    <span class="metric-status metric-status--warning">
+                        مراجعة
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ data_quality.warning_count }}</p>
         </article>
     </div>
 
-    <h3>مشاكل الربط حسب المصدر</h3>
+    <div class="data-table-block">
+        <header class="data-table-block__header">
+            <div>
+                <h3>مشاكل الربط حسب المصدر</h3>
 
-    <table>
-        <thead>
-            <tr>
-                <th scope="col">المصدر</th>
-                <th scope="col">عدد المشاكل</th>
-            </tr>
-        </thead>
+                <p>
+                    السجلات التي لم تُربط ببائع أو شاحنة
+                    بطريقة قابلة للاعتماد.
+                </p>
+            </div>
+        </header>
 
-        <tbody>
-            <tr>
-                <th scope="row">المبيعات</th>
-                <td>
-                    {{ data_quality.sales_attribution_issue_count }}
-                </td>
-            </tr>
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">المصدر</th>
+                    <th scope="col">عدد المشاكل</th>
+                </tr>
+            </thead>
 
-            <tr>
-                <th scope="row">الزيارات</th>
-                <td>
-                    {{ data_quality.pos_attribution_issue_count }}
-                </td>
-            </tr>
+            <tbody>
+                <tr>
+                    <th scope="row">المبيعات</th>
+                    <td>
+                        <span class="count-badge {% if data_quality.sales_attribution_issue_count %}count-badge--danger{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.sales_attribution_issue_count }}
+                        </span>
+                    </td>
+                </tr>
 
-            <tr>
-                <th scope="row">المنتجات</th>
-                <td>
-                    {{ data_quality.items_attribution_issue_count }}
-                </td>
-            </tr>
+                <tr>
+                    <th scope="row">الزيارات</th>
+                    <td>
+                        <span class="count-badge {% if data_quality.pos_attribution_issue_count %}count-badge--danger{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.pos_attribution_issue_count }}
+                        </span>
+                    </td>
+                </tr>
 
-            <tr>
-                <th scope="row">الرصيد الافتتاحي</th>
-                <td>
-                    {{ data_quality.opening_stock_attribution_issue_count }}
-                </td>
-            </tr>
+                <tr>
+                    <th scope="row">المنتجات</th>
+                    <td>
+                        <span class="count-badge {% if data_quality.items_attribution_issue_count %}count-badge--danger{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.items_attribution_issue_count }}
+                        </span>
+                    </td>
+                </tr>
 
-            <tr>
-                <th scope="row">التحميل</th>
-                <td>
-                    {{ data_quality.chargement_attribution_issue_count }}
-                </td>
-            </tr>
+                <tr>
+                    <th scope="row">الرصيد الافتتاحي</th>
+                    <td>
+                        <span class="count-badge {% if data_quality.opening_stock_attribution_issue_count %}count-badge--danger{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.opening_stock_attribution_issue_count }}
+                        </span>
+                    </td>
+                </tr>
 
-            <tr>
-                <th scope="row">الحالة التشغيلية</th>
-                <td>
-                    {{ data_quality.operational_attribution_issue_count }}
-                </td>
-            </tr>
-        </tbody>
-    </table>
+                <tr>
+                    <th scope="row">التحميل</th>
+                    <td>
+                        <span class="count-badge {% if data_quality.chargement_attribution_issue_count %}count-badge--danger{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.chargement_attribution_issue_count }}
+                        </span>
+                    </td>
+                </tr>
 
-    <h3>تحذيرات الزيارات</h3>
+                <tr>
+                    <th scope="row">الحالة التشغيلية</th>
+                    <td>
+                        <span class="count-badge {% if data_quality.operational_attribution_issue_count %}count-badge--danger{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.operational_attribution_issue_count }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th scope="col">نوع التحذير</th>
-                <th scope="col">العدد</th>
-            </tr>
-        </thead>
+    <div class="data-table-block">
+        <header class="data-table-block__header">
+            <div>
+                <h3>تحذيرات الزيارات</h3>
 
-        <tbody>
-            <tr>
-                <th scope="row">
-                    رسائل تجاهل رقمية
-                </th>
-                <td>
-                    {{ data_quality.pos_numeric_message_warning_count }}
-                </td>
-            </tr>
+                <p>
+                    تحذيرات محفوظة للمراجعة دون حذف
+                    السجلات تلقائيًا.
+                </p>
+            </div>
+        </header>
 
-            <tr>
-                <th scope="row">
-                    تكرار الزبون في اليوم نفسه
-                </th>
-                <td>
-                    {{ data_quality.pos_duplicate_same_day_warning_count }}
-                </td>
-            </tr>
-        </tbody>
-    </table>
+        <table>
+            <thead>
+                <tr>
+                    <th scope="col">نوع التحذير</th>
+                    <th scope="col">العدد</th>
+                </tr>
+            </thead>
 
-    <p>
-        لا تعني جميع التحذيرات وجود خطأ مؤكد، ولا يتم حذف
-        سجلات الزيارات المتكررة تلقائيًا.
-    </p>
+            <tbody>
+                <tr>
+                    <th scope="row">
+                        رسائل تجاهل رقمية
+                    </th>
+                    <td>
+                        <span class="count-badge {% if data_quality.pos_numeric_message_warning_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.pos_numeric_message_warning_count }}
+                        </span>
+                    </td>
+                </tr>
+
+                <tr>
+                    <th scope="row">
+                        تكرار الزبون في اليوم نفسه
+                    </th>
+                    <td>
+                        <span class="count-badge {% if data_quality.pos_duplicate_same_day_warning_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                            {{ data_quality.pos_duplicate_same_day_warning_count }}
+                        </span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section-note section-note--neutral">
+        <span aria-hidden="true">i</span>
+
+        <p>
+            لا تعني جميع التحذيرات وجود خطأ مؤكد، ولا يتم حذف سجلات الزيارات المتكررة تلقائيًا.
+        </p>
+    </div>
 </section>
+

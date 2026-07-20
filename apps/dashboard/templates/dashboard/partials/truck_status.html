@@ -2,28 +2,88 @@
     class="dashboard-section"
     aria-labelledby="truck-status-title"
 >
-    <h2 id="truck-status-title">
-        حالة الشاحنات
-    </h2>
+    <header class="section-heading">
+        <div>
+            <p class="section-eyebrow">
+                الحالة التشغيلية
+            </p>
+
+            <h2 id="truck-status-title">
+                حالة الشاحنات
+            </h2>
+        </div>
+
+        {% if summary.possible_stopped_truck_count or summary.conflicting_truck_state_count %}
+            <span class="section-status section-status--warning">
+                توجد حالات للمراجعة
+            </span>
+        {% else %}
+            <span class="section-status section-status--neutral">
+                حالة مستقرة
+            </span>
+        {% endif %}
+    </header>
 
     <div class="metric-grid">
-        <article class="metric-card">
-            <h3>متوقفة مؤكدًا</h3>
+        <article class="metric-card metric-card--neutral">
+            <div class="metric-card__header">
+                <h3>متوقفة مؤكدًا</h3>
+
+                <span class="metric-status metric-status--neutral">
+                    معلومة تشغيلية
+                </span>
+            </div>
+
             <p>{{ summary.confirmed_stopped_truck_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>توقف محتمل</h3>
+        <article
+            class="metric-card {% if summary.possible_stopped_truck_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>توقف محتمل</h3>
+
+                {% if summary.possible_stopped_truck_count %}
+                    <span class="metric-status metric-status--warning">
+                        مراجعة
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        لا توجد حالات
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ summary.possible_stopped_truck_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>أدلة تشغيلية متعارضة</h3>
+        <article
+            class="metric-card {% if summary.conflicting_truck_state_count %}metric-card--danger{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>أدلة تشغيلية متعارضة</h3>
+
+                {% if summary.conflicting_truck_state_count %}
+                    <span class="metric-status metric-status--danger">
+                        تحقق
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ summary.conflicting_truck_state_count }}</p>
         </article>
     </div>
 
-    <p>
-        الشاحنة المتوقفة لا تُعتبر فشلًا للبائع.
-    </p>
+    <div class="section-note section-note--neutral">
+        <span aria-hidden="true">i</span>
+
+        <p>
+            الشاحنة المتوقفة لا تُعتبر فشلًا للبائع،
+            وتُعرض منفصلة عن مؤشرات أداء البائعين.
+        </p>
+    </div>
 </section>

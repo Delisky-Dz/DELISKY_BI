@@ -2,41 +2,124 @@
     class="dashboard-section"
     aria-labelledby="attention-summary-title"
 >
-    <h2 id="attention-summary-title">
-        نقاط تحتاج إلى الانتباه
-    </h2>
+    <header class="section-heading">
+        <div>
+            <p class="section-eyebrow">
+                المتابعة التشغيلية
+            </p>
+
+            <h2 id="attention-summary-title">
+                نقاط تحتاج إلى الانتباه
+            </h2>
+        </div>
+
+        {% if summary.worker_not_sold_product_count or summary.truck_not_sold_product_count or summary.worker_negative_gap_product_count or summary.truck_negative_gap_product_count %}
+            <span class="section-status section-status--warning">
+                توجد حالات للمراجعة
+            </span>
+        {% else %}
+            <span class="section-status section-status--success">
+                لا توجد حالات
+            </span>
+        {% endif %}
+    </header>
 
     <div class="metric-grid">
-        <article class="metric-card">
-            <h3>
-                حالات المنتجات غير المباعة حسب البائع
-            </h3>
+        <article
+            class="metric-card {% if summary.worker_not_sold_product_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    حالات المنتجات غير المباعة حسب البائع
+                </h3>
+
+                {% if summary.worker_not_sold_product_count %}
+                    <span class="metric-status metric-status--warning">
+                        مراجعة
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ summary.worker_not_sold_product_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>
-                حالات المنتجات غير المباعة حسب الشاحنة
-            </h3>
+        <article
+            class="metric-card {% if summary.truck_not_sold_product_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    حالات المنتجات غير المباعة حسب الشاحنة
+                </h3>
+
+                {% if summary.truck_not_sold_product_count %}
+                    <span class="metric-status metric-status--warning">
+                        مراجعة
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ summary.truck_not_sold_product_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>
-                الفجوات الحسابية السالبة حسب البائع
-            </h3>
+        <article
+            class="metric-card {% if summary.worker_negative_gap_product_count %}metric-card--danger{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    الفجوات الحسابية السالبة حسب البائع
+                </h3>
+
+                {% if summary.worker_negative_gap_product_count %}
+                    <span class="metric-status metric-status--danger">
+                        تحقق
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ summary.worker_negative_gap_product_count }}</p>
         </article>
 
-        <article class="metric-card">
-            <h3>
-                الفجوات الحسابية السالبة حسب الشاحنة
-            </h3>
+        <article
+            class="metric-card {% if summary.truck_negative_gap_product_count %}metric-card--danger{% else %}metric-card--success{% endif %}"
+        >
+            <div class="metric-card__header">
+                <h3>
+                    الفجوات الحسابية السالبة حسب الشاحنة
+                </h3>
+
+                {% if summary.truck_negative_gap_product_count %}
+                    <span class="metric-status metric-status--danger">
+                        تحقق
+                    </span>
+                {% else %}
+                    <span class="metric-status metric-status--success">
+                        سليم
+                    </span>
+                {% endif %}
+            </div>
+
             <p>{{ summary.truck_negative_gap_product_count }}</p>
         </article>
     </div>
 
-    <p>
-        الفجوة الحسابية مؤشر تحليلي، وليست مخزونًا نهائيًا مؤكدًا.
-    </p>
+    <div class="section-note section-note--warning">
+        <span aria-hidden="true">!</span>
+
+        <p>
+            الفجوة الحسابية مؤشر تحليلي، وليست مخزونًا
+            نهائيًا مؤكدًا ولا حكمًا مباشرًا على البائع.
+        </p>
+    </div>
 </section>
