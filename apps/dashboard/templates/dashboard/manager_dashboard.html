@@ -7,12 +7,26 @@
 {% block content %}
     {% include "dashboard/partials/filter_form.html" %}
 
-    {% if summary %}
-        {% include "dashboard/partials/sales_summary.html" %}
-        {% include "dashboard/partials/visits_summary.html" %}
-        {% include "dashboard/partials/workers_summary.html" %}
-        {% include "dashboard/partials/attention_summary.html" %}
-        {% include "dashboard/partials/truck_status.html" %}
+    {% if dashboard_result %}
+        {% if summary %}
+            {% include "dashboard/partials/sales_summary.html" %}
+            {% include "dashboard/partials/visits_summary.html" %}
+            {% include "dashboard/partials/workers_summary.html" %}
+            {% include "dashboard/partials/attention_summary.html" %}
+            {% include "dashboard/partials/truck_status.html" %}
+        {% endif %}
+
+        {% if top_sales_workers or lowest_sales_workers or highest_non_visit_workers or most_not_sold_workers %}
+            {% include "dashboard/partials/worker_rankings.html" %}
+        {% endif %}
+
+        {% if coverage %}
+            {% include "dashboard/partials/coverage_summary.html" %}
+        {% endif %}
+
+        {% if data_quality %}
+            {% include "dashboard/partials/data_quality_summary.html" %}
+        {% endif %}
     {% elif filter_form.errors %}
         <section aria-labelledby="filter-errors-title">
             <h2 id="filter-errors-title">

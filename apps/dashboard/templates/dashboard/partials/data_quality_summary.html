@@ -1,0 +1,118 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="data-quality-summary-title"
+>
+    <h2 id="data-quality-summary-title">
+        جودة البيانات والتحذيرات
+    </h2>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>إجمالي المشاكل والتحذيرات</h3>
+            <p>
+                {{ data_quality.total_issue_and_warning_count }}
+            </p>
+        </article>
+
+        <article class="metric-card">
+            <h3>مشاكل الربط والإسناد</h3>
+            <p>{{ data_quality.attribution_issue_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>تحذيرات بيانات الزيارات</h3>
+            <p>{{ data_quality.warning_count }}</p>
+        </article>
+    </div>
+
+    <h3>مشاكل الربط حسب المصدر</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">المصدر</th>
+                <th scope="col">عدد المشاكل</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <th scope="row">المبيعات</th>
+                <td>
+                    {{ data_quality.sales_attribution_issue_count }}
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">الزيارات</th>
+                <td>
+                    {{ data_quality.pos_attribution_issue_count }}
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">المنتجات</th>
+                <td>
+                    {{ data_quality.items_attribution_issue_count }}
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">الرصيد الافتتاحي</th>
+                <td>
+                    {{ data_quality.opening_stock_attribution_issue_count }}
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">التحميل</th>
+                <td>
+                    {{ data_quality.chargement_attribution_issue_count }}
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">الحالة التشغيلية</th>
+                <td>
+                    {{ data_quality.operational_attribution_issue_count }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>تحذيرات الزيارات</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">نوع التحذير</th>
+                <th scope="col">العدد</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <th scope="row">
+                    رسائل تجاهل رقمية
+                </th>
+                <td>
+                    {{ data_quality.pos_numeric_message_warning_count }}
+                </td>
+            </tr>
+
+            <tr>
+                <th scope="row">
+                    تكرار الزبون في اليوم نفسه
+                </th>
+                <td>
+                    {{ data_quality.pos_duplicate_same_day_warning_count }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <p>
+        لا تعني جميع التحذيرات وجود خطأ مؤكد، ولا يتم حذف
+        سجلات الزيارات المتكررة تلقائيًا.
+    </p>
+</section>

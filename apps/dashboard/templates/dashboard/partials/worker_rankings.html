@@ -1,0 +1,176 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="worker-rankings-title"
+>
+    <h2 id="worker-rankings-title">
+        ترتيب البائعين حسب المؤشرات
+    </h2>
+
+    <p>
+        كل ترتيب مستقل عن الآخر، ولا توجد درجة أداء عامة
+        أو تصنيف عشوائي للبائعين.
+    </p>
+
+    {% if top_sales_workers %}
+        <section aria-labelledby="top-sales-workers-title">
+            <h3 id="top-sales-workers-title">
+                أعلى البائعين مبيعًا
+            </h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">البائع</th>
+                        <th scope="col">إجمالي المبيعات</th>
+                        <th scope="col">العمليات الإيجابية</th>
+                        <th scope="col">متوسط البيع الإيجابي</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for worker in top_sales_workers %}
+                        <tr>
+                            <th scope="row">
+                                {{ worker.worker_name }}
+                            </th>
+                            <td>
+                                {{ worker.total_sales|floatformat:2 }}
+                                دج
+                            </td>
+                            <td>
+                                {{ worker.positive_sale_record_count }}
+                            </td>
+                            <td>
+                                {% if worker.average_positive_sale_value == None %}
+                                    لا توجد بيانات
+                                {% else %}
+                                    {{ worker.average_positive_sale_value|floatformat:2 }}
+                                    دج
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+
+    {% if lowest_sales_workers %}
+        <section aria-labelledby="lowest-sales-workers-title">
+            <h3 id="lowest-sales-workers-title">
+                أقل البائعين مبيعًا ضمن المقاس أداؤهم
+            </h3>
+
+            <p>
+                لا تشمل هذه القائمة البائعين الذين لا توجد لهم
+                بيانات مبيعات قابلة للقياس خلال الفترة.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">البائع</th>
+                        <th scope="col">إجمالي المبيعات</th>
+                        <th scope="col">سجلات المبيعات</th>
+                        <th scope="col">السجلات الصفرية</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for worker in lowest_sales_workers %}
+                        <tr>
+                            <th scope="row">
+                                {{ worker.worker_name }}
+                            </th>
+                            <td>
+                                {{ worker.total_sales|floatformat:2 }}
+                                دج
+                            </td>
+                            <td>{{ worker.sale_record_count }}</td>
+                            <td>{{ worker.zero_total_record_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+
+    {% if highest_non_visit_workers %}
+        <section aria-labelledby="highest-non-visit-title">
+            <h3 id="highest-non-visit-title">
+                أعلى نسب عدم الزيارة
+            </h3>
+
+            <p>
+                يشمل الترتيب البائعين الذين لديهم ثلاثة سجلات
+                زيارة على الأقل خلال الفترة.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">البائع</th>
+                        <th scope="col">نسبة عدم الزيارة</th>
+                        <th scope="col">عدم الزيارة</th>
+                        <th scope="col">إجمالي السجلات</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for worker in highest_non_visit_workers %}
+                        <tr>
+                            <th scope="row">
+                                {{ worker.worker_name }}
+                            </th>
+                            <td>
+                                {% if worker.non_visit_percentage == None %}
+                                    لا توجد بيانات
+                                {% else %}
+                                    {{ worker.non_visit_percentage|floatformat:1 }}%
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ worker.not_visited_record_count }}
+                            </td>
+                            <td>{{ worker.pos_record_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+
+    {% if most_not_sold_workers %}
+        <section aria-labelledby="most-not-sold-title">
+            <h3 id="most-not-sold-title">
+                البائعون ذوو أكبر عدد من المنتجات غير المباعة
+            </h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th scope="col">البائع</th>
+                        <th scope="col">المنتجات غير المباعة</th>
+                        <th scope="col">المنتجات المباعة</th>
+                        <th scope="col">إجمالي المنتجات المقاسة</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for worker in most_not_sold_workers %}
+                        <tr>
+                            <th scope="row">
+                                {{ worker.worker_name }}
+                            </th>
+                            <td>
+                                {{ worker.not_sold_product_count }}
+                            </td>
+                            <td>{{ worker.sold_product_count }}</td>
+                            <td>{{ worker.brand_product_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endif %}
+</section>

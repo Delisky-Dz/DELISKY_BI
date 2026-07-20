@@ -1,0 +1,100 @@
+﻿<section
+    class="dashboard-section"
+    aria-labelledby="coverage-summary-title"
+>
+    <h2 id="coverage-summary-title">
+        التغطية الزمنية والاستبعادات
+    </h2>
+
+    <p>
+        يوضح هذا القسم عدد الصفوف المتاحة، والصفوف الداخلة
+        في التحليل، والصفوف المستبعدة بسبب الفترة المحددة.
+    </p>
+
+    <div class="metric-grid">
+        <article class="metric-card">
+            <h3>إجمالي الاستبعادات الزمنية</h3>
+            <p>{{ coverage.period_excluded_row_count }}</p>
+        </article>
+
+        <article class="metric-card">
+            <h3>وجود تداخلات جزئية مستبعدة</h3>
+            <p>
+                {% if coverage.has_partial_period_exclusions %}
+                    نعم
+                {% else %}
+                    لا
+                {% endif %}
+            </p>
+        </article>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th scope="col">مصدر البيانات</th>
+                <th scope="col">الصفوف المتاحة</th>
+                <th scope="col">الصفوف المشمولة</th>
+                <th scope="col">خارج الفترة</th>
+                <th scope="col">تداخل جزئي</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr>
+                <th scope="row">المبيعات</th>
+                <td>{{ coverage.sales_source_row_count }}</td>
+                <td>{{ coverage.sales_included_row_count }}</td>
+                <td>{{ coverage.sales_outside_period_count }}</td>
+                <td>—</td>
+            </tr>
+
+            <tr>
+                <th scope="row">الزيارات</th>
+                <td>{{ coverage.pos_source_row_count }}</td>
+                <td>{{ coverage.pos_included_row_count }}</td>
+                <td>{{ coverage.pos_outside_period_count }}</td>
+                <td>—</td>
+            </tr>
+
+            <tr>
+                <th scope="row">المنتجات المباعة</th>
+                <td>{{ coverage.items_source_row_count }}</td>
+                <td>{{ coverage.items_included_row_count }}</td>
+                <td>{{ coverage.items_outside_period_count }}</td>
+                <td>{{ coverage.items_partial_overlap_count }}</td>
+            </tr>
+
+            <tr>
+                <th scope="row">الرصيد الافتتاحي</th>
+                <td>{{ coverage.opening_stock_source_row_count }}</td>
+                <td>{{ coverage.opening_stock_included_row_count }}</td>
+                <td>{{ coverage.opening_stock_outside_period_count }}</td>
+                <td>{{ coverage.opening_stock_partial_overlap_count }}</td>
+            </tr>
+
+            <tr>
+                <th scope="row">التحميل</th>
+                <td>{{ coverage.chargement_source_row_count }}</td>
+                <td>{{ coverage.chargement_included_row_count }}</td>
+                <td>{{ coverage.chargement_outside_period_count }}</td>
+                <td>{{ coverage.chargement_partial_overlap_count }}</td>
+            </tr>
+
+            <tr>
+                <th scope="row">الأدلة التشغيلية</th>
+                <td>{{ coverage.operational_source_row_count }}</td>
+                <td>{{ coverage.operational_included_row_count }}</td>
+                <td>{{ coverage.operational_outside_period_count }}</td>
+                <td>{{ coverage.operational_partial_overlap_count }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    {% if coverage.has_partial_period_exclusions %}
+        <p>
+            بعض ملفات الفترات تداخلت جزئيًا مع الفترة المطلوبة.
+            تم استبعادها بدل تقسيم الكميات افتراضيًا على الأيام.
+        </p>
+    {% endif %}
+</section>

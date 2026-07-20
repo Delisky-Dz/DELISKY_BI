@@ -765,3 +765,727 @@ class ManagerDashboardTemplateStructureTests(TestCase):
                 response,
                 template_name,
             )
+
+
+from apps.analytics.services.manager_dashboard import (
+    AnalyticalCoverageSummary,
+)
+from apps.analytics.services.worker_performance import (
+    PerformanceDataQualitySummary,
+)
+
+from .presenters import (
+    present_analytical_coverage,
+    present_data_quality,
+)
+
+
+class AnalyticalCoveragePresenterTests(SimpleTestCase):
+    def build_coverage(self):
+        return AnalyticalCoverageSummary(
+            sales_source_row_count=100,
+            sales_included_row_count=80,
+            sales_outside_period_count=20,
+
+            pos_source_row_count=60,
+            pos_included_row_count=50,
+            pos_outside_period_count=10,
+
+            items_source_row_count=70,
+            items_included_row_count=55,
+            items_outside_period_count=10,
+            items_partial_overlap_count=5,
+
+            opening_stock_source_row_count=20,
+            opening_stock_included_row_count=15,
+            opening_stock_outside_period_count=3,
+            opening_stock_partial_overlap_count=2,
+
+            chargement_source_row_count=40,
+            chargement_included_row_count=32,
+            chargement_outside_period_count=5,
+            chargement_partial_overlap_count=3,
+
+            operational_source_row_count=30,
+            operational_included_row_count=24,
+            operational_outside_period_count=4,
+            operational_partial_overlap_count=2,
+        )
+
+    def test_coverage_values_are_preserved(self):
+        presentation = present_analytical_coverage(
+            self.build_coverage()
+        )
+
+        self.assertEqual(
+            presentation.sales_source_row_count,
+            100,
+        )
+        self.assertEqual(
+            presentation.sales_included_row_count,
+            80,
+        )
+        self.assertEqual(
+            presentation.items_partial_overlap_count,
+            5,
+        )
+        self.assertEqual(
+            presentation.chargement_included_row_count,
+            32,
+        )
+
+    def test_period_exclusion_total_is_presented(self):
+        presentation = present_analytical_coverage(
+            self.build_coverage()
+        )
+
+        self.assertEqual(
+            presentation.period_excluded_row_count,
+            64,
+        )
+        self.assertTrue(
+            presentation.has_partial_period_exclusions
+        )
+
+
+class DataQualityPresenterTests(SimpleTestCase):
+    def build_data_quality(self):
+        return PerformanceDataQualitySummary(
+            sales_attribution_issue_count=2,
+            pos_attribution_issue_count=3,
+            items_attribution_issue_count=4,
+            opening_stock_attribution_issue_count=1,
+            chargement_attribution_issue_count=2,
+            operational_attribution_issue_count=1,
+            pos_numeric_message_warning_count=5,
+            pos_duplicate_same_day_warning_count=6,
+        )
+
+    def test_data_quality_values_are_preserved(self):
+        presentation = present_data_quality(
+            self.build_data_quality()
+        )
+
+        self.assertEqual(
+            presentation.sales_attribution_issue_count,
+            2,
+        )
+        self.assertEqual(
+            presentation.pos_attribution_issue_count,
+            3,
+        )
+        self.assertEqual(
+            presentation.pos_numeric_message_warning_count,
+            5,
+        )
+        self.assertEqual(
+            presentation.pos_duplicate_same_day_warning_count,
+            6,
+        )
+
+    def test_data_quality_totals_are_presented(self):
+        presentation = present_data_quality(
+            self.build_data_quality()
+        )
+
+        self.assertEqual(
+            presentation.attribution_issue_count,
+            13,
+        )
+        self.assertEqual(
+            presentation.warning_count,
+            11,
+        )
+        self.assertEqual(
+            presentation.total_issue_and_warning_count,
+            24,
+        )
+
+
+class ManagerDashboardCoverageAndQualityViewTests(
+    TestCase
+):
+    @classmethod
+    def setUpTestData(cls):
+        call_command(
+            "seed_roles",
+            stdout=StringIO(),
+        )
+
+        User = get_user_model()
+
+        cls.manager = User.objects.create_user(
+            username="dashboard_quality_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.manager.groups.add(
+            Group.objects.get(name="Manager")
+        )
+
+    def setUp(self):
+        self.client.force_login(self.manager)
+
+    def dashboard_url(self):
+        return reverse(
+            "dashboard:manager_dashboard"
+        )
+
+    @patch(
+        "apps.dashboard.views.present_data_quality"
+    )
+    @patch(
+        "apps.dashboard.views."
+        "present_analytical_coverage"
+    )
+    @patch(
+        "apps.dashboard.views."
+        "present_manager_dashboard_summary"
+    )
+    @patch(
+        "apps.dashboard.views.build_manager_dashboard"
+    )
+    def test_coverage_and_quality_are_added_to_context(
+        self,
+        mocked_build_dashboard,
+        mocked_present_summary,
+        mocked_present_coverage,
+        mocked_present_data_quality,
+    ):
+        raw_summary = object()
+        raw_coverage = object()
+        raw_data_quality = object()
+
+        summary_presentation = object()
+        coverage_presentation = object()
+        data_quality_presentation = object()
+
+        mocked_build_dashboard.return_value = (
+            SimpleNamespace(
+                summary=raw_summary,
+                coverage=raw_coverage,
+                data_quality=raw_data_quality,
+            )
+        )
+
+        mocked_present_summary.return_value = (
+            summary_presentation
+        )
+        mocked_present_coverage.return_value = (
+            coverage_presentation
+        )
+        mocked_present_data_quality.return_value = (
+            data_quality_presentation
+        )
+
+        response = self.client.get(
+            self.dashboard_url()
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        mocked_present_coverage.assert_called_once_with(
+            raw_coverage
+        )
+        mocked_present_data_quality.assert_called_once_with(
+            raw_data_quality
+        )
+
+        self.assertIs(
+            response.context["coverage"],
+            coverage_presentation,
+        )
+        self.assertIs(
+            response.context["data_quality"],
+            data_quality_presentation,
+        )
+
+    @patch(
+        "apps.dashboard.views.present_data_quality"
+    )
+    @patch(
+        "apps.dashboard.views."
+        "present_analytical_coverage"
+    )
+    @patch(
+        "apps.dashboard.views."
+        "present_manager_dashboard_summary"
+    )
+    @patch(
+        "apps.dashboard.views.build_manager_dashboard"
+    )
+    def test_coverage_and_quality_partials_are_rendered(
+        self,
+        mocked_build_dashboard,
+        mocked_present_summary,
+        mocked_present_coverage,
+        mocked_present_data_quality,
+    ):
+        mocked_build_dashboard.return_value = (
+            SimpleNamespace(
+                summary=object(),
+                coverage=object(),
+                data_quality=object(),
+            )
+        )
+
+        mocked_present_summary.return_value = None
+
+        mocked_present_coverage.return_value = (
+            SimpleNamespace(
+                sales_source_row_count=100,
+                sales_included_row_count=80,
+                sales_outside_period_count=20,
+                pos_source_row_count=60,
+                pos_included_row_count=50,
+                pos_outside_period_count=10,
+                items_source_row_count=70,
+                items_included_row_count=55,
+                items_outside_period_count=10,
+                items_partial_overlap_count=5,
+                opening_stock_source_row_count=20,
+                opening_stock_included_row_count=15,
+                opening_stock_outside_period_count=3,
+                opening_stock_partial_overlap_count=2,
+                chargement_source_row_count=40,
+                chargement_included_row_count=32,
+                chargement_outside_period_count=5,
+                chargement_partial_overlap_count=3,
+                operational_source_row_count=30,
+                operational_included_row_count=24,
+                operational_outside_period_count=4,
+                operational_partial_overlap_count=2,
+                period_excluded_row_count=64,
+                has_partial_period_exclusions=True,
+            )
+        )
+
+        mocked_present_data_quality.return_value = (
+            SimpleNamespace(
+                sales_attribution_issue_count=2,
+                pos_attribution_issue_count=3,
+                items_attribution_issue_count=4,
+                opening_stock_attribution_issue_count=1,
+                chargement_attribution_issue_count=2,
+                operational_attribution_issue_count=1,
+                pos_numeric_message_warning_count=5,
+                pos_duplicate_same_day_warning_count=6,
+                attribution_issue_count=13,
+                warning_count=11,
+                total_issue_and_warning_count=24,
+            )
+        )
+
+        response = self.client.get(
+            self.dashboard_url()
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertTemplateUsed(
+            response,
+            "dashboard/partials/coverage_summary.html",
+        )
+        self.assertTemplateUsed(
+            response,
+            "dashboard/partials/data_quality_summary.html",
+        )
+
+        self.assertContains(
+            response,
+            "التغطية الزمنية والاستبعادات",
+        )
+        self.assertContains(
+            response,
+            "جودة البيانات والتحذيرات",
+        )
+        self.assertContains(
+            response,
+            "64",
+        )
+        self.assertContains(
+            response,
+            "لا يتم حذف",
+        )
+
+
+from apps.analytics.services.worker_performance import (
+    WorkerPerformanceKpi,
+)
+
+from .presenters import present_worker_ranking
+
+
+class WorkerRankingPresenterTests(SimpleTestCase):
+    def build_kpi(self, **overrides):
+        values = {
+            "worker_id": 7,
+            "total_sales": Decimal("1500.00"),
+            "sale_record_count": 5,
+            "positive_sale_record_count": 4,
+            "zero_total_record_count": 1,
+            "pos_record_count": 5,
+            "visited_record_count": 3,
+            "not_visited_record_count": 2,
+            "unique_client_day_count": 4,
+            "distinct_brand_client_count": 4,
+            "brand_product_count": 6,
+            "sold_product_count": 4,
+            "not_sold_product_count": 2,
+            "negative_gap_product_count": 1,
+            "sold_without_supply_context_count": 1,
+        }
+        values.update(overrides)
+
+        return WorkerPerformanceKpi(**values)
+
+    def test_worker_name_and_metrics_are_presented(self):
+        worker = SimpleNamespace(
+            first_name="Ahmed",
+            last_name="Benali",
+            employee_code="EMP-007",
+        )
+
+        presentation = present_worker_ranking(
+            self.build_kpi(),
+            {7: worker},
+        )
+
+        self.assertEqual(
+            presentation.worker_name,
+            "Ahmed Benali",
+        )
+        self.assertEqual(
+            presentation.employee_code,
+            "EMP-007",
+        )
+        self.assertEqual(
+            presentation.average_positive_sale_value,
+            Decimal("375.00"),
+        )
+        self.assertEqual(
+            presentation.visit_success_percentage,
+            Decimal("60"),
+        )
+        self.assertEqual(
+            presentation.non_visit_percentage,
+            Decimal("40"),
+        )
+        self.assertEqual(
+            presentation.zero_total_sale_percentage,
+            Decimal("20"),
+        )
+
+    def test_employee_code_is_used_when_name_is_empty(self):
+        worker = SimpleNamespace(
+            first_name="",
+            last_name="",
+            employee_code="EMP-007",
+        )
+
+        presentation = present_worker_ranking(
+            self.build_kpi(),
+            {7: worker},
+        )
+
+        self.assertEqual(
+            presentation.worker_name,
+            "EMP-007",
+        )
+
+    def test_missing_worker_has_safe_fallback_name(self):
+        presentation = present_worker_ranking(
+            self.build_kpi(),
+            {},
+        )
+
+        self.assertEqual(
+            presentation.worker_name,
+            "البائع رقم 7",
+        )
+        self.assertIsNone(
+            presentation.employee_code
+        )
+
+    def test_missing_measurements_remain_none(self):
+        presentation = present_worker_ranking(
+            self.build_kpi(
+                total_sales=Decimal("0"),
+                sale_record_count=0,
+                positive_sale_record_count=0,
+                zero_total_record_count=0,
+                pos_record_count=0,
+                visited_record_count=0,
+                not_visited_record_count=0,
+            ),
+            {},
+        )
+
+        self.assertFalse(
+            presentation.has_sales_measurement
+        )
+        self.assertFalse(
+            presentation.has_visit_measurement
+        )
+        self.assertIsNone(
+            presentation.average_positive_sale_value
+        )
+        self.assertIsNone(
+            presentation.visit_success_percentage
+        )
+        self.assertIsNone(
+            presentation.non_visit_percentage
+        )
+        self.assertIsNone(
+            presentation.zero_total_sale_percentage
+        )
+
+
+from unittest.mock import Mock
+
+
+class ManagerDashboardWorkerRankingViewTests(
+    TestCase
+):
+    @classmethod
+    def setUpTestData(cls):
+        call_command(
+            "seed_roles",
+            stdout=StringIO(),
+        )
+
+        User = get_user_model()
+
+        cls.manager = User.objects.create_user(
+            username="dashboard_ranking_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.manager.groups.add(
+            Group.objects.get(name="Manager")
+        )
+
+    def setUp(self):
+        self.client.force_login(self.manager)
+
+    def dashboard_url(self):
+        return reverse(
+            "dashboard:manager_dashboard"
+        )
+
+    def build_kpi(
+        self,
+        *,
+        worker_id,
+        total_sales,
+        not_sold_product_count,
+        not_visited_record_count,
+    ):
+        return WorkerPerformanceKpi(
+            worker_id=worker_id,
+            total_sales=Decimal(total_sales),
+            sale_record_count=5,
+            positive_sale_record_count=4,
+            zero_total_record_count=1,
+            pos_record_count=5,
+            visited_record_count=(
+                5 - not_visited_record_count
+            ),
+            not_visited_record_count=(
+                not_visited_record_count
+            ),
+            unique_client_day_count=5,
+            distinct_brand_client_count=4,
+            brand_product_count=6,
+            sold_product_count=(
+                6 - not_sold_product_count
+            ),
+            not_sold_product_count=(
+                not_sold_product_count
+            ),
+            negative_gap_product_count=1,
+            sold_without_supply_context_count=0,
+        )
+
+    @patch(
+        "apps.dashboard.views.Worker.objects.filter"
+    )
+    @patch(
+        "apps.dashboard.views.build_manager_dashboard"
+    )
+    def test_rankings_use_one_worker_lookup_and_render(
+        self,
+        mocked_build_dashboard,
+        mocked_worker_filter,
+    ):
+        first_kpi = self.build_kpi(
+            worker_id=7,
+            total_sales="1500.00",
+            not_sold_product_count=1,
+            not_visited_record_count=1,
+        )
+        second_kpi = self.build_kpi(
+            worker_id=8,
+            total_sales="700.00",
+            not_sold_product_count=4,
+            not_visited_record_count=3,
+        )
+
+        top_sales_method = Mock(
+            return_value=(first_kpi,)
+        )
+        lowest_sales_method = Mock(
+            return_value=(second_kpi,)
+        )
+        highest_non_visit_method = Mock(
+            return_value=(second_kpi,)
+        )
+        most_not_sold_method = Mock(
+            return_value=(second_kpi,)
+        )
+
+        mocked_build_dashboard.return_value = (
+            SimpleNamespace(
+                summary=None,
+                coverage=None,
+                data_quality=None,
+                top_sales_workers=top_sales_method,
+                lowest_sales_workers=(
+                    lowest_sales_method
+                ),
+                highest_non_visit_rate_workers=(
+                    highest_non_visit_method
+                ),
+                worker_performance=SimpleNamespace(
+                    most_not_sold_products_workers=(
+                        most_not_sold_method
+                    )
+                ),
+            )
+        )
+
+        mocked_worker_filter.return_value = [
+            SimpleNamespace(
+                pk=7,
+                first_name="Ahmed",
+                last_name="Benali",
+                employee_code="EMP-007",
+            ),
+            SimpleNamespace(
+                pk=8,
+                first_name="Karim",
+                last_name="Mansouri",
+                employee_code="EMP-008",
+            ),
+        ]
+
+        response = self.client.get(
+            self.dashboard_url()
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        mocked_worker_filter.assert_called_once_with(
+            pk__in={7, 8},
+        )
+
+        top_sales_method.assert_called_once_with(
+            limit=10,
+        )
+        lowest_sales_method.assert_called_once_with(
+            limit=10,
+        )
+        highest_non_visit_method.assert_called_once_with(
+            limit=10,
+            minimum_pos_records=3,
+        )
+        most_not_sold_method.assert_called_once_with(
+            limit=10,
+        )
+
+        self.assertEqual(
+            response.context[
+                "top_sales_workers"
+            ][0].worker_name,
+            "Ahmed Benali",
+        )
+        self.assertEqual(
+            response.context[
+                "lowest_sales_workers"
+            ][0].worker_name,
+            "Karim Mansouri",
+        )
+
+        self.assertTemplateUsed(
+            response,
+            "dashboard/partials/worker_rankings.html",
+        )
+        self.assertContains(
+            response,
+            "أعلى البائعين مبيعًا",
+        )
+        self.assertContains(
+            response,
+            "أقل البائعين مبيعًا ضمن المقاس أداؤهم",
+        )
+        self.assertContains(
+            response,
+            "Ahmed Benali",
+        )
+        self.assertContains(
+            response,
+            "Karim Mansouri",
+        )
+
+    @patch(
+        "apps.dashboard.views.Worker.objects.filter"
+    )
+    @patch(
+        "apps.dashboard.views.build_manager_dashboard"
+    )
+    def test_empty_rankings_do_not_query_workers(
+        self,
+        mocked_build_dashboard,
+        mocked_worker_filter,
+    ):
+        mocked_build_dashboard.return_value = (
+            SimpleNamespace(
+                summary=None,
+                coverage=None,
+                data_quality=None,
+                top_sales_workers=Mock(
+                    return_value=()
+                ),
+                lowest_sales_workers=Mock(
+                    return_value=()
+                ),
+                highest_non_visit_rate_workers=Mock(
+                    return_value=()
+                ),
+                worker_performance=SimpleNamespace(
+                    most_not_sold_products_workers=Mock(
+                        return_value=()
+                    )
+                ),
+            )
+        )
+
+        response = self.client.get(
+            self.dashboard_url()
+        )
+
+        self.assertEqual(response.status_code, 200)
+        mocked_worker_filter.assert_not_called()
+
+        self.assertEqual(
+            response.context["top_sales_workers"],
+            (),
+        )
+        self.assertEqual(
+            response.context["lowest_sales_workers"],
+            (),
+        )
+        self.assertTemplateNotUsed(
+            response,
+            "dashboard/partials/worker_rankings.html",
+        )
