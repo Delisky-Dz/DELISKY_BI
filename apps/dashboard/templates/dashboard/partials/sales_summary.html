@@ -33,7 +33,7 @@
             <h3>متوسط البيع الإيجابي</h3>
 
             {% if summary.average_positive_sale_value == None %}
-                <p>لا توجد بيانات كافية.</p>
+                <p class="metric-empty">لا توجد بيانات كافية</p>
             {% else %}
                 <p>
                     {{ summary.average_positive_sale_value|floatformat:2 }}
@@ -43,3 +43,4 @@
         </article>
     </div>
 </section>
+

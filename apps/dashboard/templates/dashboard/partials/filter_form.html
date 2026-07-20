@@ -2,39 +2,144 @@
     class="dashboard-section dashboard-filters"
     aria-labelledby="dashboard-filters-title"
 >
-    <h2 id="dashboard-filters-title">
-        الفترة والعلامة
-    </h2>
+    <header class="dashboard-filters__header">
+        <div>
+            <p class="section-eyebrow">
+                أدوات التصفية
+            </p>
 
-    <form method="get">
-        {{ filter_form.non_field_errors }}
+            <h2 id="dashboard-filters-title">
+                الفترة والعلامة التجارية
+            </h2>
 
+            <p class="dashboard-filters__description">
+                حدد الفترة والعلامة لعرض المؤشرات المرتبطة
+                بالبيانات المتوفرة فقط.
+            </p>
+        </div>
+
+        <span
+            class="dashboard-filters__icon"
+            aria-hidden="true"
+        >
+            ⌕
+        </span>
+    </header>
+
+    {% if filter_form.non_field_errors %}
+        <div
+            class="form-alert form-alert--error"
+            role="alert"
+        >
+            {{ filter_form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <form
+        method="get"
+        class="dashboard-filter-form"
+        novalidate
+    >
         <div class="filter-field">
-            {{ filter_form.period_start.label_tag }}
+            <div class="filter-field__header">
+                {{ filter_form.period_start.label_tag }}
+
+                <span class="filter-field__hint">
+                    اختياري
+                </span>
+            </div>
+
             {{ filter_form.period_start }}
             {{ filter_form.period_start.errors }}
         </div>
 
         <div class="filter-field">
-            {{ filter_form.period_end.label_tag }}
+            <div class="filter-field__header">
+                {{ filter_form.period_end.label_tag }}
+
+                <span class="filter-field__hint">
+                    اختياري
+                </span>
+            </div>
+
             {{ filter_form.period_end }}
             {{ filter_form.period_end.errors }}
         </div>
 
         <div class="filter-field">
-            {{ filter_form.brand.label_tag }}
+            <div class="filter-field__header">
+                {{ filter_form.brand.label_tag }}
+
+                <span class="filter-field__hint">
+                    اختياري
+                </span>
+            </div>
+
             {{ filter_form.brand }}
             {{ filter_form.brand.errors }}
         </div>
 
         <div class="filter-actions">
-            <button type="submit">
+            <button
+                class="button button--primary"
+                type="submit"
+            >
+                <span aria-hidden="true">✓</span>
                 تطبيق الفلتر
             </button>
 
-            <a href="{% url 'dashboard:manager_dashboard' %}">
+            <a
+                class="button button--secondary"
+                href="{% url 'dashboard:manager_dashboard' %}"
+            >
+                <span aria-hidden="true">↻</span>
                 إعادة الضبط
             </a>
         </div>
     </form>
+
+    {% if not filter_form.errors %}
+        {% if filter_form.period_start.value or filter_form.period_end.value or filter_form.brand.value %}
+            <div
+                class="active-filter-summary"
+                aria-label="الفلاتر المطبقة حاليًا"
+            >
+                <span class="active-filter-summary__title">
+                    الفلتر الحالي:
+                </span>
+
+                <div class="active-filter-summary__items">
+                    <span class="filter-chip">
+                        <strong>من:</strong>
+
+                        {% if filter_form.cleaned_data.period_start %}
+                            {{ filter_form.cleaned_data.period_start|date:"Y-m-d" }}
+                        {% else %}
+                            غير محدد
+                        {% endif %}
+                    </span>
+
+                    <span class="filter-chip">
+                        <strong>إلى:</strong>
+
+                        {% if filter_form.cleaned_data.period_end %}
+                            {{ filter_form.cleaned_data.period_end|date:"Y-m-d" }}
+                        {% else %}
+                            غير محدد
+                        {% endif %}
+                    </span>
+
+                    <span class="filter-chip">
+                        <strong>العلامة:</strong>
+
+                        {% if filter_form.cleaned_data.brand %}
+                            {{ filter_form.cleaned_data.brand }}
+                        {% else %}
+                            جميع العلامات
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
 </section>

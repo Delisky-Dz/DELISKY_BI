@@ -26,7 +26,7 @@
             <h3>نسبة نجاح الزيارة</h3>
 
             {% if summary.visit_success_percentage == None %}
-                <p>لا توجد بيانات كافية.</p>
+                <p class="metric-empty">لا توجد بيانات كافية</p>
             {% else %}
                 <p>{{ summary.visit_success_percentage|floatformat:1 }}%</p>
             {% endif %}
@@ -36,7 +36,7 @@
             <h3>نسبة عدم الزيارة</h3>
 
             {% if summary.non_visit_percentage == None %}
-                <p>لا توجد بيانات كافية.</p>
+                <p class="metric-empty">لا توجد بيانات كافية</p>
             {% else %}
                 <p>{{ summary.non_visit_percentage|floatformat:1 }}%</p>
             {% endif %}
@@ -48,3 +48,4 @@
         </article>
     </div>
 </section>
+

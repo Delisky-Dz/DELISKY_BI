@@ -1,28 +1,264 @@
-﻿<!doctype html>
+﻿{% load static %}
+
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="utf-8">
+
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1"
     >
+
+    <meta
+        name="description"
+        content="لوحة ذكاء الأعمال الخاصة بشركة DELISKY."
+    >
+
     <title>
         {% block title %}
             DELISKY BI
         {% endblock %}
     </title>
-</head>
-<body>
-    <header>
-        <h1>لوحة المدير</h1>
-        <p>
-            عرض مؤشرات المبيعات والزيارات والمنتجات
-            وحالة الشاحنات خلال الفترة المحددة.
-        </p>
-    </header>
 
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/dashboard.css' %}"
+    >
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+    <a class="skip-link" href="#main-content">
+        الانتقال إلى المحتوى
+    </a>
+
+    <div class="app-shell">
+        <aside
+            class="sidebar"
+            id="dashboard-sidebar"
+            aria-label="التنقل الرئيسي"
+        >
+            <div class="sidebar__header">
+                <a
+                    class="brand"
+                    href="{% url 'dashboard:manager_dashboard' %}"
+                >
+                    <span
+                        class="brand__mark"
+                        aria-hidden="true"
+                    >
+                        DB
+                    </span>
+
+                    <span class="brand__text">
+                        <span class="brand__name">
+                            DELISKY BI
+                        </span>
+
+                        <span class="brand__description">
+                            نظام ذكاء الأعمال
+                        </span>
+                    </span>
+                </a>
+
+                <button
+                    class="sidebar__close"
+                    type="button"
+                    data-sidebar-close
+                    aria-label="إغلاق القائمة"
+                >
+                    ×
+                </button>
+            </div>
+
+            <nav class="sidebar__nav">
+                <p class="sidebar__section-title">
+                    لوحة المدير
+                </p>
+
+                <ul class="sidebar__list">
+                    <li>
+                        <a
+                            class="sidebar__link sidebar__link--active"
+                            href="{% url 'dashboard:manager_dashboard' %}"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                01
+                            </span>
+
+                            <span>نظرة عامة</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a
+                            class="sidebar__link"
+                            href="#worker-rankings-title"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                02
+                            </span>
+
+                            <span>ترتيب البائعين</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a
+                            class="sidebar__link"
+                            href="#worker-cards-title"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                03
+                            </span>
+
+                            <span>بطاقات البائعين</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a
+                            class="sidebar__link"
+                            href="#coverage-summary-title"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                04
+                            </span>
+
+                            <span>التغطية الزمنية</span>
+                        </a>
+                    </li>
+
+                    <li>
+                        <a
+                            class="sidebar__link"
+                            href="#data-quality-summary-title"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                05
+                            </span>
+
+                            <span>جودة البيانات</span>
+                        </a>
+                    </li>
+
+                    {% if request.user.is_superuser %}
+                        <li>
+                            <a
+                                class="sidebar__link"
+                                href="{% url 'admin:index' %}"
+                            >
+                                <span
+                                    class="sidebar__icon"
+                                    aria-hidden="true"
+                                >
+                                    06
+                                </span>
+
+                                <span>لوحة الإدارة</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+
+            <div class="sidebar__footer">
+                <p class="sidebar__footer-title">
+                    DELISKY
+                </p>
+
+                <p class="sidebar__footer-text">
+                    المؤشرات المعروضة تعتمد على البيانات
+                    المتوفرة ودقة الفترة المصدرية.
+                </p>
+            </div>
+        </aside>
+
+        <button
+            class="sidebar-overlay"
+            type="button"
+            data-sidebar-overlay
+            aria-label="إغلاق القائمة"
+        ></button>
+
+        <div class="main-shell">
+            <header class="topbar">
+                <div class="topbar__start">
+                    <button
+                        class="menu-button"
+                        type="button"
+                        data-sidebar-open
+                        aria-controls="dashboard-sidebar"
+                        aria-expanded="false"
+                        aria-label="فتح القائمة"
+                    >
+                        ☰
+                    </button>
+
+                    <div class="topbar__title-group">
+                        <h1 class="topbar__title">
+                            لوحة المدير
+                        </h1>
+
+                        <p class="topbar__subtitle">
+                            متابعة المبيعات والزيارات
+                            والمنتجات وحالة الشاحنات
+                        </p>
+                    </div>
+                </div>
+
+                <div class="user-panel">
+                    <span
+                        class="user-panel__avatar"
+                        aria-hidden="true"
+                    >
+                        {{ request.user.username|slice:":1"|upper }}
+                    </span>
+
+                    <span class="user-panel__details">
+                        <span class="user-panel__name">
+                            {% firstof request.user.get_full_name request.user.username %}
+                        </span>
+
+                        <span class="user-panel__role">
+                            مستخدم لوحة المدير
+                        </span>
+                    </span>
+                </div>
+            </header>
+
+            <main
+                class="content-wrapper"
+                id="main-content"
+                tabindex="-1"
+            >
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script
+        src="{% static 'dashboard/js/dashboard.js' %}"
+        defer
+    ></script>
+
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html>

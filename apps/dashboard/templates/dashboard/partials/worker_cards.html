@@ -61,7 +61,7 @@
                                 دج
                             </p>
                         {% else %}
-                            <p>لا توجد بيانات كافية.</p>
+                            <p class="metric-empty">لا توجد بيانات كافية</p>
                         {% endif %}
                     </section>
 
@@ -69,7 +69,7 @@
                         <h4>متوسط البيع الإيجابي</h4>
 
                         {% if card.metrics.average_positive_sale_value == None %}
-                            <p>لا توجد بيانات كافية.</p>
+                            <p class="metric-empty">لا توجد بيانات كافية</p>
                         {% else %}
                             <p>
                                 {{ card.metrics.average_positive_sale_value|floatformat:2 }}
@@ -82,7 +82,7 @@
                         <h4>نسبة نجاح الزيارة</h4>
 
                         {% if card.metrics.visit_success_percentage == None %}
-                            <p>لا توجد بيانات كافية.</p>
+                            <p class="metric-empty">لا توجد بيانات كافية</p>
                         {% else %}
                             <p>
                                 {{ card.metrics.visit_success_percentage|floatformat:1 }}%
@@ -94,7 +94,7 @@
                         <h4>نسبة عدم الزيارة</h4>
 
                         {% if card.metrics.non_visit_percentage == None %}
-                            <p>لا توجد بيانات كافية.</p>
+                            <p class="metric-empty">لا توجد بيانات كافية</p>
                         {% else %}
                             <p>
                                 {{ card.metrics.non_visit_percentage|floatformat:1 }}%
@@ -292,3 +292,4 @@
         {% endfor %}
     </div>
 </section>
+
