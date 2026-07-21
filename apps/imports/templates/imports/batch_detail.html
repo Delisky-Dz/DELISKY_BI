@@ -1,0 +1,319 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    مراجعة الدفعة #{{ batch.id }} | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    مراجعة دفعة الاستيراد
+{% endblock %}
+
+{% block content %}
+<div class="detail-toolbar">
+    <a
+        href="{% url 'imports:accountant_home' %}"
+        class="back-link"
+    >
+        ← العودة إلى مركز الاستيراد
+    </a>
+
+    <span
+        class="status-badge status-{{ batch.status|lower }}"
+    >
+        {{ batch.get_status_display }}
+    </span>
+</div>
+
+<section class="batch-identity panel">
+    <div>
+        <span class="section-kicker">
+            Import Batch #{{ batch.id }}
+        </span>
+
+        <h2>{{ batch.original_filename }}</h2>
+
+        <p>
+            {{ batch.brand.code }}
+            —
+            {{ batch.get_report_type_display }}
+        </p>
+    </div>
+
+    <dl class="identity-list">
+        <div>
+            <dt>تاريخ البداية</dt>
+            <dd>{{ batch.period_start|date:"Y-m-d" }}</dd>
+        </div>
+
+        <div>
+            <dt>تاريخ النهاية</dt>
+            <dd>{{ batch.period_end|date:"Y-m-d" }}</dd>
+        </div>
+
+        <div>
+            <dt>ورقة Excel</dt>
+            <dd>{{ batch.worksheet_name|default:"—" }}</dd>
+        </div>
+
+        <div>
+            <dt>تاريخ الرفع</dt>
+            <dd>{{ batch.uploaded_at|date:"Y-m-d H:i" }}</dd>
+        </div>
+    </dl>
+</section>
+
+<section class="review-metrics">
+    <article>
+        <span>إجمالي الصفوف</span>
+        <strong>{{ batch.total_rows }}</strong>
+    </article>
+
+    <article class="positive">
+        <span>صفوف مقبولة</span>
+        <strong>{{ batch.accepted_rows }}</strong>
+    </article>
+
+    <article class="warning">
+        <span>صفوف مستبعدة</span>
+        <strong>{{ batch.excluded_rows }}</strong>
+    </article>
+
+    <article class="neutral">
+        <span>مؤشرات توقف</span>
+        <strong>{{ batch.stopped_rows }}</strong>
+    </article>
+
+    <article class="warning">
+        <span>تحذيرات</span>
+        <strong>{{ batch.warning_count }}</strong>
+    </article>
+
+    <article class="danger">
+        <span>أخطاء مانعة</span>
+        <strong>{{ batch.error_count }}</strong>
+    </article>
+</section>
+
+{% if can_approve %}
+    <section class="approval-panel panel">
+        <div>
+            <span class="approval-icon">✓</span>
+
+            <div>
+                <h2>الدفعة جاهزة للاعتماد</h2>
+
+                <p>
+                    لم يكتشف النظام أخطاء مانعة.
+                    بعد الاعتماد ستصبح البيانات
+                    متاحة للتحليلات.
+                </p>
+            </div>
+        </div>
+
+        <form
+            method="post"
+            action="{% url 'imports:approve_batch' batch.id %}"
+        >
+            {% csrf_token %}
+
+            <button
+                type="submit"
+                class="approve-button"
+            >
+                اعتماد الدفعة نهائيًا
+            </button>
+        </form>
+    </section>
+{% elif batch.status == "BLOCKED" %}
+    <section class="blocked-panel panel">
+        <span class="blocked-icon">!</span>
+
+        <div>
+            <h2>لا يمكن اعتماد هذه الدفعة</h2>
+
+            <p>
+                يجب تصحيح ملف Excel ثم رفع نسخة جديدة.
+                البيانات الحالية محفوظة للمراجعة فقط.
+            </p>
+        </div>
+    </section>
+{% elif batch.status == "APPROVED" %}
+    <section class="approved-panel panel">
+        <span class="approval-icon">✓</span>
+
+        <div>
+            <h2>تم اعتماد الدفعة</h2>
+
+            <p>
+                أصبحت الصفوف المقبولة متاحة
+                لمحرك التحليلات ولوحة المدير.
+            </p>
+        </div>
+    </section>
+{% endif %}
+
+<section class="detail-grid">
+    <article class="panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    نتيجة التنظيف
+                </span>
+
+                <h2>الأخطاء والتحذيرات</h2>
+            </div>
+        </div>
+
+        {% if issue_groups %}
+            <div class="issues-list">
+                {% for group in issue_groups %}
+                    <article
+                        class="issue-card issue-{{ group.severity|lower }}"
+                    >
+                        <div>
+                            <strong>{{ group.label }}</strong>
+
+                            <code>{{ group.code }}</code>
+                        </div>
+
+                        <span>
+                            {{ group.count }} حالة
+                        </span>
+
+                        <p>
+                            الصفوف:
+                            {{ group.row_numbers|join:", " }}
+                        </p>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="compact-empty">
+                <span>✓</span>
+
+                <p>
+                    لم يتم اكتشاف أخطاء
+                    أو تحذيرات داخل الصفوف.
+                </p>
+            </div>
+        {% endif %}
+    </article>
+
+    <article class="panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    معلومات تقنية
+                </span>
+
+                <h2>بيانات المراجعة</h2>
+            </div>
+        </div>
+
+        <dl class="technical-list">
+            <div>
+                <dt>حجم الملف</dt>
+                <dd>
+                    {{ batch.file_size_bytes|filesizeformat }}
+                </dd>
+            </div>
+
+            <div>
+                <dt>رفع بواسطة</dt>
+                <dd>{{ batch.uploaded_by.username }}</dd>
+            </div>
+
+            <div>
+                <dt>مراجعة بواسطة</dt>
+                <dd>
+                    {{ batch.reviewed_by.username|default:"—" }}
+                </dd>
+            </div>
+
+            <div>
+                <dt>تاريخ المراجعة</dt>
+                <dd>
+                    {{ batch.reviewed_at|date:"Y-m-d H:i"|default:"—" }}
+                </dd>
+            </div>
+
+            <div>
+                <dt>بصمة الملف</dt>
+                <dd>
+                    <code dir="ltr">
+                        {{ batch.file_sha256|slice:":16" }}…
+                    </code>
+                </dd>
+            </div>
+
+            <div>
+                <dt>بصمة المحتوى</dt>
+                <dd>
+                    <code dir="ltr">
+                        {{ batch.content_sha256|slice:":16"|default:"—" }}…
+                    </code>
+                </dd>
+            </div>
+        </dl>
+    </article>
+</section>
+
+<section class="panel rows-panel">
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                معاينة البيانات
+            </span>
+
+            <h2>أول 100 صف محفوظ</h2>
+        </div>
+
+        <span class="record-count">
+            {{ rows|length }} صف
+        </span>
+    </div>
+
+    {% if rows %}
+        <div class="table-scroll">
+            <table class="batches-table">
+                <thead>
+                    <tr>
+                        <th>صف Excel</th>
+                        <th>الحالة</th>
+                        <th>عدد الملاحظات</th>
+                        <th>بصمة الصف</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.excel_row_number }}</td>
+
+                            <td>
+                                <span
+                                    class="row-status row-{{ row.status|lower }}"
+                                >
+                                    {{ row.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td>{{ row.issues|length }}</td>
+
+                            <td>
+                                <code dir="ltr">
+                                    {{ row.row_sha256|slice:":18" }}…
+                                </code>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state compact">
+            <p>لا توجد صفوف محفوظة داخل الدفعة.</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

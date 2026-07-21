@@ -77,3 +77,52 @@ class ImportBatchUploadForm(forms.ModelForm):
             )
 
         return source_file
+
+
+class ImportUploadForm(forms.Form):
+    source_file = forms.FileField(
+        label="\u0645\u0644\u0641 Excel",
+        help_text=(
+            "\u0627\u0644\u0635\u064a\u063a\u0629 "
+            "\u0627\u0644\u0645\u0642\u0628\u0648\u0644\u0629: "
+            "XLSX"
+        ),
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": (
+                    ".xlsx,"
+                    "application/vnd.openxmlformats-"
+                    "officedocument.spreadsheetml.sheet"
+                ),
+                "class": "accountant-file-input",
+            }
+        ),
+        error_messages={
+            "required": (
+                "\u064a\u062c\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 "
+                "\u0645\u0644\u0641 Excel \u0623\u0648\u0644\u064b\u0627."
+            ),
+            "empty": (
+                "\u0627\u0644\u0645\u0644\u0641 "
+                "\u0627\u0644\u0645\u062e\u062a\u0627\u0631 "
+                "\u0641\u0627\u0631\u063a."
+            ),
+        },
+    )
+
+    def clean_source_file(self):
+        source_file = self.cleaned_data["source_file"]
+
+        extension = Path(
+            source_file.name
+        ).suffix.casefold()
+
+        if extension != ".xlsx":
+            raise forms.ValidationError(
+                "\u064a\u0642\u0628\u0644 "
+                "\u0627\u0644\u0646\u0638\u0627\u0645 "
+                "\u0645\u0644\u0641\u0627\u062a XLSX "
+                "\u0641\u0642\u0637."
+            )
+
+        return source_file

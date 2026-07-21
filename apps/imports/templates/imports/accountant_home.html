@@ -1,40 +1,298 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
+{% extends "imports/base.html" %}
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+{% block title %}
+    مركز الاستيراد | DELISKY BI
+{% endblock %}
 
-    <title>
-        واجهة المحاسب | DELISKY BI
-    </title>
-</head>
+{% block page_title %}
+    واجهة المحاسب — مركز استيراد البيانات
+{% endblock %}
 
-<body>
-    <main>
-        <h1>
-            واجهة المحاسب
-        </h1>
+{% block content %}
+<section class="hero-panel">
+    <div>
+        <span class="section-kicker">
+            Import Control Center
+        </span>
+
+        <h2>
+            ارفع ملف Excel وسيقوم النظام
+            بفحصه قبل الاعتماد
+        </h2>
 
         <p>
-            هذه المساحة مخصصة
-            لاستيراد البيانات،
-            مراجعتها واعتمادها.
+            يتم التعرف تلقائيًا على نوع التقرير،
+            العلامة والفترة من اسم الملف،
+            ثم فحص الأعمدة وتنظيف الصفوف.
         </p>
+    </div>
+
+    <div class="hero-status">
+        <span class="live-dot"></span>
+        محرك الاستيراد جاهز
+    </div>
+</section>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <span>إجمالي الدفعات</span>
+        <strong>{{ batch_total }}</strong>
+        <small>جميع عمليات الاستيراد</small>
+    </article>
+
+    <article class="stat-card positive">
+        <span>جاهزة للاعتماد</span>
+        <strong>{{ status_counts.REVIEWED }}</strong>
+        <small>تم فحصها دون أخطاء مانعة</small>
+    </article>
+
+    <article class="stat-card danger">
+        <span>دفعات مرفوضة</span>
+        <strong>{{ status_counts.BLOCKED }}</strong>
+        <small>تحتاج تصحيح ملف المصدر</small>
+    </article>
+
+    <article class="stat-card approved">
+        <span>دفعات معتمدة</span>
+        <strong>{{ status_counts.APPROVED }}</strong>
+        <small>متاحة لمحرك التحليلات</small>
+    </article>
+</section>
+
+<div class="accountant-grid">
+    <section class="panel upload-panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    خطوة 01
+                </span>
+
+                <h2>رفع ملف جديد</h2>
+            </div>
+
+            <span class="secure-pill">
+                فحص آمن
+            </span>
+        </div>
 
         <form
             method="post"
-            action="{% url 'accounts:logout' %}"
+            enctype="multipart/form-data"
+            class="upload-form"
+            novalidate
         >
             {% csrf_token %}
 
-            <button type="submit">
-                تسجيل الخروج
-            </button>
+            {% if upload_form.non_field_errors %}
+                <div class="form-alert error">
+                    {% for error in upload_form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <label
+                class="drop-zone"
+                for="{{ upload_form.source_file.id_for_label }}"
+            >
+                {{ upload_form.source_file }}
+
+                <span class="drop-icon">⇧</span>
+
+                <strong>
+                    اسحب ملف Excel هنا
+                    أو اضغط للاختيار
+                </strong>
+
+                <small id="selected-file-name">
+                    لم يتم اختيار أي ملف
+                </small>
+            </label>
+
+            {% if upload_form.source_file.errors %}
+                <div class="field-errors">
+                    {% for error in upload_form.source_file.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="upload-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    فحص الملف وإنشاء المراجعة
+                </button>
+
+                <span>
+                    لا يتم اعتماد أي بيانات
+                    قبل ظهور نتيجة المراجعة.
+                </span>
+            </div>
         </form>
-    </main>
-</body>
-</html>
+
+        {% if service_error_details %}
+            <div class="preflight-errors">
+                <h3>تفاصيل أخطاء الفحص</h3>
+
+                {% for issue in service_error_details %}
+                    <article>
+                        <strong>{{ issue.message }}</strong>
+
+                        <span>
+                            الرمز التقني:
+                            {{ issue.code }}
+                        </span>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+
+    <aside class="panel naming-panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    دليل سريع
+                </span>
+
+                <h2>صيغة اسم الملف</h2>
+            </div>
+        </div>
+
+        <div class="filename-example">
+            <span>تقارير الفترات</span>
+
+            <code dir="ltr">
+                Sales_BIFA_2026-07-01_2026-07-07.xlsx
+            </code>
+        </div>
+
+        <div class="filename-example">
+            <span>المخزون الافتتاحي</span>
+
+            <code dir="ltr">
+                OpeningStock_BIFA_2026-07-01.xlsx
+            </code>
+        </div>
+
+        <ul class="rules-list">
+            <li>
+                لا تغيّر أسماء الأعمدة المعتمدة.
+            </li>
+
+            <li>
+                يجب أن يحتوي الملف على ورقة واحدة.
+            </li>
+
+            <li>
+                يقبل النظام ملفات XLSX فقط.
+            </li>
+
+            <li>
+                العلامة والفترة تؤخذان من اسم الملف.
+            </li>
+        </ul>
+    </aside>
+</div>
+
+<section
+    class="panel recent-panel"
+    id="recent-batches"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                سجل العمليات
+            </span>
+
+            <h2>آخر دفعات الاستيراد</h2>
+        </div>
+
+        <span class="record-count">
+            آخر {{ recent_batches|length }} دفعة
+        </span>
+    </div>
+
+    {% if recent_batches %}
+        <div class="table-scroll">
+            <table class="batches-table">
+                <thead>
+                    <tr>
+                        <th>الملف</th>
+                        <th>العلامة</th>
+                        <th>نوع التقرير</th>
+                        <th>الفترة</th>
+                        <th>الصفوف</th>
+                        <th>الحالة</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for batch in recent_batches %}
+                        <tr>
+                            <td>
+                                <strong>
+                                    {{ batch.original_filename }}
+                                </strong>
+
+                                <small>
+                                    {{ batch.uploaded_at|date:"Y-m-d H:i" }}
+                                </small>
+                            </td>
+
+                            <td>{{ batch.brand.code }}</td>
+
+                            <td>
+                                {{ batch.get_report_type_display }}
+                            </td>
+
+                            <td dir="ltr">
+                                {{ batch.period_start|date:"Y-m-d" }}
+                                —
+                                {{ batch.period_end|date:"Y-m-d" }}
+                            </td>
+
+                            <td>
+                                {{ batch.accepted_rows }}
+                                /
+                                {{ batch.total_rows }}
+                            </td>
+
+                            <td>
+                                <span
+                                    class="status-badge status-{{ batch.status|lower }}"
+                                >
+                                    {{ batch.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <a
+                                    href="{% url 'imports:batch_detail' batch.id %}"
+                                    class="table-link"
+                                >
+                                    فتح المراجعة
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <span>▤</span>
+
+            <h3>لا توجد دفعات استيراد بعد</h3>
+
+            <p>
+                أول ملف ترفعه سيظهر هنا
+                مع نتيجة الفحص وحالته.
+            </p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
