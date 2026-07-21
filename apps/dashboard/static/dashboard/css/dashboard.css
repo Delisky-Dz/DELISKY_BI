@@ -3384,3 +3384,313 @@ tbody tr:hover {
         flex-direction: column;
     }
 }
+
+
+/* Executive sales timeline */
+
+.executive-panel--timeline {
+    grid-column: 1 / -1;
+}
+
+.sales-timeline__subtitle {
+    max-width: 620px;
+    margin: 5px 0 0;
+    color: rgba(255, 255, 255, 0.48);
+    font-size: 10px;
+    line-height: 1.7;
+}
+
+.sales-timeline__metrics {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.sales-timeline__metric {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    padding: 12px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.sales-timeline__metric span {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 8px;
+}
+
+.sales-timeline__metric strong {
+    overflow: hidden;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sales-timeline__chart {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+    column-gap: 10px;
+    padding: 17px 15px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 15px;
+    background:
+        linear-gradient(
+            180deg,
+            rgba(67, 205, 203, 0.035),
+            rgba(255, 255, 255, 0.015)
+        );
+}
+
+.sales-timeline__scale {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    height: 230px;
+    padding: 0 0 1px;
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 7px;
+    text-align: left;
+}
+
+.sales-timeline__plot {
+    position: relative;
+    height: 230px;
+    overflow: visible;
+}
+
+.sales-timeline__svg,
+.sales-timeline__markers {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.sales-timeline__grid-line {
+    stroke: rgba(255, 255, 255, 0.08);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.sales-timeline__line {
+    fill: none;
+    stroke: #62dfd2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2.4;
+    filter:
+        drop-shadow(
+            0 0 5px rgba(98, 223, 210, 0.34)
+        );
+    vector-effect: non-scaling-stroke;
+}
+
+.sales-timeline__point {
+    position: absolute;
+    left: calc(var(--timeline-x) * 1%);
+    bottom: calc(var(--timeline-y) * 1%);
+    z-index: 2;
+    width: 13px;
+    height: 13px;
+    outline: none;
+    transform: translate(-50%, 50%);
+}
+
+.sales-timeline__dot {
+    position: absolute;
+    inset: 0;
+    display: block;
+    border: 3px solid #10242b;
+    border-radius: 50%;
+    background: #71ead9;
+    box-shadow:
+        0 0 0 2px rgba(113, 234, 217, 0.28),
+        0 0 13px rgba(113, 234, 217, 0.36);
+    transition:
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.sales-timeline__point--peak .sales-timeline__dot {
+    background: #ffd166;
+    box-shadow:
+        0 0 0 3px rgba(255, 209, 102, 0.2),
+        0 0 18px rgba(255, 209, 102, 0.46);
+}
+
+.sales-timeline__point:hover .sales-timeline__dot,
+.sales-timeline__point:focus .sales-timeline__dot {
+    transform: scale(1.35);
+    box-shadow:
+        0 0 0 4px rgba(113, 234, 217, 0.18),
+        0 0 20px rgba(113, 234, 217, 0.48);
+}
+
+.sales-timeline__tooltip {
+    position: absolute;
+    right: 50%;
+    bottom: 21px;
+    z-index: 5;
+    display: grid;
+    gap: 3px;
+    min-width: 135px;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    background: rgba(10, 25, 32, 0.97);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.32);
+    opacity: 0;
+    pointer-events: none;
+    transform:
+        translateX(50%)
+        translateY(5px);
+    transition:
+        opacity 150ms ease,
+        transform 150ms ease;
+}
+
+.sales-timeline__point:hover
+.sales-timeline__tooltip,
+.sales-timeline__point:focus
+.sales-timeline__tooltip {
+    opacity: 1;
+    transform:
+        translateX(50%)
+        translateY(0);
+}
+
+.sales-timeline__tooltip strong {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 8px;
+}
+
+.sales-timeline__tooltip b {
+    color: #8cf0df;
+    font-size: 10px;
+}
+
+.sales-timeline__tooltip small {
+    color: rgba(255, 255, 255, 0.42);
+    font-size: 7px;
+}
+
+.sales-timeline__tooltip-warning {
+    color: #ffd58a !important;
+}
+
+.sales-timeline__axis {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 9px;
+    color: rgba(255, 255, 255, 0.34);
+    font-size: 8px;
+    direction: ltr;
+}
+
+.sales-timeline__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.sales-timeline__summary span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.035);
+    color: rgba(255, 255, 255, 0.46);
+    font-size: 8px;
+}
+
+.sales-timeline__summary b {
+    color: #8ce9dc;
+}
+
+.sales-timeline__note {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 13px;
+    padding: 10px 12px;
+    border: 1px solid rgba(108, 140, 255, 0.15);
+    border-radius: 11px;
+    background: rgba(108, 140, 255, 0.055);
+}
+
+.sales-timeline__note > span {
+    display: grid;
+    place-items: center;
+    width: 23px;
+    height: 23px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    background: rgba(108, 140, 255, 0.13);
+    color: #b5c2ff;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.sales-timeline__note p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.46);
+    font-size: 9px;
+    line-height: 1.6;
+}
+
+.sales-timeline__empty {
+    min-height: 175px;
+}
+
+.sales-timeline__empty > div {
+    display: grid;
+    gap: 3px;
+}
+
+.sales-timeline__empty strong {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 11px;
+}
+
+.sales-timeline__empty p {
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .sales-timeline__metrics {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .sales-timeline__metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .sales-timeline__chart {
+        grid-template-columns: 30px minmax(0, 1fr);
+        padding-inline: 9px;
+    }
+
+    .sales-timeline__plot,
+    .sales-timeline__scale {
+        height: 190px;
+    }
+
+    .sales-timeline__tooltip {
+        min-width: 115px;
+    }
+}

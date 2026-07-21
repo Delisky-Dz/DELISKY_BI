@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
 from apps.analytics.services.manager_dashboard import (
@@ -725,4 +726,189 @@ def present_brand_sales_chart(
                 item.brand_id,
             ),
         )
+    )
+
+
+
+@dataclass(frozen=True, slots=True)
+class SalesTimelinePointPresentation:
+    sale_date: date
+
+    total_sales: Decimal
+    sale_record_count: int
+    positive_sale_record_count: int
+    zero_total_record_count: int
+
+    horizontal_percentage: Decimal
+    relative_height_percentage: Decimal
+    is_peak: bool
+
+
+@dataclass(frozen=True, slots=True)
+class SalesTimelinePresentation:
+    points: tuple[
+        SalesTimelinePointPresentation,
+        ...,
+    ]
+
+    total_sales: Decimal
+    average_daily_sales: Decimal | None
+
+    recorded_day_count: int
+    positive_day_count: int
+    zero_total_day_count: int
+
+    first_date: date | None
+    last_date: date | None
+
+    peak_date: date | None
+    peak_total_sales: Decimal | None
+
+
+def present_sales_timeline(
+    sales: SalesAggregationResult,
+) -> SalesTimelinePresentation:
+    daily_totals = tuple(
+        sorted(
+            sales.by_date or (),
+            key=lambda item: item.sale_date,
+        )
+    )
+
+    if not daily_totals:
+        return SalesTimelinePresentation(
+            points=(),
+            total_sales=Decimal("0"),
+            average_daily_sales=None,
+            recorded_day_count=0,
+            positive_day_count=0,
+            zero_total_day_count=0,
+            first_date=None,
+            last_date=None,
+            peak_date=None,
+            peak_total_sales=None,
+        )
+
+    first_date = daily_totals[0].sale_date
+    last_date = daily_totals[-1].sale_date
+    date_span_days = (
+        last_date - first_date
+    ).days
+
+    maximum_positive_total = max(
+        (
+            item.metrics.total_sales
+            for item in daily_totals
+            if item.metrics.total_sales > 0
+        ),
+        default=Decimal("0"),
+    )
+
+    total_sales = sum(
+        (
+            item.metrics.total_sales
+            for item in daily_totals
+        ),
+        Decimal("0"),
+    )
+
+    points = []
+
+    for item in daily_totals:
+        item_total = item.metrics.total_sales
+
+        if date_span_days > 0:
+            horizontal_percentage = (
+                Decimal(
+                    (
+                        item.sale_date
+                        - first_date
+                    ).days
+                )
+                / Decimal(date_span_days)
+                * PERCENT_MULTIPLIER
+            )
+        else:
+            horizontal_percentage = Decimal("50")
+
+        if (
+            maximum_positive_total > 0
+            and item_total > 0
+        ):
+            relative_height_percentage = (
+                item_total
+                / maximum_positive_total
+                * PERCENT_MULTIPLIER
+            )
+        else:
+            relative_height_percentage = Decimal("0")
+
+        points.append(
+            SalesTimelinePointPresentation(
+                sale_date=item.sale_date,
+                total_sales=item_total,
+                sale_record_count=(
+                    item.metrics.sale_record_count
+                ),
+                positive_sale_record_count=(
+                    item.metrics
+                    .positive_sale_record_count
+                ),
+                zero_total_record_count=(
+                    item.metrics
+                    .zero_total_record_count
+                ),
+                horizontal_percentage=(
+                    horizontal_percentage
+                ),
+                relative_height_percentage=(
+                    relative_height_percentage
+                ),
+                is_peak=(
+                    maximum_positive_total > 0
+                    and item_total
+                    == maximum_positive_total
+                ),
+            )
+        )
+
+    if maximum_positive_total > 0:
+        peak_item = next(
+            item
+            for item in daily_totals
+            if (
+                item.metrics.total_sales
+                == maximum_positive_total
+            )
+        )
+        peak_date = peak_item.sale_date
+        peak_total_sales = maximum_positive_total
+    else:
+        peak_date = None
+        peak_total_sales = None
+
+    recorded_day_count = len(daily_totals)
+
+    return SalesTimelinePresentation(
+        points=tuple(points),
+        total_sales=total_sales,
+        average_daily_sales=(
+            total_sales
+            / Decimal(recorded_day_count)
+        ),
+        recorded_day_count=recorded_day_count,
+        positive_day_count=sum(
+            1
+            for item in daily_totals
+            if item.metrics.total_sales > 0
+        ),
+        zero_total_day_count=sum(
+            1
+            for item in daily_totals
+            if item.metrics.total_sales == 0
+        ),
+        first_date=first_date,
+        last_date=last_date,
+        peak_date=peak_date,
+        peak_total_sales=peak_total_sales,
     )

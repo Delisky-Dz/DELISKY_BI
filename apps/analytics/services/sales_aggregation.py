@@ -39,6 +39,13 @@ class SalesMetrics:
     zero_total_record_count: int
 
 
+
+@dataclass(frozen=True, slots=True)
+class DailySalesTotal:
+    sale_date: date
+    metrics: SalesMetrics
+
+
 @dataclass(frozen=True, slots=True)
 class BrandSalesTotal:
     brand_id: int
@@ -110,6 +117,7 @@ class SalesAggregationResult:
         ...,
     ]
     attribution_issues: tuple[SalesAttributionIssue, ...]
+    by_date: tuple[DailySalesTotal, ...] = ()
 
     @property
     def has_attribution_issues(self) -> bool:
@@ -202,6 +210,7 @@ def aggregate_sales(
     overall = _SalesAccumulator()
 
     brand_buckets: dict[int, _SalesAccumulator] = {}
+    date_buckets: dict[date, _SalesAccumulator] = {}
     truck_buckets: dict[int, _SalesAccumulator] = {}
     worker_buckets: dict[int, _SalesAccumulator] = {}
 
@@ -243,6 +252,11 @@ def aggregate_sales(
             continue
 
         overall.add(sale.total)
+
+        _get_accumulator(
+            date_buckets,
+            sale_date,
+        ).add(sale.total)
 
         _get_accumulator(
             brand_buckets,
@@ -405,4 +419,13 @@ def aggregate_sales(
             )
         ),
         attribution_issues=tuple(issues),
+        by_date=tuple(
+            DailySalesTotal(
+                sale_date=key,
+                metrics=value.freeze(),
+            )
+            for key, value in sorted(
+                date_buckets.items()
+            )
+        ),
     )

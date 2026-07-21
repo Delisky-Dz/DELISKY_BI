@@ -12,6 +12,7 @@ from .presenters import (
     present_analytical_coverage,
     present_brand_sales_chart,
     present_data_quality,
+    present_sales_timeline,
     present_manager_dashboard_summary,
     present_worker_dashboard_card,
     present_worker_ranking,
@@ -272,10 +273,17 @@ def _build_worker_presentations(
         else ()
     )
 
+    sales_timeline = (
+        present_sales_timeline(sales)
+        if sales is not None
+        else None
+    )
+
     return {
         **worker_rankings,
         "worker_cards": worker_cards,
         "brand_sales_chart": brand_sales_chart,
+        "sales_timeline": sales_timeline,
     }
 
 
@@ -297,6 +305,7 @@ def manager_dashboard(request):
         "most_not_sold_workers": (),
         "worker_cards": (),
         "brand_sales_chart": (),
+        "sales_timeline": None,
     }
 
     response_status = 200

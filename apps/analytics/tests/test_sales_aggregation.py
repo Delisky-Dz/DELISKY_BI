@@ -288,6 +288,127 @@ class SalesAggregationTests(TestCase):
             Decimal("20"),
         )
 
+    def test_daily_sales_groups_same_day_and_orders_dates(
+        self,
+    ):
+        batch = self.create_batch(
+            90,
+            accepted_rows=3,
+        )
+
+        self.create_sales_row(
+            batch,
+            900,
+            van="UNKNOWN-DAILY-VAN",
+            sale_datetime="2026-07-04T09:00:00",
+            total="50",
+            excel_row_number=2,
+        )
+        self.create_sales_row(
+            batch,
+            901,
+            van="UNKNOWN-DAILY-VAN",
+            sale_datetime="2026-07-03T10:00:00",
+            total="100",
+            excel_row_number=3,
+        )
+        self.create_sales_row(
+            batch,
+            902,
+            van="UNKNOWN-DAILY-VAN",
+            sale_datetime="2026-07-03T11:00:00",
+            total="0",
+            excel_row_number=4,
+        )
+
+        result = aggregate_sales()
+
+        self.assertEqual(
+            [
+                item.sale_date
+                for item in result.by_date
+            ],
+            [
+                date(2026, 7, 3),
+                date(2026, 7, 4),
+            ],
+        )
+
+        first_day = result.by_date[0]
+
+        self.assertEqual(
+            first_day.metrics.total_sales,
+            Decimal("100"),
+        )
+        self.assertEqual(
+            first_day.metrics.sale_record_count,
+            2,
+        )
+        self.assertEqual(
+            first_day.metrics.positive_sale_record_count,
+            1,
+        )
+        self.assertEqual(
+            first_day.metrics.zero_total_record_count,
+            1,
+        )
+
+        self.assertEqual(
+            result.by_date[1].metrics.total_sales,
+            Decimal("50"),
+        )
+
+    def test_daily_sales_respects_requested_period(
+        self,
+    ):
+        batch = self.create_batch(
+            91,
+            accepted_rows=3,
+        )
+
+        self.create_sales_row(
+            batch,
+            910,
+            van="UNKNOWN-PERIOD-VAN",
+            sale_datetime="2026-07-01T08:00:00",
+            total="10",
+            excel_row_number=2,
+        )
+        self.create_sales_row(
+            batch,
+            911,
+            van="UNKNOWN-PERIOD-VAN",
+            sale_datetime="2026-07-03T08:00:00",
+            total="20",
+            excel_row_number=3,
+        )
+        self.create_sales_row(
+            batch,
+            912,
+            van="UNKNOWN-PERIOD-VAN",
+            sale_datetime="2026-07-07T08:00:00",
+            total="30",
+            excel_row_number=4,
+        )
+
+        result = aggregate_sales(
+            period_start=date(2026, 7, 3),
+            period_end=date(2026, 7, 3),
+        )
+
+        self.assertEqual(
+            len(result.by_date),
+            1,
+        )
+        self.assertEqual(
+            result.by_date[0].sale_date,
+            date(2026, 7, 3),
+        )
+        self.assertEqual(
+            result.by_date[0].metrics.total_sales,
+            Decimal("20"),
+        )
+
     def test_unknown_truck_keeps_brand_and_overall_sales(self):
         batch = self.create_batch(3)
 

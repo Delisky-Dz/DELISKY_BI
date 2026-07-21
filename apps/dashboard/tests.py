@@ -2000,11 +2000,15 @@ from types import SimpleNamespace
 
 from apps.analytics.services.sales_aggregation import (
     BrandSalesTotal,
+    DailySalesTotal,
     SalesAggregationResult,
     SalesMetrics,
 )
 
-from .presenters import present_brand_sales_chart
+from .presenters import (
+    present_brand_sales_chart,
+    present_sales_timeline,
+)
 
 
 class BrandSalesChartPresenterTests(SimpleTestCase):
@@ -2203,18 +2207,24 @@ class BrandSalesChartViewIntegrationTests(
         *,
         overall_total="1000",
         by_brand=(),
+        by_date=(),
     ):
+        metric_sources = (
+            tuple(by_brand)
+            or tuple(by_date)
+        )
+
         sale_record_count = sum(
             item.metrics.sale_record_count
-            for item in by_brand
+            for item in metric_sources
         )
         positive_sale_record_count = sum(
             item.metrics.positive_sale_record_count
-            for item in by_brand
+            for item in metric_sources
         )
         zero_total_record_count = sum(
             item.metrics.zero_total_record_count
-            for item in by_brand
+            for item in metric_sources
         )
 
         return SalesAggregationResult(
@@ -2240,6 +2250,7 @@ class BrandSalesChartViewIntegrationTests(
             by_brand_worker=(),
             by_brand_truck_worker=(),
             attribution_issues=(),
+            by_date=tuple(by_date),
         )
 
     def build_dashboard_result(
@@ -2373,4 +2384,353 @@ class BrandSalesChartViewIntegrationTests(
         self.assertEqual(
             result["brand_sales_chart"],
             (),
+        )
+
+
+
+    @patch(
+        "apps.dashboard.views._load_brands_by_id"
+    )
+    @patch(
+        "apps.dashboard.views._load_workers_by_id"
+    )
+    def test_sales_timeline_is_added_to_context(
+        self,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        from .views import _build_worker_presentations
+
+        mocked_load_workers.return_value = {}
+        mocked_load_brands.return_value = {}
+
+        sales = self.build_sales_result(
+            overall_total="500",
+            by_date=(
+                DailySalesTotal(
+                    sale_date=date(2026, 7, 1),
+                    metrics=SalesMetrics(
+                        total_sales=Decimal("200"),
+                        sale_record_count=1,
+                        positive_sale_record_count=1,
+                        zero_total_record_count=0,
+                    ),
+                ),
+                DailySalesTotal(
+                    sale_date=date(2026, 7, 3),
+                    metrics=SalesMetrics(
+                        total_sales=Decimal("300"),
+                        sale_record_count=2,
+                        positive_sale_record_count=2,
+                        zero_total_record_count=0,
+                    ),
+                ),
+            ),
+        )
+
+        result = _build_worker_presentations(
+            self.build_dashboard_result(sales)
+        )
+
+        timeline = result["sales_timeline"]
+
+        self.assertEqual(
+            [
+                item.sale_date
+                for item in timeline.points
+            ],
+            [
+                date(2026, 7, 1),
+                date(2026, 7, 3),
+            ],
+        )
+        self.assertEqual(
+            timeline.peak_date,
+            date(2026, 7, 3),
+        )
+        self.assertEqual(
+            timeline.peak_total_sales,
+            Decimal("300"),
+        )
+
+    @patch(
+        "apps.dashboard.views._load_brands_by_id"
+    )
+    @patch(
+        "apps.dashboard.views._load_workers_by_id"
+    )
+    def test_empty_daily_sales_has_safe_timeline(
+        self,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        from .views import _build_worker_presentations
+
+        mocked_load_workers.return_value = {}
+        mocked_load_brands.return_value = {}
+
+        result = _build_worker_presentations(
+            self.build_dashboard_result(
+                self.build_sales_result(
+                    overall_total="0",
+                    by_date=(),
+                )
+            )
+        )
+
+        timeline = result["sales_timeline"]
+
+        self.assertIsNotNone(timeline)
+        self.assertEqual(timeline.points, ())
+        self.assertEqual(
+            timeline.recorded_day_count,
+            0,
+        )
+        self.assertIsNone(
+            timeline.average_daily_sales
+        )
+        self.assertIsNone(
+            timeline.peak_date
+        )
+
+
+class SalesTimelinePresenterTests(
+    SimpleTestCase
+):
+    def build_sales_result(
+        self,
+        by_date=(),
+    ):
+        total_sales = sum(
+            (
+                item.metrics.total_sales
+                for item in by_date
+            ),
+            Decimal("0"),
+        )
+        sale_record_count = sum(
+            item.metrics.sale_record_count
+            for item in by_date
+        )
+        positive_record_count = sum(
+            item.metrics.positive_sale_record_count
+            for item in by_date
+        )
+        zero_record_count = sum(
+            item.metrics.zero_total_record_count
+            for item in by_date
+        )
+
+        return SalesAggregationResult(
+            requested_period_start=None,
+            requested_period_end=None,
+            source_row_count=sale_record_count,
+            included_row_count=sale_record_count,
+            outside_requested_period_count=0,
+            overall=SalesMetrics(
+                total_sales=total_sales,
+                sale_record_count=sale_record_count,
+                positive_sale_record_count=(
+                    positive_record_count
+                ),
+                zero_total_record_count=(
+                    zero_record_count
+                ),
+            ),
+            by_brand=(),
+            by_truck=(),
+            by_worker=(),
+            by_brand_truck=(),
+            by_brand_worker=(),
+            by_brand_truck_worker=(),
+            attribution_issues=(),
+            by_date=tuple(by_date),
+        )
+
+    def daily_total(
+        self,
+        sale_date,
+        total,
+        *,
+        records=1,
+        positive=1,
+        zero=0,
+    ):
+        return DailySalesTotal(
+            sale_date=sale_date,
+            metrics=SalesMetrics(
+                total_sales=Decimal(total),
+                sale_record_count=records,
+                positive_sale_record_count=positive,
+                zero_total_record_count=zero,
+            ),
+        )
+
+    def test_timeline_uses_real_date_gaps_and_peak(
+        self,
+    ):
+        result = self.build_sales_result(
+            (
+                self.daily_total(
+                    date(2026, 7, 5),
+                    "300",
+                ),
+                self.daily_total(
+                    date(2026, 7, 1),
+                    "100",
+                ),
+                self.daily_total(
+                    date(2026, 7, 3),
+                    "400",
+                ),
+            )
+        )
+
+        presentation = present_sales_timeline(
+            result
+        )
+
+        self.assertEqual(
+            [
+                item.sale_date
+                for item in presentation.points
+            ],
+            [
+                date(2026, 7, 1),
+                date(2026, 7, 3),
+                date(2026, 7, 5),
+            ],
+        )
+
+        self.assertEqual(
+            [
+                item.horizontal_percentage
+                for item in presentation.points
+            ],
+            [
+                Decimal("0"),
+                Decimal("50"),
+                Decimal("100"),
+            ],
+        )
+
+        self.assertEqual(
+            [
+                item.relative_height_percentage
+                for item in presentation.points
+            ],
+            [
+                Decimal("25"),
+                Decimal("100"),
+                Decimal("75"),
+            ],
+        )
+
+        self.assertEqual(
+            presentation.total_sales,
+            Decimal("800"),
+        )
+        self.assertEqual(
+            presentation.average_daily_sales,
+            Decimal("800") / Decimal("3"),
+        )
+        self.assertEqual(
+            presentation.peak_date,
+            date(2026, 7, 3),
+        )
+        self.assertEqual(
+            presentation.peak_total_sales,
+            Decimal("400"),
+        )
+        self.assertTrue(
+            presentation.points[1].is_peak
+        )
+
+    def test_single_day_is_centered_safely(
+        self,
+    ):
+        result = self.build_sales_result(
+            (
+                self.daily_total(
+                    date(2026, 7, 4),
+                    "250",
+                    records=2,
+                    positive=2,
+                ),
+            )
+        )
+
+        presentation = present_sales_timeline(
+            result
+        )
+
+        self.assertEqual(
+            presentation.recorded_day_count,
+            1,
+        )
+        self.assertEqual(
+            presentation.points[0]
+            .horizontal_percentage,
+            Decimal("50"),
+        )
+        self.assertEqual(
+            presentation.points[0]
+            .relative_height_percentage,
+            Decimal("100"),
+        )
+        self.assertEqual(
+            presentation.average_daily_sales,
+            Decimal("250"),
+        )
+
+    def test_empty_and_zero_sales_are_safe(
+        self,
+    ):
+        empty_presentation = (
+            present_sales_timeline(
+                self.build_sales_result()
+            )
+        )
+
+        self.assertEqual(
+            empty_presentation.points,
+            (),
+        )
+        self.assertIsNone(
+            empty_presentation.average_daily_sales
+        )
+        self.assertIsNone(
+            empty_presentation.peak_date
+        )
+
+        zero_presentation = (
+            present_sales_timeline(
+                self.build_sales_result(
+                    (
+                        self.daily_total(
+                            date(2026, 7, 6),
+                            "0",
+                            positive=0,
+                            zero=1,
+                        ),
+                    )
+                )
+            )
+        )
+
+        self.assertEqual(
+            zero_presentation
+            .points[0]
+            .relative_height_percentage,
+            Decimal("0"),
+        )
+        self.assertEqual(
+            zero_presentation.zero_total_day_count,
+            1,
+        )
+        self.assertIsNone(
+            zero_presentation.peak_date
+        )
+        self.assertIsNone(
+            zero_presentation.peak_total_sales
         )

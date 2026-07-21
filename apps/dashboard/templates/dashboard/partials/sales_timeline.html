@@ -1,0 +1,227 @@
+﻿{% load l10n %}
+
+<article class="executive-panel executive-panel--timeline">
+    <header class="executive-panel__header">
+        <div>
+            <p class="executive-panel__eyebrow">
+                التطور الزمني
+            </p>
+
+            <h3>
+                منحنى المبيعات اليومية
+            </h3>
+
+            <p class="sales-timeline__subtitle">
+                تطور المبيعات حسب تاريخ البيع الحقيقي
+                خلال الفترة المختارة.
+            </p>
+        </div>
+
+        {% if sales_timeline and sales_timeline.points %}
+            <span class="executive-panel__badge">
+                {{ sales_timeline.recorded_day_count }}
+                يوم مسجل
+            </span>
+        {% else %}
+            <span class="executive-panel__badge">
+                لا توجد بيانات
+            </span>
+        {% endif %}
+    </header>
+
+    {% if sales_timeline and sales_timeline.points %}
+        <div class="sales-timeline__metrics">
+            <div class="sales-timeline__metric">
+                <span>إجمالي الفترة</span>
+
+                <strong>
+                    {{ sales_timeline.total_sales|floatformat:2 }}
+                    دج
+                </strong>
+            </div>
+
+            <div class="sales-timeline__metric">
+                <span>متوسط اليوم المسجل</span>
+
+                <strong>
+                    {% if sales_timeline.average_daily_sales == None %}
+                        غير متاح
+                    {% else %}
+                        {{ sales_timeline.average_daily_sales|floatformat:2 }}
+                        دج
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="sales-timeline__metric">
+                <span>أعلى يوم</span>
+
+                <strong>
+                    {% if sales_timeline.peak_date %}
+                        {{ sales_timeline.peak_date|date:"Y/m/d" }}
+                    {% else %}
+                        لا توجد ذروة إيجابية
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="sales-timeline__metric">
+                <span>مبيعات أعلى يوم</span>
+
+                <strong>
+                    {% if sales_timeline.peak_total_sales == None %}
+                        غير متاحة
+                    {% else %}
+                        {{ sales_timeline.peak_total_sales|floatformat:2 }}
+                        دج
+                    {% endif %}
+                </strong>
+            </div>
+        </div>
+
+        <div class="sales-timeline__chart">
+            <div class="sales-timeline__scale">
+                <span>الأعلى</span>
+                <span>50%</span>
+                <span>0</span>
+            </div>
+
+            <div class="sales-timeline__plot">
+                <svg
+                    class="sales-timeline__svg"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                >
+                    <line
+                        class="sales-timeline__grid-line"
+                        x1="0"
+                        y1="0"
+                        x2="100"
+                        y2="0"
+                    />
+                    <line
+                        class="sales-timeline__grid-line"
+                        x1="0"
+                        y1="25"
+                        x2="100"
+                        y2="25"
+                    />
+                    <line
+                        class="sales-timeline__grid-line"
+                        x1="0"
+                        y1="50"
+                        x2="100"
+                        y2="50"
+                    />
+                    <line
+                        class="sales-timeline__grid-line"
+                        x1="0"
+                        y1="75"
+                        x2="100"
+                        y2="75"
+                    />
+                    <line
+                        class="sales-timeline__grid-line"
+                        x1="0"
+                        y1="100"
+                        x2="100"
+                        y2="100"
+                    />
+
+                    <g transform="translate(0 100) scale(1 -1)">
+                        <polyline
+                            class="sales-timeline__line"
+                            points="{% for point in sales_timeline.points %}{{ point.horizontal_percentage|unlocalize }},{{ point.relative_height_percentage|unlocalize }}{% if not forloop.last %} {% endif %}{% endfor %}"
+                        />
+                    </g>
+                </svg>
+
+                <div class="sales-timeline__markers">
+                    {% for point in sales_timeline.points %}
+                        <span
+                            class="sales-timeline__point{% if point.is_peak %} sales-timeline__point--peak{% endif %}"
+                            style="--timeline-x: {{ point.horizontal_percentage|unlocalize }}; --timeline-y: {{ point.relative_height_percentage|unlocalize }};"
+                            tabindex="0"
+                            title="{{ point.sale_date|date:'Y/m/d' }} — {{ point.total_sales|floatformat:2 }} دج"
+                        >
+                            <span class="sales-timeline__dot"></span>
+
+                            <span class="sales-timeline__tooltip">
+                                <strong>
+                                    {{ point.sale_date|date:"Y/m/d" }}
+                                </strong>
+
+                                <b>
+                                    {{ point.total_sales|floatformat:2 }}
+                                    دج
+                                </b>
+
+                                <small>
+                                    {{ point.sale_record_count }}
+                                    سجل بيع
+                                </small>
+
+                                {% if point.zero_total_record_count %}
+                                    <small class="sales-timeline__tooltip-warning">
+                                        {{ point.zero_total_record_count }}
+                                        سجل صفري
+                                    </small>
+                                {% endif %}
+                            </span>
+                        </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="sales-timeline__axis">
+                <span>
+                    {{ sales_timeline.first_date|date:"Y/m/d" }}
+                </span>
+
+                {% if sales_timeline.recorded_day_count > 1 %}
+                    <span>
+                        {{ sales_timeline.last_date|date:"Y/m/d" }}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sales-timeline__summary">
+            <span>
+                <b>{{ sales_timeline.positive_day_count }}</b>
+                يوم بمبيعات إيجابية
+            </span>
+
+            <span>
+                <b>{{ sales_timeline.zero_total_day_count }}</b>
+                يوم مسجل بإجمالي صفري
+            </span>
+        </div>
+
+        <footer class="sales-timeline__note">
+            <span aria-hidden="true">i</span>
+
+            <p>
+                يعرض المنحنى الأيام الموجودة فعليًا في بيانات
+                المبيعات. غياب يوم من المنحنى لا يعني أن مبيعاته
+                صفر، بل يعني أنه لا توجد له بيانات معتمدة.
+            </p>
+        </footer>
+    {% else %}
+        <div class="executive-empty-state sales-timeline__empty">
+            <span aria-hidden="true">⌁</span>
+
+            <div>
+                <strong>
+                    لا توجد مبيعات يومية لعرضها
+                </strong>
+
+                <p>
+                    سيظهر المنحنى تلقائيًا بعد اعتماد بيانات
+                    مبيعات تحتوي على تواريخ بيع صحيحة.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+</article>
