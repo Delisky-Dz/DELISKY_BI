@@ -9,6 +9,9 @@ from apps.analytics.services.manager_dashboard import (
 from apps.analytics.services.product_performance import (
     WorkerProductPerformance,
 )
+from apps.analytics.services.sales_aggregation import (
+    SalesAggregationResult,
+)
 from apps.analytics.services.worker_performance import (
     PerformanceDataQualitySummary,
     WorkerPerformanceKpi,
@@ -625,4 +628,101 @@ def present_worker_dashboard_card(
         has_product_measurement=(
             card.kpi.has_product_measurement
         ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class BrandSalesChartPresentation:
+    brand_id: int
+    brand_name: str
+
+    total_sales: Decimal
+    sale_record_count: int
+    positive_sale_record_count: int
+    zero_total_record_count: int
+
+    contribution_percentage: Decimal | None
+    relative_bar_percentage: Decimal
+
+
+def present_brand_sales_chart(
+    sales: SalesAggregationResult,
+    brands_by_id: dict[int, object],
+) -> tuple[BrandSalesChartPresentation, ...]:
+    brand_totals = tuple(
+        sales.by_brand or ()
+    )
+
+    maximum_positive_total = max(
+        (
+            item.metrics.total_sales
+            for item in brand_totals
+            if item.metrics.total_sales > 0
+        ),
+        default=Decimal("0"),
+    )
+
+    overall_total = sales.overall.total_sales
+    presentations = []
+
+    for item in brand_totals:
+        total_sales = item.metrics.total_sales
+
+        if overall_total > 0:
+            contribution_percentage = (
+                total_sales
+                / overall_total
+                * PERCENT_MULTIPLIER
+            )
+        else:
+            contribution_percentage = None
+
+        if (
+            maximum_positive_total > 0
+            and total_sales > 0
+        ):
+            relative_bar_percentage = (
+                total_sales
+                / maximum_positive_total
+                * PERCENT_MULTIPLIER
+            )
+        else:
+            relative_bar_percentage = Decimal("0")
+
+        presentations.append(
+            BrandSalesChartPresentation(
+                brand_id=item.brand_id,
+                brand_name=_brand_display_name(
+                    item.brand_id,
+                    brands_by_id,
+                ),
+                total_sales=total_sales,
+                sale_record_count=(
+                    item.metrics.sale_record_count
+                ),
+                positive_sale_record_count=(
+                    item.metrics
+                    .positive_sale_record_count
+                ),
+                zero_total_record_count=(
+                    item.metrics.zero_total_record_count
+                ),
+                contribution_percentage=(
+                    contribution_percentage
+                ),
+                relative_bar_percentage=(
+                    relative_bar_percentage
+                ),
+            )
+        )
+
+    return tuple(
+        sorted(
+            presentations,
+            key=lambda item: (
+                -item.total_sales,
+                item.brand_name.casefold(),
+                item.brand_id,
+            ),
+        )
     )

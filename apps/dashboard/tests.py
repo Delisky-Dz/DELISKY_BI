@@ -1994,3 +1994,383 @@ class ManagerDashboardWorkerCardViewTests(TestCase):
             response,
             "dashboard/partials/worker_cards.html",
         )
+
+
+from types import SimpleNamespace
+
+from apps.analytics.services.sales_aggregation import (
+    BrandSalesTotal,
+    SalesAggregationResult,
+    SalesMetrics,
+)
+
+from .presenters import present_brand_sales_chart
+
+
+class BrandSalesChartPresenterTests(SimpleTestCase):
+    def build_metrics(
+        self,
+        total_sales,
+        *,
+        sale_record_count=1,
+        positive_sale_record_count=1,
+        zero_total_record_count=0,
+    ):
+        return SalesMetrics(
+            total_sales=Decimal(total_sales),
+            sale_record_count=sale_record_count,
+            positive_sale_record_count=(
+                positive_sale_record_count
+            ),
+            zero_total_record_count=(
+                zero_total_record_count
+            ),
+        )
+
+    def build_sales_result(
+        self,
+        *,
+        overall_total,
+        by_brand,
+    ):
+        return SalesAggregationResult(
+            requested_period_start=None,
+            requested_period_end=None,
+            source_row_count=sum(
+                item.metrics.sale_record_count
+                for item in by_brand
+            ),
+            included_row_count=sum(
+                item.metrics.sale_record_count
+                for item in by_brand
+            ),
+            outside_requested_period_count=0,
+            overall=self.build_metrics(
+                overall_total,
+                sale_record_count=sum(
+                    item.metrics.sale_record_count
+                    for item in by_brand
+                ),
+                positive_sale_record_count=sum(
+                    item.metrics
+                    .positive_sale_record_count
+                    for item in by_brand
+                ),
+                zero_total_record_count=sum(
+                    item.metrics.zero_total_record_count
+                    for item in by_brand
+                ),
+            ),
+            by_brand=tuple(by_brand),
+            by_truck=(),
+            by_worker=(),
+            by_brand_truck=(),
+            by_brand_worker=(),
+            by_brand_truck_worker=(),
+            attribution_issues=(),
+        )
+
+    def test_brand_sales_are_sorted_and_percentages_are_presented(
+        self,
+    ):
+        result = self.build_sales_result(
+            overall_total="1000",
+            by_brand=(
+                BrandSalesTotal(
+                    brand_id=1,
+                    metrics=self.build_metrics(
+                        "250",
+                    ),
+                ),
+                BrandSalesTotal(
+                    brand_id=2,
+                    metrics=self.build_metrics(
+                        "500",
+                        sale_record_count=2,
+                        positive_sale_record_count=2,
+                    ),
+                ),
+                BrandSalesTotal(
+                    brand_id=3,
+                    metrics=self.build_metrics(
+                        "250",
+                    ),
+                ),
+            ),
+        )
+
+        brands_by_id = {
+            1: SimpleNamespace(name="NITA", code="NITA"),
+            2: SimpleNamespace(name="BIFA", code="BIFA"),
+            3: SimpleNamespace(
+                name="DELISKY",
+                code="DELISKY",
+            ),
+        }
+
+        presentation = present_brand_sales_chart(
+            result,
+            brands_by_id,
+        )
+
+        self.assertEqual(
+            [item.brand_id for item in presentation],
+            [2, 3, 1],
+        )
+        self.assertEqual(
+            presentation[0].contribution_percentage,
+            Decimal("50.0"),
+        )
+        self.assertEqual(
+            presentation[0].relative_bar_percentage,
+            Decimal("100"),
+        )
+        self.assertEqual(
+            presentation[1].relative_bar_percentage,
+            Decimal("50.0"),
+        )
+        self.assertEqual(
+            presentation[0].sale_record_count,
+            2,
+        )
+
+    def test_missing_brand_uses_safe_arabic_fallback(
+        self,
+    ):
+        result = self.build_sales_result(
+            overall_total="100",
+            by_brand=(
+                BrandSalesTotal(
+                    brand_id=99,
+                    metrics=self.build_metrics("100"),
+                ),
+            ),
+        )
+
+        presentation = present_brand_sales_chart(
+            result,
+            {},
+        )
+
+        self.assertEqual(
+            presentation[0].brand_name,
+            "\u0627\u0644\u0639\u0644\u0627\u0645\u0629 "
+            "\u0631\u0642\u0645 99",
+        )
+
+    def test_zero_overall_sales_has_safe_empty_percentages(
+        self,
+    ):
+        result = self.build_sales_result(
+            overall_total="0",
+            by_brand=(
+                BrandSalesTotal(
+                    brand_id=1,
+                    metrics=self.build_metrics(
+                        "0",
+                        positive_sale_record_count=0,
+                        zero_total_record_count=1,
+                    ),
+                ),
+            ),
+        )
+
+        presentation = present_brand_sales_chart(
+            result,
+            {
+                1: SimpleNamespace(
+                    name="BIFA",
+                    code="BIFA",
+                ),
+            },
+        )
+
+        self.assertIsNone(
+            presentation[0].contribution_percentage
+        )
+        self.assertEqual(
+            presentation[0].relative_bar_percentage,
+            Decimal("0"),
+        )
+
+
+
+class BrandSalesChartViewIntegrationTests(
+    SimpleTestCase
+):
+    def build_sales_result(
+        self,
+        *,
+        overall_total="1000",
+        by_brand=(),
+    ):
+        sale_record_count = sum(
+            item.metrics.sale_record_count
+            for item in by_brand
+        )
+        positive_sale_record_count = sum(
+            item.metrics.positive_sale_record_count
+            for item in by_brand
+        )
+        zero_total_record_count = sum(
+            item.metrics.zero_total_record_count
+            for item in by_brand
+        )
+
+        return SalesAggregationResult(
+            requested_period_start=None,
+            requested_period_end=None,
+            source_row_count=sale_record_count,
+            included_row_count=sale_record_count,
+            outside_requested_period_count=0,
+            overall=SalesMetrics(
+                total_sales=Decimal(overall_total),
+                sale_record_count=sale_record_count,
+                positive_sale_record_count=(
+                    positive_sale_record_count
+                ),
+                zero_total_record_count=(
+                    zero_total_record_count
+                ),
+            ),
+            by_brand=tuple(by_brand),
+            by_truck=(),
+            by_worker=(),
+            by_brand_truck=(),
+            by_brand_worker=(),
+            by_brand_truck_worker=(),
+            attribution_issues=(),
+        )
+
+    def build_dashboard_result(
+        self,
+        sales,
+    ):
+        return SimpleNamespace(
+            sales=sales,
+            worker_cards=(),
+            top_sales_workers=Mock(
+                return_value=()
+            ),
+            lowest_sales_workers=Mock(
+                return_value=()
+            ),
+            highest_non_visit_rate_workers=Mock(
+                return_value=()
+            ),
+            worker_performance=SimpleNamespace(
+                most_not_sold_products_workers=Mock(
+                    return_value=()
+                )
+            ),
+        )
+
+    @patch(
+        "apps.dashboard.views._load_brands_by_id"
+    )
+    @patch(
+        "apps.dashboard.views._load_workers_by_id"
+    )
+    def test_sales_chart_uses_shared_brand_lookup(
+        self,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        from .views import _build_worker_presentations
+
+        sales = self.build_sales_result(
+            by_brand=(
+                BrandSalesTotal(
+                    brand_id=1,
+                    metrics=SalesMetrics(
+                        total_sales=Decimal("250"),
+                        sale_record_count=1,
+                        positive_sale_record_count=1,
+                        zero_total_record_count=0,
+                    ),
+                ),
+                BrandSalesTotal(
+                    brand_id=2,
+                    metrics=SalesMetrics(
+                        total_sales=Decimal("750"),
+                        sale_record_count=2,
+                        positive_sale_record_count=2,
+                        zero_total_record_count=0,
+                    ),
+                ),
+            ),
+        )
+
+        mocked_load_workers.return_value = {}
+        mocked_load_brands.return_value = {
+            1: SimpleNamespace(
+                name="NITA",
+                code="NITA",
+            ),
+            2: SimpleNamespace(
+                name="BIFA",
+                code="BIFA",
+            ),
+        }
+
+        result = _build_worker_presentations(
+            self.build_dashboard_result(sales)
+        )
+
+        mocked_load_workers.assert_called_once_with(
+            set()
+        )
+        mocked_load_brands.assert_called_once_with(
+            {1, 2}
+        )
+
+        self.assertEqual(
+            [
+                item.brand_name
+                for item in result[
+                    "brand_sales_chart"
+                ]
+            ],
+            ["BIFA", "NITA"],
+        )
+
+        self.assertEqual(
+            result[
+                "brand_sales_chart"
+            ][0].contribution_percentage,
+            Decimal("75.00"),
+        )
+
+    @patch(
+        "apps.dashboard.views._load_brands_by_id"
+    )
+    @patch(
+        "apps.dashboard.views._load_workers_by_id"
+    )
+    def test_empty_sales_produces_empty_chart(
+        self,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        from .views import _build_worker_presentations
+
+        mocked_load_workers.return_value = {}
+        mocked_load_brands.return_value = {}
+
+        result = _build_worker_presentations(
+            self.build_dashboard_result(
+                self.build_sales_result(
+                    overall_total="0",
+                    by_brand=(),
+                )
+            )
+        )
+
+        mocked_load_brands.assert_called_once_with(
+            set()
+        )
+
+        self.assertEqual(
+            result["brand_sales_chart"],
+            (),
+        )

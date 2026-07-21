@@ -1,0 +1,128 @@
+﻿{% load l10n %}
+
+<article class="executive-panel executive-panel--brands">
+    <header class="executive-panel__header">
+        <div>
+            <p class="executive-panel__eyebrow">
+                توزيع المبيعات
+            </p>
+
+            <h3>
+                المبيعات حسب العلامة
+            </h3>
+
+            <p class="brand-sales-chart__subtitle">
+                مقارنة مساهمة كل علامة في إجمالي المبيعات
+                المعتمدة خلال الفترة.
+            </p>
+        </div>
+
+        {% if brand_sales_chart %}
+            <span class="executive-panel__badge">
+                {{ brand_sales_chart|length }} علامة
+            </span>
+        {% else %}
+            <span class="executive-panel__badge">
+                لا توجد بيانات
+            </span>
+        {% endif %}
+    </header>
+
+    {% if brand_sales_chart %}
+        <div class="brand-sales-chart">
+            {% for item in brand_sales_chart|slice:":6" %}
+                <div class="brand-sales-chart__row">
+                    <div class="brand-sales-chart__row-header">
+                        <div class="brand-sales-chart__identity">
+                            <span class="brand-sales-chart__rank">
+                                {{ forloop.counter }}
+                            </span>
+
+                            <div>
+                                <strong>
+                                    {{ item.brand_name }}
+                                </strong>
+
+                                <small>
+                                    {{ item.positive_sale_record_count }}
+                                    عملية إيجابية من
+                                    {{ item.sale_record_count }}
+                                    سجل
+                                </small>
+                            </div>
+                        </div>
+
+                        <div class="brand-sales-chart__value">
+                            <strong>
+                                {{ item.total_sales|floatformat:2 }}
+                                دج
+                            </strong>
+
+                            {% if item.contribution_percentage == None %}
+                                <small>
+                                    نسبة غير متاحة
+                                </small>
+                            {% else %}
+                                <small>
+                                    {{ item.contribution_percentage|floatformat:1 }}%
+                                    من الإجمالي
+                                </small>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <meter
+                        class="brand-sales-chart__meter"
+                        min="0"
+                        max="100"
+                        value="{{ item.relative_bar_percentage|unlocalize }}"
+                        aria-label="المبيعات النسبية للعلامة {{ item.brand_name }}"
+                    >
+                        {{ item.relative_bar_percentage|floatformat:1 }}%
+                    </meter>
+
+                    <div class="brand-sales-chart__meta">
+                        <span>
+                            طول الشريط مقارنة بأعلى علامة مبيعًا
+                        </span>
+
+                        {% if item.zero_total_record_count %}
+                            <span class="brand-sales-chart__warning">
+                                {{ item.zero_total_record_count }}
+                                سجل صفري
+                            </span>
+                        {% else %}
+                            <span class="brand-sales-chart__success">
+                                دون سجلات صفرية
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <footer class="brand-sales-chart__footer">
+            <span aria-hidden="true">i</span>
+
+            <p>
+                نسبة المساهمة تُحسب من إجمالي المبيعات، بينما
+                طول الشريط يقارن العلامة بأعلى علامة مبيعًا.
+            </p>
+        </footer>
+    {% else %}
+        <div class="executive-empty-state brand-sales-chart__empty">
+            <span aria-hidden="true">▥</span>
+
+            <div>
+                <strong>
+                    لا توجد مبيعات موزعة حسب العلامة
+                </strong>
+
+                <p>
+                    سيظهر الرسم تلقائيًا عند اعتماد بيانات
+                    مبيعات ضمن الفترة الحالية.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+</article>

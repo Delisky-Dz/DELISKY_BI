@@ -1,4 +1,4 @@
-﻿from django.shortcuts import render
+from django.shortcuts import render
 
 from apps.analytics.services.manager_dashboard import (
     build_manager_dashboard,
@@ -10,6 +10,7 @@ from .access import manager_required
 from .forms import ManagerDashboardFilterForm
 from .presenters import (
     present_analytical_coverage,
+    present_brand_sales_chart,
     present_data_quality,
     present_manager_dashboard_summary,
     present_worker_dashboard_card,
@@ -138,6 +139,27 @@ def _collect_card_brand_ids(
     return brand_ids
 
 
+
+def _collect_sales_brand_ids(
+    dashboard_result,
+) -> set[int]:
+    sales = getattr(
+        dashboard_result,
+        "sales",
+        None,
+    )
+
+    brand_totals = (
+        getattr(sales, "by_brand", ())
+        or ()
+    )
+
+    return {
+        item.brand_id
+        for item in brand_totals
+    }
+
+
 def _load_workers_by_id(
     worker_ids: set[int],
 ) -> dict[int, Worker]:
@@ -208,6 +230,11 @@ def _build_worker_presentations(
     brand_ids = _collect_card_brand_ids(
         raw_worker_cards
     )
+    brand_ids.update(
+        _collect_sales_brand_ids(
+            dashboard_result
+        )
+    )
 
     workers_by_id = _load_workers_by_id(
         worker_ids
@@ -230,9 +257,25 @@ def _build_worker_presentations(
         for card in raw_worker_cards
     )
 
+    sales = getattr(
+        dashboard_result,
+        "sales",
+        None,
+    )
+
+    brand_sales_chart = (
+        present_brand_sales_chart(
+            sales,
+            brands_by_id,
+        )
+        if sales is not None
+        else ()
+    )
+
     return {
         **worker_rankings,
         "worker_cards": worker_cards,
+        "brand_sales_chart": brand_sales_chart,
     }
 
 
@@ -253,6 +296,7 @@ def manager_dashboard(request):
         "highest_non_visit_workers": (),
         "most_not_sold_workers": (),
         "worker_cards": (),
+        "brand_sales_chart": (),
     }
 
     response_status = 200
