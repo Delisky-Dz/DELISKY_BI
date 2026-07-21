@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 
 
 class RolePermissionTests(TestCase):
@@ -139,4 +140,200 @@ class RolePermissionTests(TestCase):
         )
         self.assertTrue(
             user.has_perm("fleet.delete_truck")
+        )
+
+
+
+class AccountAuthenticationRoutingTests(TestCase):
+    password = "Safe-Test-Password-2026"
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command(
+            "seed_roles",
+            stdout=StringIO(),
+        )
+        cls.User = get_user_model()
+
+    def create_role_user(
+        self,
+        username,
+        role_name,
+    ):
+        user = self.User.objects.create_user(
+            username=username,
+            password=self.password,
+            is_active=True,
+            is_staff=True,
+        )
+        user.groups.add(
+            Group.objects.get(name=role_name)
+        )
+        return user
+
+    def test_login_page_is_available(self):
+        response = self.client.get(
+            reverse("accounts:login")
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+        self.assertContains(
+            response,
+            "\u062a\u0633\u062c\u064a\u0644 "
+            "\u0627\u0644\u062f\u062e\u0648\u0644",
+        )
+        self.assertContains(
+            response,
+            "\u0627\u0633\u0645 "
+            "\u0627\u0644\u062f\u062e\u0648\u0644",
+        )
+
+    def test_valid_login_redirects_to_role_router(
+        self,
+    ):
+        self.create_role_user(
+            "login_manager_test",
+            "Manager",
+        )
+
+        response = self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "login_manager_test",
+                "password": self.password,
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("accounts:route"),
+            fetch_redirect_response=False,
+        )
+
+    def test_manager_routes_to_manager_dashboard(
+        self,
+    ):
+        user = self.create_role_user(
+            "route_manager_test",
+            "Manager",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("accounts:route")
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "dashboard:manager_dashboard"
+            ),
+            fetch_redirect_response=False,
+        )
+
+    def test_accountant_routes_to_accountant_area(
+        self,
+    ):
+        user = self.create_role_user(
+            "route_accountant_test",
+            "Accountant",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("accounts:route")
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("imports:accountant_home"),
+            fetch_redirect_response=False,
+        )
+
+        accountant_response = self.client.get(
+            reverse("imports:accountant_home")
+        )
+
+        self.assertEqual(
+            accountant_response.status_code,
+            200,
+        )
+        self.assertContains(
+            accountant_response,
+            "\u0648\u0627\u062c\u0647\u0629 "
+            "\u0627\u0644\u0645\u062d\u0627\u0633\u0628",
+        )
+
+    def test_superuser_routes_to_admin(self):
+        user = self.User.objects.create_superuser(
+            username="route_superuser_test",
+            password=self.password,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("accounts:route")
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("admin:index"),
+            fetch_redirect_response=False,
+        )
+
+    def test_anonymous_router_requires_login(self):
+        response = self.client.get(
+            reverse("accounts:route")
+        )
+
+        expected_url = (
+            reverse("accounts:login")
+            + "?next="
+            + reverse("accounts:route")
+        )
+
+        self.assertRedirects(
+            response,
+            expected_url,
+            fetch_redirect_response=False,
+        )
+
+    def test_manager_cannot_access_accountant_area(
+        self,
+    ):
+        user = self.create_role_user(
+            "manager_accountant_denied_test",
+            "Manager",
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("imports:accountant_home")
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_user_without_official_role_is_denied(
+        self,
+    ):
+        user = self.User.objects.create_user(
+            username="no_role_route_test",
+            password=self.password,
+            is_active=True,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get(
+            reverse("accounts:route")
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
         )

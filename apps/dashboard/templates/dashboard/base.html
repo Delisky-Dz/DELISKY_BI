@@ -1,7 +1,7 @@
 {% load static %}
 
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light" data-theme-preference="system">
 <head>
     <meta charset="utf-8">
 
@@ -21,9 +21,61 @@
         {% endblock %}
     </title>
 
+    <meta
+        name="color-scheme"
+        content="light dark"
+    >
+
+    <script id="dashboard-theme-bootstrap">
+        (function () {
+            "use strict";
+
+            var storageKey = "delisky-dashboard-theme";
+            var preference = "system";
+            var allowed = [
+                "light",
+                "dark",
+                "system"
+            ];
+
+            try {
+                var stored = localStorage.getItem(
+                    storageKey
+                );
+
+                if (allowed.indexOf(stored) !== -1) {
+                    preference = stored;
+                }
+            } catch (error) {
+                preference = "system";
+            }
+
+            var darkSystem = (
+                window.matchMedia &&
+                window.matchMedia(
+                    "(prefers-color-scheme: dark)"
+                ).matches
+            );
+
+            var resolved = preference === "system"
+                ? (darkSystem ? "dark" : "light")
+                : preference;
+
+            document.documentElement.setAttribute(
+                "data-theme-preference",
+                preference
+            );
+
+            document.documentElement.setAttribute(
+                "data-theme",
+                resolved
+            );
+        })();
+    </script>
+
     <link
         rel="stylesheet"
-        href="{% static 'dashboard/css/dashboard.css?v=20260721-2' %}?v=20260720-3"
+        href="{% static 'dashboard/css/dashboard.css' %}?v=20260721-theme-6"
     >
 
     {% block extra_head %}{% endblock %}
@@ -45,11 +97,11 @@
                     class="brand"
                     href="{% url 'dashboard:manager_dashboard' %}"
                 >
-                    <span
-                        class="brand__mark"
-                        aria-hidden="true"
-                    >
-                        DB
+                    <span class="brand__logo">
+                        <img
+                            src="{% static 'accounts/images/delisky-logo.png' %}"
+                            alt="شعار DELISKY"
+                        >
                     </span>
 
                     <span class="brand__text">
@@ -58,7 +110,7 @@
                         </span>
 
                         <span class="brand__description">
-                            نظام ذكاء الأعمال
+                            منصة التحليل الذكي
                         </span>
                     </span>
                 </a>
@@ -180,13 +232,45 @@
             </nav>
 
             <div class="sidebar__footer">
-                <p class="sidebar__footer-title">
-                    DELISKY
-                </p>
+                <div class="sidebar-user">
+                    <span
+                        class="sidebar-user__avatar"
+                        aria-hidden="true"
+                    >
+                        {{ request.user.username|slice:":1"|upper }}
+                    </span>
+
+                    <span class="sidebar-user__details">
+                        <strong>
+                            {% firstof request.user.get_full_name request.user.username %}
+                        </strong>
+
+                        <small>
+                            مستخدم لوحة المدير
+                        </small>
+                    </span>
+                </div>
+
+                <form
+                    method="post"
+                    action="{% url 'accounts:logout' %}"
+                >
+                    {% csrf_token %}
+
+                    <button
+                        class="sidebar-logout"
+                        type="submit"
+                    >
+                        <span aria-hidden="true">→</span>
+                        تسجيل الخروج
+                    </button>
+                </form>
 
                 <p class="sidebar__footer-text">
-                    المؤشرات المعروضة تعتمد على البيانات
-                    المتوفرة ودقة الفترة المصدرية.
+                    المؤشرات تعتمد
+                    على البيانات
+                    المعتمدة ودقة
+                    الفترة المصدرية.
                 </p>
             </div>
         </aside>
@@ -224,6 +308,45 @@
                     </div>
                 </div>
 
+                <div
+                    class="theme-switcher"
+                    role="group"
+                    aria-label="اختيار مظهر لوحة المدير"
+                >
+                    <button
+                        class="theme-switcher__button"
+                        type="button"
+                        data-theme-option="light"
+                        aria-pressed="false"
+                        title="الوضع الفاتح"
+                    >
+                        <span aria-hidden="true">&#9728;</span>
+                        <strong>فاتح</strong>
+                    </button>
+
+                    <button
+                        class="theme-switcher__button"
+                        type="button"
+                        data-theme-option="system"
+                        aria-pressed="false"
+                        title="اتباع وضع الجهاز"
+                    >
+                        <span aria-hidden="true">&#9680;</span>
+                        <strong>تلقائي</strong>
+                    </button>
+
+                    <button
+                        class="theme-switcher__button"
+                        type="button"
+                        data-theme-option="dark"
+                        aria-pressed="false"
+                        title="الوضع الداكن"
+                    >
+                        <span aria-hidden="true">&#9790;</span>
+                        <strong>داكن</strong>
+                    </button>
+                </div>
+
                 <div class="user-panel">
                     <span
                         class="user-panel__avatar"
@@ -255,7 +378,7 @@
     </div>
 
     <script
-        src="{% static 'dashboard/js/dashboard.js' %}"
+        src="{% static 'dashboard/js/dashboard.js' %}?v=20260721-theme-2"
         defer
     ></script>
 

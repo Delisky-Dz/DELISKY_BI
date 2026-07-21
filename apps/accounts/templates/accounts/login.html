@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="description"
+        content="بوابة الدخول إلى نظام DELISKY BI"
+    >
+
+    <title>
+        تسجيل الدخول | DELISKY BI
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{% static 'accounts/css/login.css' %}?v=20260721-final-2"
+    >
+</head>
+
+<body>
+    <main class="auth-page">
+        <section class="auth-shell">
+
+            <!-- Login side -->
+            <section
+                class="auth-login"
+                aria-labelledby="login-title"
+            >
+                <div class="auth-login__card">
+                    <header class="auth-login__header">
+                        <span class="auth-login__product">
+                            DELISKY BI
+                        </span>
+
+                        <h1 id="login-title">
+                            تسجيل الدخول
+                        </h1>
+
+                        <p>
+                            أدخل معلومات
+                            حسابك للانتقال
+                            إلى مساحة
+                            العمل المخصصة لك.
+                        </p>
+                    </header>
+
+                    {% if form.non_field_errors %}
+                        <div
+                            class="auth-alert"
+                            role="alert"
+                        >
+                            <span aria-hidden="true">!</span>
+
+                            <div>
+                                <strong>
+                                    تعذر تسجيل الدخول
+                                </strong>
+
+                                <p>
+                                    اسم الدخول
+                                    أو كلمة المرور
+                                    غير صحيحة.
+                                </p>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <form
+                        class="auth-form"
+                        method="post"
+                        novalidate
+                    >
+                        {% csrf_token %}
+
+                        {% if next %}
+                            <input
+                                type="hidden"
+                                name="next"
+                                value="{{ next }}"
+                            >
+                        {% endif %}
+
+                        <div class="auth-field">
+                            <label
+                                for="{{ form.username.id_for_label }}"
+                            >
+                                {{ form.username.label }}
+                            </label>
+
+                            <div class="auth-input">
+                                <span
+                                    class="auth-input__icon"
+                                    aria-hidden="true"
+                                >
+                                    @
+                                </span>
+
+                                {{ form.username }}
+                            </div>
+
+                            {% for error in form.username.errors %}
+                                <small
+                                    class="auth-field__error"
+                                    role="alert"
+                                >
+                                    {{ error }}
+                                </small>
+                            {% endfor %}
+                        </div>
+
+                        <div class="auth-field">
+                            <label
+                                for="{{ form.password.id_for_label }}"
+                            >
+                                {{ form.password.label }}
+                            </label>
+
+                            <div class="auth-input">
+                                <span
+                                    class="auth-input__icon auth-input__icon--password"
+                                    aria-hidden="true"
+                                ></span>
+
+                                {{ form.password }}
+
+                                <button
+                                    class="password-toggle"
+                                    type="button"
+                                    aria-label="إظهار كلمة المرور"
+                                    aria-pressed="false"
+                                    data-password-toggle
+                                >
+                                    إظهار
+                                </button>
+                            </div>
+
+                            {% for error in form.password.errors %}
+                                <small
+                                    class="auth-field__error"
+                                    role="alert"
+                                >
+                                    {{ error }}
+                                </small>
+                            {% endfor %}
+                        </div>
+
+                        <button
+                            class="auth-submit"
+                            type="submit"
+                        >
+                            <span>
+                                دخول إلى النظام
+                            </span>
+
+                            <b aria-hidden="true">←</b>
+                        </button>
+                    </form>
+
+                    <aside class="auth-support">
+                        <span
+                            class="auth-support__icon"
+                            aria-hidden="true"
+                        >
+                            i
+                        </span>
+
+                        <p>
+                            عند نسيان
+                            بيانات الدخول،
+                            تواصل مع
+                            المسؤول الأعلى
+                            لإعادة تعيين الحساب.
+                        </p>
+                    </aside>
+                </div>
+            </section>
+
+            <!-- Brand side -->
+            <section class="auth-brand">
+                <div
+                    class="auth-brand__decoration"
+                    aria-hidden="true"
+                ></div>
+
+                <header class="brand-header">
+                    <div class="brand-logo">
+                        <img
+                            src="{% static 'accounts/images/delisky-logo.png' %}"
+                            alt="شعار شركة DELISKY"
+                        >
+                    </div>
+
+                    <div class="brand-signature">
+                        <span>DELISKY BI</span>
+
+                        <strong>
+                            BUSINESS INTELLIGENCE
+                        </strong>
+
+                        <small>
+                            INTELLIGENCE PLATFORM
+                        </small>
+                    </div>
+                </header>
+
+                <div class="brand-hero">
+                    <p class="brand-hero__eyebrow">
+                        منصة ذكاء
+                        الأعمال
+                        والتحليل
+                        الذكي
+                    </p>
+
+                    <h2>
+                        قرارات أوضح
+                        من بيانات
+                        التوزيع اليومية
+                    </h2>
+
+                    <p class="brand-hero__description">
+                        نظام متقدم
+                        يجمع بين
+                        التحليل
+                        الدقيق،
+                        ودعم القرار
+                        الإداري.
+                    </p>
+
+                    <div
+                        class="brand-capabilities"
+                        aria-label="قدرات النظام"
+                    >
+                        <span>
+                            ذكاء الأعمال
+                        </span>
+
+                        <i aria-hidden="true"></i>
+
+                        <span>
+                            ذكاء تحليلي
+                        </span>
+
+                        <i aria-hidden="true"></i>
+
+                        <span>
+                            سرعة
+                        </span>
+
+                        <i aria-hidden="true"></i>
+
+                        <span>
+                            دقة
+                        </span>
+                    </div>
+
+                    <div class="brand-security">
+                        <span aria-hidden="true">✓</span>
+
+                        <strong>
+                            نظام داخلي آمن
+                        </strong>
+                    </div>
+                </div>
+
+                <div class="brand-benefits">
+                    <article class="brand-benefit">
+                        <span aria-hidden="true">01</span>
+
+                        <div>
+                            <strong>
+                                دخول حسب الدور
+                            </strong>
+
+                            <p>
+                                وصول مخصص
+                                لكل مستخدم.
+                            </p>
+                        </div>
+                    </article>
+
+                    <article class="brand-benefit">
+                        <span aria-hidden="true">02</span>
+
+                        <div>
+                            <strong>
+                                بيانات محمية
+                            </strong>
+
+                            <p>
+                                صلاحيات
+                                وجلسات آمنة.
+                            </p>
+                        </div>
+                    </article>
+
+                    <article class="brand-benefit">
+                        <span aria-hidden="true">03</span>
+
+                        <div>
+                            <strong>
+                                تشغيل محلي
+                            </strong>
+
+                            <p>
+                                بيانات الشركة
+                                تبقى داخل النظام.
+                            </p>
+                        </div>
+                    </article>
+                </div>
+
+                <footer class="brand-footer">
+                    <span>DELISKY BI</span>
+
+                    <p>
+                        نظام القيادة
+                        والتحليل
+                    </p>
+                </footer>
+            </section>
+
+        </section>
+    </main>
+
+    <script
+        src="{% static 'accounts/js/login.js' %}?v=20260721-final"
+        defer
+    ></script>
+</body>
+</html>

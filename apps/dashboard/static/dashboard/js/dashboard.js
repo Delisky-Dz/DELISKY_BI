@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
     "use strict";
 
     const body = document.body;
@@ -226,5 +226,154 @@
         {
             passive: true,
         }
+    );
+})();
+
+
+/* DELISKY THEME SWITCHER V1 */
+
+(function () {
+    "use strict";
+
+    const storageKey = "delisky-dashboard-theme";
+
+    const allowedPreferences = new Set([
+        "light",
+        "dark",
+        "system",
+    ]);
+
+    const buttons = Array.from(
+        document.querySelectorAll(
+            "[data-theme-option]"
+        )
+    );
+
+    const systemMedia = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+    );
+
+    function readPreference() {
+        try {
+            const stored = localStorage.getItem(
+                storageKey
+            );
+
+            if (allowedPreferences.has(stored)) {
+                return stored;
+            }
+        } catch (error) {
+            return "system";
+        }
+
+        return "system";
+    }
+
+    function resolveTheme(preference) {
+        if (preference === "system") {
+            return systemMedia.matches
+                ? "dark"
+                : "light";
+        }
+
+        return preference;
+    }
+
+    function updateButtons(preference) {
+        buttons.forEach(function (button) {
+            const isActive = (
+                button.dataset.themeOption === preference
+            );
+
+            button.classList.toggle(
+                "theme-switcher__button--active",
+                isActive
+            );
+
+            button.setAttribute(
+                "aria-pressed",
+                String(isActive)
+            );
+        });
+    }
+
+    function applyPreference(preference) {
+        const safePreference = (
+            allowedPreferences.has(preference)
+                ? preference
+                : "system"
+        );
+
+        const resolvedTheme = resolveTheme(
+            safePreference
+        );
+
+        document.documentElement.setAttribute(
+            "data-theme-preference",
+            safePreference
+        );
+
+        document.documentElement.setAttribute(
+            "data-theme",
+            resolvedTheme
+        );
+
+        updateButtons(
+            safePreference
+        );
+    }
+
+    buttons.forEach(function (button) {
+        button.addEventListener(
+            "click",
+            function () {
+                const preference = (
+                    button.dataset.themeOption
+                );
+
+                if (!allowedPreferences.has(preference)) {
+                    return;
+                }
+
+                try {
+                    localStorage.setItem(
+                        storageKey,
+                        preference
+                    );
+                } catch (error) {
+                    // The theme still works for this page.
+                }
+
+                applyPreference(
+                    preference
+                );
+            }
+        );
+    });
+
+    systemMedia.addEventListener(
+        "change",
+        function () {
+            if (readPreference() === "system") {
+                applyPreference(
+                    "system"
+                );
+            }
+        }
+    );
+
+    window.addEventListener(
+        "storage",
+        function (event) {
+            if (event.key === storageKey) {
+                applyPreference(
+                    readPreference()
+                );
+            }
+        }
+    );
+
+    applyPreference(
+        readPreference()
     );
 })();

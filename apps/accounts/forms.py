@@ -1,6 +1,10 @@
 from django import forms
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django.contrib.auth.forms import (
+    AuthenticationForm,
+    UserChangeForm,
+    UserCreationForm,
+)
 from django.contrib.auth.models import Group
 
 
@@ -94,3 +98,34 @@ class DeliskyUserChangeForm(
     def _save_m2m(self):
         super()._save_m2m()
         self.save_official_role()
+
+
+
+class DeliskyAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(
+        label="\u0627\u0633\u0645 \u0627\u0644\u062f\u062e\u0648\u0644",
+        widget=forms.TextInput(
+            attrs={
+                "autofocus": True,
+                "autocomplete": "username",
+                "placeholder": (
+                    "\u0627\u0633\u0645 "
+                    "\u0627\u0644\u062f\u062e\u0648\u0644"
+                ),
+            }
+        ),
+    )
+
+    password = forms.CharField(
+        label="\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631",
+        strip=False,
+        widget=forms.PasswordInput(
+            attrs={
+                "autocomplete": "current-password",
+                "placeholder": (
+                    "\u0643\u0644\u0645\u0629 "
+                    "\u0627\u0644\u0645\u0631\u0648\u0631"
+                ),
+            }
+        ),
+    )

@@ -5,11 +5,14 @@
 {% endblock %}
 
 {% block content %}
+    {% if dashboard_result and summary %}
+        {% include "dashboard/partials/executive_overview.html" %}
+    {% endif %}
+
     {% include "dashboard/partials/filter_form.html" %}
 
     {% if dashboard_result %}
         {% if summary %}
-            {% include "dashboard/partials/executive_overview.html" %}
             {% include "dashboard/partials/sales_summary.html" %}
             {% include "dashboard/partials/visits_summary.html" %}
             {% include "dashboard/partials/workers_summary.html" %}
@@ -33,25 +36,34 @@
             {% include "dashboard/partials/data_quality_summary.html" %}
         {% endif %}
     {% elif filter_form.errors %}
-        <section aria-labelledby="filter-errors-title">
+        <section
+            class="dashboard-empty-state dashboard-empty-state--error"
+            aria-labelledby="filter-errors-title"
+        >
             <h2 id="filter-errors-title">
                 تعذر تطبيق الفلتر
             </h2>
 
             <p>
-                صحح الأخطاء الظاهرة في الفترة أو العلامة
-                ثم أعد المحاولة.
+                صحح الأخطاء
+                الظاهرة ثم
+                أعد المحاولة.
             </p>
         </section>
     {% else %}
-        <section aria-labelledby="empty-dashboard-title">
+        <section
+            class="dashboard-empty-state"
+            aria-labelledby="empty-dashboard-title"
+        >
             <h2 id="empty-dashboard-title">
                 لا توجد نتائج
             </h2>
 
             <p>
-                لم تتوفر بيانات قابلة للعرض خلال الفترة
-                والفلتر المحددين.
+                غيّر الفترة
+                أو العلامة
+                لعرض البيانات
+                المتاحة.
             </p>
         </section>
     {% endif %}
