@@ -1,0 +1,677 @@
+<section
+    class="executive-overview"
+    aria-labelledby="executive-overview-title"
+>
+    <header class="executive-overview__header">
+        <div>
+            <p class="executive-overview__eyebrow">
+                DELISKY BI · EXECUTIVE COMMAND CENTER
+            </p>
+
+            <h2 id="executive-overview-title">
+                النظرة التنفيذية الذكية
+            </h2>
+
+            <p class="executive-overview__description">
+                أهم مؤشرات النشاط والتنبيهات التي يحتاجها
+                المدير لاتخاذ القرار خلال الفترة المحددة.
+            </p>
+        </div>
+
+        <div
+            class="executive-overview__status"
+            aria-label="حالة البيانات الحالية"
+        >
+            <span
+                class="executive-overview__status-dot"
+                aria-hidden="true"
+            ></span>
+
+            <span>
+                تحليل مباشر من البيانات المعتمدة
+            </span>
+        </div>
+    </header>
+
+    <div class="executive-filter-context">
+        <span class="executive-filter-context__label">
+            نطاق التحليل
+        </span>
+
+        <div class="executive-filter-context__items">
+            <span class="executive-context-chip">
+                <small>من</small>
+
+                <strong>
+                    {% if filter_form.cleaned_data.period_start %}
+                        {{ filter_form.cleaned_data.period_start|date:"Y-m-d" }}
+                    {% else %}
+                        أول البيانات
+                    {% endif %}
+                </strong>
+            </span>
+
+            <span class="executive-context-chip">
+                <small>إلى</small>
+
+                <strong>
+                    {% if filter_form.cleaned_data.period_end %}
+                        {{ filter_form.cleaned_data.period_end|date:"Y-m-d" }}
+                    {% else %}
+                        آخر البيانات
+                    {% endif %}
+                </strong>
+            </span>
+
+            <span class="executive-context-chip">
+                <small>العلامة</small>
+
+                <strong>
+                    {% if filter_form.cleaned_data.brand %}
+                        {{ filter_form.cleaned_data.brand }}
+                    {% else %}
+                        جميع العلامات
+                    {% endif %}
+                </strong>
+            </span>
+        </div>
+    </div>
+
+    <div class="executive-kpi-grid">
+        <article class="executive-kpi executive-kpi--sales">
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">
+                    دج
+                </span>
+
+                <span class="executive-kpi__status">
+                    المبيعات
+                </span>
+            </div>
+
+            <p class="executive-kpi__label">
+                إجمالي المبيعات
+            </p>
+
+            <p class="executive-kpi__value">
+                {{ summary.total_sales|floatformat:2 }}
+                <small>دج</small>
+            </p>
+
+            <div class="executive-kpi__footer">
+                <span>
+                    {{ summary.positive_sale_record_count }}
+                    عملية إيجابية
+                </span>
+
+                <span>
+                    {{ summary.sale_record_count }}
+                    سجل
+                </span>
+            </div>
+        </article>
+
+        <article class="executive-kpi executive-kpi--visits">
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">
+                    ✓
+                </span>
+
+                <span class="executive-kpi__status">
+                    الزيارات
+                </span>
+            </div>
+
+            <p class="executive-kpi__label">
+                نسبة نجاح الزيارة
+            </p>
+
+            {% if summary.visit_success_percentage == None %}
+                <p class="executive-kpi__empty">
+                    لا توجد بيانات كافية
+                </p>
+            {% else %}
+                <p class="executive-kpi__value">
+                    {{ summary.visit_success_percentage|floatformat:1 }}
+                    <small>%</small>
+                </p>
+            {% endif %}
+
+            <div class="executive-kpi__footer">
+                <span>
+                    {{ summary.visited_record_count }}
+                    زيارة ناجحة
+                </span>
+
+                <span>
+                    {{ summary.pos_record_count }}
+                    سجل
+                </span>
+            </div>
+        </article>
+
+        <article class="executive-kpi executive-kpi--workers">
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">
+                    ب
+                </span>
+
+                <span class="executive-kpi__status">
+                    البائعون
+                </span>
+            </div>
+
+            <p class="executive-kpi__label">
+                تغطية قياس المبيعات
+            </p>
+
+            <p class="executive-kpi__value">
+                {{ summary.measured_sales_worker_count }}
+                <small>
+                    من {{ summary.worker_count }}
+                </small>
+            </p>
+
+            {% if summary.worker_count %}
+                <progress
+                    class="executive-kpi__progress"
+                    value="{{ summary.measured_sales_worker_count }}"
+                    max="{{ summary.worker_count }}"
+                >
+                    {{ summary.measured_sales_worker_count }}
+                    من
+                    {{ summary.worker_count }}
+                </progress>
+            {% endif %}
+
+            <div class="executive-kpi__footer">
+                <span>
+                    قياس فعلي فقط
+                </span>
+
+                <span>
+                    دون تصنيف الغائبين
+                </span>
+            </div>
+        </article>
+
+        <article
+            class="executive-kpi {% if data_quality.total_issue_and_warning_count %}executive-kpi--attention{% else %}executive-kpi--quality{% endif %}"
+        >
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">
+                    !
+                </span>
+
+                <span class="executive-kpi__status">
+                    جودة البيانات
+                </span>
+            </div>
+
+            <p class="executive-kpi__label">
+                المشاكل والتحذيرات
+            </p>
+
+            <p class="executive-kpi__value">
+                {{ data_quality.total_issue_and_warning_count }}
+            </p>
+
+            <div class="executive-kpi__footer">
+                <span>
+                    {{ data_quality.attribution_issue_count }}
+                    مشكلة ربط
+                </span>
+
+                <span>
+                    {{ data_quality.warning_count }}
+                    تحذير
+                </span>
+            </div>
+        </article>
+    </div>
+
+    <div class="executive-insight-grid">
+        <article class="executive-panel executive-panel--visits">
+            <header class="executive-panel__header">
+                <div>
+                    <p class="executive-panel__eyebrow">
+                        تحليل الزيارات
+                    </p>
+
+                    <h3>
+                        الزيارة مقابل عدم الزيارة
+                    </h3>
+                </div>
+
+                <span class="executive-panel__badge">
+                    {{ summary.pos_record_count }} سجل
+                </span>
+            </header>
+
+            <div class="visit-chart-layout">
+                <div
+                    class="executive-donut {% if summary.visit_success_percentage == None %}executive-donut--empty{% endif %}"
+                    style="--chart-value: {{ summary.visit_success_percentage|default_if_none:'0' }};"
+                    role="img"
+                    aria-label="نسبة نجاح الزيارة"
+                >
+                    <div class="executive-donut__center">
+                        {% if summary.visit_success_percentage == None %}
+                            <strong>—</strong>
+                            <span>لا بيانات</span>
+                        {% else %}
+                            <strong>
+                                {{ summary.visit_success_percentage|floatformat:1 }}%
+                            </strong>
+
+                            <span>
+                                نجاح الزيارة
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="visit-chart-legend">
+                    <div class="visit-chart-legend__item">
+                        <span
+                            class="visit-chart-legend__color visit-chart-legend__color--success"
+                            aria-hidden="true"
+                        ></span>
+
+                        <div>
+                            <small>زيارات ناجحة</small>
+
+                            <strong>
+                                {{ summary.visited_record_count }}
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div class="visit-chart-legend__item">
+                        <span
+                            class="visit-chart-legend__color visit-chart-legend__color--warning"
+                            aria-hidden="true"
+                        ></span>
+
+                        <div>
+                            <small>عدم زيارة</small>
+
+                            <strong>
+                                {{ summary.not_visited_record_count }}
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div class="visit-chart-legend__item">
+                        <span
+                            class="visit-chart-legend__color visit-chart-legend__color--neutral"
+                            aria-hidden="true"
+                        ></span>
+
+                        <div>
+                            <small>زبائن مميزون</small>
+
+                            <strong>
+                                {{ summary.distinct_brand_client_count }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <article class="executive-panel executive-panel--ranking">
+            <header class="executive-panel__header">
+                <div>
+                    <p class="executive-panel__eyebrow">
+                        قوة المبيعات
+                    </p>
+
+                    <h3>
+                        أعلى البائعين مبيعًا
+                    </h3>
+                </div>
+
+                <a
+                    class="executive-panel__link"
+                    href="#worker-rankings-title"
+                >
+                    التفاصيل
+                </a>
+            </header>
+
+            {% if top_sales_workers %}
+                <div class="executive-sales-bars">
+                    {% for worker in top_sales_workers|slice:":5" %}
+                        <div class="executive-sales-row">
+                            <div class="executive-sales-row__header">
+                                <span class="executive-sales-row__identity">
+                                    <span class="executive-sales-row__rank">
+                                        {{ forloop.counter }}
+                                    </span>
+
+                                    <span>
+                                        <strong>
+                                            {{ worker.worker_name }}
+                                        </strong>
+
+                                        {% if worker.employee_code %}
+                                            <small>
+                                                {{ worker.employee_code }}
+                                            </small>
+                                        {% endif %}
+                                    </span>
+                                </span>
+
+                                <strong class="executive-sales-row__value">
+                                    {{ worker.total_sales|floatformat:2 }}
+                                    دج
+                                </strong>
+                            </div>
+
+                            {% if top_sales_workers.0.total_sales %}
+                                <meter
+                                    min="0"
+                                    max="{{ top_sales_workers.0.total_sales }}"
+                                    value="{{ worker.total_sales }}"
+                                >
+                                    {{ worker.total_sales }}
+                                </meter>
+                            {% else %}
+                                <span class="executive-sales-row__empty">
+                                    لا توجد مبيعات موجبة
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="executive-empty-state">
+                    <span aria-hidden="true">↗</span>
+
+                    <p>
+                        لا توجد بيانات مبيعات قابلة للترتيب
+                        ضمن الفترة الحالية.
+                    </p>
+                </div>
+            {% endif %}
+        </article>
+
+        <article class="executive-panel executive-panel--alerts">
+            <header class="executive-panel__header">
+                <div>
+                    <p class="executive-panel__eyebrow">
+                        مركز الانتباه
+                    </p>
+
+                    <h3>
+                        ما يحتاج قرارًا الآن؟
+                    </h3>
+                </div>
+
+                {% if data_quality.total_issue_and_warning_count or summary.worker_not_sold_product_count or summary.worker_negative_gap_product_count or summary.possible_stopped_truck_count or summary.conflicting_truck_state_count or coverage.period_excluded_row_count %}
+                    <span class="executive-panel__badge executive-panel__badge--warning">
+                        توجد ملاحظات
+                    </span>
+                {% else %}
+                    <span class="executive-panel__badge executive-panel__badge--success">
+                        الوضع مستقر
+                    </span>
+                {% endif %}
+            </header>
+
+            <div class="executive-alert-list">
+                {% if summary.worker_not_sold_product_count %}
+                    <a
+                        class="executive-alert executive-alert--warning"
+                        href="#attention-summary-title"
+                    >
+                        <span class="executive-alert__icon">
+                            !
+                        </span>
+
+                        <span>
+                            <strong>
+                                {{ summary.worker_not_sold_product_count }}
+                                حالة منتجات غير مباعة
+                            </strong>
+
+                            <small>
+                                حسب البائعين خلال الفترة
+                            </small>
+                        </span>
+
+                        <span class="executive-alert__arrow">
+                            ←
+                        </span>
+                    </a>
+                {% endif %}
+
+                {% if summary.worker_negative_gap_product_count or summary.truck_negative_gap_product_count %}
+                    <a
+                        class="executive-alert executive-alert--danger"
+                        href="#attention-summary-title"
+                    >
+                        <span class="executive-alert__icon">
+                            !
+                        </span>
+
+                        <span>
+                            <strong>
+                                فجوات حسابية سالبة
+                            </strong>
+
+                            <small>
+                                {{ summary.worker_negative_gap_product_count }}
+                                حسب البائع و
+                                {{ summary.truck_negative_gap_product_count }}
+                                حسب الشاحنة
+                            </small>
+                        </span>
+
+                        <span class="executive-alert__arrow">
+                            ←
+                        </span>
+                    </a>
+                {% endif %}
+
+                {% if data_quality.total_issue_and_warning_count %}
+                    <a
+                        class="executive-alert executive-alert--warning"
+                        href="#data-quality-summary-title"
+                    >
+                        <span class="executive-alert__icon">
+                            !
+                        </span>
+
+                        <span>
+                            <strong>
+                                {{ data_quality.total_issue_and_warning_count }}
+                                ملاحظة على جودة البيانات
+                            </strong>
+
+                            <small>
+                                راجع الربط والتحذيرات
+                            </small>
+                        </span>
+
+                        <span class="executive-alert__arrow">
+                            ←
+                        </span>
+                    </a>
+                {% endif %}
+
+                {% if coverage.period_excluded_row_count %}
+                    <a
+                        class="executive-alert executive-alert--neutral"
+                        href="#coverage-summary-title"
+                    >
+                        <span class="executive-alert__icon">
+                            i
+                        </span>
+
+                        <span>
+                            <strong>
+                                {{ coverage.period_excluded_row_count }}
+                                صفًا مستبعدًا زمنيًا
+                            </strong>
+
+                            <small>
+                                بسبب نطاق الفترة المختارة
+                            </small>
+                        </span>
+
+                        <span class="executive-alert__arrow">
+                            ←
+                        </span>
+                    </a>
+                {% endif %}
+
+                {% if summary.possible_stopped_truck_count or summary.conflicting_truck_state_count %}
+                    <a
+                        class="executive-alert executive-alert--warning"
+                        href="#truck-status-title"
+                    >
+                        <span class="executive-alert__icon">
+                            !
+                        </span>
+
+                        <span>
+                            <strong>
+                                حالة شاحنات تحتاج مراجعة
+                            </strong>
+
+                            <small>
+                                {{ summary.possible_stopped_truck_count }}
+                                توقف محتمل و
+                                {{ summary.conflicting_truck_state_count }}
+                                حالة متعارضة
+                            </small>
+                        </span>
+
+                        <span class="executive-alert__arrow">
+                            ←
+                        </span>
+                    </a>
+                {% endif %}
+
+                {% if not data_quality.total_issue_and_warning_count and not summary.worker_not_sold_product_count and not summary.worker_negative_gap_product_count and not summary.truck_negative_gap_product_count and not summary.possible_stopped_truck_count and not summary.conflicting_truck_state_count and not coverage.period_excluded_row_count %}
+                    <div class="executive-alert executive-alert--success">
+                        <span class="executive-alert__icon">
+                            ✓
+                        </span>
+
+                        <span>
+                            <strong>
+                                لا توجد نقاط بارزة للمراجعة
+                            </strong>
+
+                            <small>
+                                وفق البيانات المتاحة حاليًا
+                            </small>
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+        </article>
+
+        <article class="executive-panel executive-panel--fleet">
+            <header class="executive-panel__header">
+                <div>
+                    <p class="executive-panel__eyebrow">
+                        الحالة التشغيلية
+                    </p>
+
+                    <h3>
+                        ملخص الشاحنات
+                    </h3>
+                </div>
+
+                <a
+                    class="executive-panel__link"
+                    href="#truck-status-title"
+                >
+                    التفاصيل
+                </a>
+            </header>
+
+            <div class="fleet-status-grid">
+                <div class="fleet-status-card fleet-status-card--neutral">
+                    <span class="fleet-status-card__label">
+                        متوقفة مؤكدًا
+                    </span>
+
+                    <strong>
+                        {{ summary.confirmed_stopped_truck_count }}
+                    </strong>
+
+                    <small>
+                        حالة تشغيلية
+                    </small>
+                </div>
+
+                <div class="fleet-status-card fleet-status-card--warning">
+                    <span class="fleet-status-card__label">
+                        توقف محتمل
+                    </span>
+
+                    <strong>
+                        {{ summary.possible_stopped_truck_count }}
+                    </strong>
+
+                    <small>
+                        تحتاج مراجعة
+                    </small>
+                </div>
+
+                <div class="fleet-status-card fleet-status-card--danger">
+                    <span class="fleet-status-card__label">
+                        أدلة متعارضة
+                    </span>
+
+                    <strong>
+                        {{ summary.conflicting_truck_state_count }}
+                    </strong>
+
+                    <small>
+                        تحتاج تحققًا
+                    </small>
+                </div>
+            </div>
+
+            <div class="executive-integrity">
+                <div class="executive-integrity__item">
+                    <span>التغطية الزمنية</span>
+
+                    {% if coverage.period_excluded_row_count %}
+                        <strong class="text-warning">
+                            استبعادات موجودة
+                        </strong>
+                    {% else %}
+                        <strong class="text-success">
+                            تغطية كاملة
+                        </strong>
+                    {% endif %}
+                </div>
+
+                <div class="executive-integrity__item">
+                    <span>جودة الربط</span>
+
+                    {% if data_quality.attribution_issue_count %}
+                        <strong class="text-danger">
+                            تحتاج مراجعة
+                        </strong>
+                    {% else %}
+                        <strong class="text-success">
+                            سليمة
+                        </strong>
+                    {% endif %}
+                </div>
+            </div>
+
+            <p class="fleet-status-note">
+                توقف الشاحنة لا يُحتسب فشلًا للبائع.
+            </p>
+        </article>
+    </div>
+</section>

@@ -1,4 +1,4 @@
-﻿{% extends "dashboard/base.html" %}
+{% extends "dashboard/base.html" %}
 
 {% block title %}
     لوحة المدير | DELISKY BI
@@ -9,6 +9,7 @@
 
     {% if dashboard_result %}
         {% if summary %}
+            {% include "dashboard/partials/executive_overview.html" %}
             {% include "dashboard/partials/sales_summary.html" %}
             {% include "dashboard/partials/visits_summary.html" %}
             {% include "dashboard/partials/workers_summary.html" %}
