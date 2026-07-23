@@ -36,6 +36,36 @@ from .services.batch_review import (
 logger = logging.getLogger(__name__)
 
 
+ACCOUNTANT_ISSUE_LABELS = {
+    "date_outside_period": (
+        "\u0627\u0644\u062a\u0627\u0631\u064a\u062e "
+        "\u062e\u0627\u0631\u062c "
+        "\u0627\u0644\u0641\u062a\u0631\u0629 "
+        "\u0627\u0644\u0645\u062d\u062f\u062f\u0629"
+    ),
+    "truck_stopped_for_period": (
+        "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
+        "\u0645\u062a\u0648\u0642\u0641\u0629 "
+        "\u062e\u0644\u0627\u0644 "
+        "\u0627\u0644\u0641\u062a\u0631\u0629"
+    ),
+}
+
+
+OPERATIONAL_ISSUE_CODES = {
+    "truck_stopped_for_period",
+}
+
+
+def _accountant_issue_label(code: str) -> str:
+    normalized_code = str(code or "").strip()
+
+    return ACCOUNTANT_ISSUE_LABELS.get(
+        normalized_code,
+        issue_message(normalized_code),
+    )
+
+
 def _status_counts() -> dict[str, int]:
     counts = {
         value: 0
@@ -97,13 +127,131 @@ def _present_service_errors(
         {
             "stage": item.get("stage", ""),
             "code": item.get("code", ""),
-            "message": issue_message(
+            "message": _accountant_issue_label(
                 item.get("code", "")
             ),
             "details": item.get("details", {}),
         }
         for item in errors
     ]
+
+
+def _present_raw_value(value):
+    if value is None or value == "":
+        return "\u2014"
+
+    if isinstance(value, bool):
+        return (
+            "\u0646\u0639\u0645"
+            if value
+            else "\u0644\u0627"
+        )
+
+    return value
+
+
+def _present_problem_rows(batch) -> list[dict]:
+    problem_rows = []
+
+    reviewed_rows = batch.rows.order_by(
+        "excel_row_number"
+    )
+
+    for row in reviewed_rows:
+        raw_issues = (
+            row.issues
+            if isinstance(row.issues, list)
+            else []
+        )
+
+        presented_issues = []
+
+        for issue in raw_issues:
+            if not isinstance(issue, dict):
+                continue
+
+            code = str(
+                issue.get("code", "")
+            )
+
+            if code in OPERATIONAL_ISSUE_CODES:
+                continue
+
+            raw_value = issue.get(
+                "raw_value"
+            )
+
+            presented_issues.append(
+                {
+                    "code": code,
+                    "label": (
+                        _accountant_issue_label(
+                            code
+                        )
+                    ),
+                    "severity": str(
+                        issue.get(
+                            "severity",
+                            "WARNING",
+                        )
+                    ).upper(),
+                    "field": str(
+                        issue.get("field", "")
+                    ),
+                    "raw_value": (
+                        _present_raw_value(
+                            raw_value
+                        )
+                    ),
+                    "has_raw_value": (
+                        raw_value is not None
+                        and raw_value != ""
+                    ),
+                }
+            )
+
+        if not presented_issues:
+            continue
+
+        raw_data = (
+            row.raw_data
+            if isinstance(row.raw_data, dict)
+            else {}
+        )
+
+        raw_values = [
+            {
+                "field": str(field_name),
+                "value": _present_raw_value(
+                    value
+                ),
+            }
+            for field_name, value
+            in raw_data.items()
+        ]
+
+        problem_rows.append(
+            {
+                "excel_row_number": (
+                    row.excel_row_number
+                ),
+                "status": row.status,
+                "status_label": (
+                    row.get_status_display()
+                ),
+                "issues": presented_issues,
+                "issue_count": len(
+                    presented_issues
+                ),
+                "has_error": any(
+                    item["severity"] == "ERROR"
+                    for item in presented_issues
+                ),
+                "raw_values": raw_values,
+            }
+        )
+
+    return problem_rows
 
 
 @accountant_required
@@ -210,22 +358,40 @@ def batch_detail(request, batch_id: int):
 
     summary = batch.review_summary or {}
 
-    issue_groups = [
-        {
-            **group,
-            "label": issue_message(
-                group.get("code", "")
-            ),
-        }
-        for group in summary.get(
-            "issue_groups",
-            [],
-        )
-    ]
+    issue_groups = []
 
-    rows = list(
-        batch.rows
-        .order_by("excel_row_number")[:100]
+    for group in summary.get(
+        "issue_groups",
+        [],
+    ):
+        code = str(
+            group.get("code", "")
+        )
+
+        issue_groups.append(
+            {
+                **group,
+                "label": (
+                    _accountant_issue_label(
+                        code
+                    )
+                ),
+                "display_severity": (
+                    "INFO"
+                    if code
+                    in OPERATIONAL_ISSUE_CODES
+                    else str(
+                        group.get(
+                            "severity",
+                            "WARNING",
+                        )
+                    ).upper()
+                ),
+            }
+        )
+
+    problem_rows = _present_problem_rows(
+        batch
     )
 
     can_approve = (
@@ -241,7 +407,7 @@ def batch_detail(request, batch_id: int):
             "batch": batch,
             "summary": summary,
             "issue_groups": issue_groups,
-            "rows": rows,
+            "problem_rows": problem_rows,
             "can_approve": can_approve,
         },
     )

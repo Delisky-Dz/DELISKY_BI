@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-theme="light" data-theme-preference="system">
 <head>
     <meta charset="UTF-8">
 
@@ -15,9 +15,58 @@
         {% endblock %}
     </title>
 
+
+    <script>
+        (function () {
+            var storageKey = "delisky-dashboard-theme";
+            var validPreferences = [
+                "light",
+                "system",
+                "dark"
+            ];
+            var preference = "system";
+
+            try {
+                var savedPreference = localStorage.getItem(
+                    storageKey
+                );
+
+                if (
+                    validPreferences.includes(
+                        savedPreference
+                    )
+                ) {
+                    preference = savedPreference;
+                }
+            } catch (error) {
+                preference = "system";
+            }
+
+            var resolvedTheme = preference;
+
+            if (preference === "system") {
+                resolvedTheme = window.matchMedia(
+                    "(prefers-color-scheme: dark)"
+                ).matches
+                    ? "dark"
+                    : "light";
+            }
+
+            document.documentElement.setAttribute(
+                "data-theme-preference",
+                preference
+            );
+
+            document.documentElement.setAttribute(
+                "data-theme",
+                resolvedTheme
+            );
+        })();
+    </script>
+
     <link
         rel="stylesheet"
-        href="{% static 'imports/css/accountant.css' %}?v=20260721-1"
+        href="{% static 'imports/css/accountant.css' %}?v=20260723-3"
     >
 </head>
 
@@ -81,6 +130,54 @@
                 </div>
 
                 <div class="topbar-user">
+                    <div
+                        class="theme-switcher"
+                        role="group"
+                        aria-label="مظهر الواجهة"
+                    >
+                        <button
+                            type="button"
+                            class="theme-option"
+                            data-theme-option="light"
+                            aria-pressed="false"
+                            title="الوضع الفاتح"
+                        >
+                            <span aria-hidden="true">
+                                &#9728;
+                            </span>
+
+                            <span>فاتح</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="theme-option"
+                            data-theme-option="system"
+                            aria-pressed="false"
+                            title="الوضع التلقائي"
+                        >
+                            <span aria-hidden="true">
+                                &#128187;
+                            </span>
+
+                            <span>تلقائي</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="theme-option"
+                            data-theme-option="dark"
+                            aria-pressed="false"
+                            title="الوضع الداكن"
+                        >
+                            <span aria-hidden="true">
+                                &#9790;
+                            </span>
+
+                            <span>داكن</span>
+                        </button>
+                    </div>
+
                     <div class="user-copy">
                         <strong>
                             {{ request.user.get_full_name|default:request.user.username }}
@@ -128,7 +225,7 @@
     </div>
 
     <script
-        src="{% static 'imports/js/accountant.js' %}?v=20260721-1"
+        src="{% static 'imports/js/accountant.js' %}?v=20260723-3"
         defer
     ></script>
 </body>

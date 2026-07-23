@@ -22,6 +22,7 @@ from .services.batch_approval import (
 from .services.batch_review import (
     ImportBatchReviewError,
 )
+from .views import _present_problem_rows
 
 
 class AccountantImportViewTests(TestCase):
@@ -127,6 +128,33 @@ class AccountantImportViewTests(TestCase):
             "\u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a",
         )
 
+
+    def test_home_contains_appearance_theme_controls(self):
+        self.login_accountant()
+
+        response = self.client.get(
+            reverse(
+                "imports:accountant_home"
+            )
+        )
+
+        self.assertContains(
+            response,
+            'data-theme-option="light"',
+        )
+        self.assertContains(
+            response,
+            'data-theme-option="system"',
+        )
+        self.assertContains(
+            response,
+            'data-theme-option="dark"',
+        )
+        self.assertContains(
+            response,
+            "delisky-dashboard-theme",
+        )
+
     def test_superuser_can_open_home(self):
         self.client.force_login(
             self.superuser
@@ -211,6 +239,12 @@ class AccountantImportViewTests(TestCase):
                 "imports:accountant_home"
             ),
             data={
+                "brand": self.brand.pk,
+                "report_type": (
+                    ImportReportType.SALES
+                ),
+                "period_start": "2026-07-01",
+                "period_end": "2026-07-07",
                 "source_file": source_file,
             },
         )
@@ -267,7 +301,10 @@ class AccountantImportViewTests(TestCase):
         )
 
         source_file = SimpleUploadedFile(
-            "invalid.xlsx",
+            (
+                "Sales_BIFA_2026-07-01_"
+                "2026-07-07.xlsx"
+            ),
             b"temporary-test-content",
         )
 
@@ -276,6 +313,12 @@ class AccountantImportViewTests(TestCase):
                 "imports:accountant_home"
             ),
             data={
+                "brand": self.brand.pk,
+                "report_type": (
+                    ImportReportType.SALES
+                ),
+                "period_start": "2026-07-01",
+                "period_end": "2026-07-07",
                 "source_file": source_file,
             },
         )
@@ -298,6 +341,70 @@ class AccountantImportViewTests(TestCase):
             1,
         )
 
+
+    def test_home_contains_import_identity_fields(self):
+        self.login_accountant()
+
+        response = self.client.get(
+            reverse(
+                "imports:accountant_home"
+            )
+        )
+
+        form = response.context["upload_form"]
+
+        self.assertIn("brand", form.fields)
+        self.assertIn("report_type", form.fields)
+        self.assertIn("period_start", form.fields)
+        self.assertIn("period_end", form.fields)
+        self.assertIn("source_file", form.fields)
+
+    @patch(
+        "apps.imports.views."
+        "create_or_update_import_review"
+    )
+    def test_filename_brand_mismatch_blocks_review(
+        self,
+        review_mock,
+    ):
+        self.login_accountant()
+
+        source_file = SimpleUploadedFile(
+            (
+                "Sales_NITA_2026-07-01_"
+                "2026-07-07.xlsx"
+            ),
+            b"temporary-test-content",
+        )
+
+        response = self.client.post(
+            reverse(
+                "imports:accountant_home"
+            ),
+            data={
+                "brand": self.brand.pk,
+                "report_type": (
+                    ImportReportType.SALES
+                ),
+                "period_start": "2026-07-01",
+                "period_end": "2026-07-07",
+                "source_file": source_file,
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertTrue(
+            response.context[
+                "upload_form"
+            ].non_field_errors()
+        )
+
+        review_mock.assert_not_called()
+
     def test_accountant_can_open_batch_detail(self):
         self.login_accountant()
 
@@ -319,6 +426,112 @@ class AccountantImportViewTests(TestCase):
         self.assertTrue(
             response.context["can_approve"]
         )
+        self.assertEqual(
+            response.context["problem_rows"],
+            [],
+        )
+        self.assertNotContains(
+            response,
+            "أول 100 "
+            "صف محفوظ",
+        )
+
+
+    def test_problem_row_presenter_hides_clean_rows(self):
+        clean_row = SimpleNamespace(
+            excel_row_number=2,
+            status="ACCEPTED",
+            issues=[],
+            raw_data={
+                "Code": "A-001",
+            },
+            get_status_display=lambda: "Accepted",
+        )
+
+        problem_row = SimpleNamespace(
+            excel_row_number=7,
+            status="EXCLUDED",
+            issues=[
+                {
+                    "code": "sample_problem",
+                    "severity": "ERROR",
+                    "field": "Quantity",
+                    "raw_value": -4,
+                }
+            ],
+            raw_data={
+                "Code": "A-007",
+                "Quantity": -4,
+            },
+            get_status_display=lambda: "Excluded",
+        )
+
+        row_manager = SimpleNamespace(
+            order_by=lambda _field: [
+                clean_row,
+                problem_row,
+            ]
+        )
+
+        batch = SimpleNamespace(
+            rows=row_manager,
+        )
+
+        result = _present_problem_rows(
+            batch
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(
+            result[0]["excel_row_number"],
+            7,
+        )
+        self.assertTrue(
+            result[0]["has_error"]
+        )
+        self.assertEqual(
+            result[0]["raw_values"][1][
+                "value"
+            ],
+            -4,
+        )
+
+
+    def test_operational_stop_is_not_a_problem_row(self):
+        stopped_row = SimpleNamespace(
+            excel_row_number=169,
+            status="STOPPED",
+            issues=[
+                {
+                    "code": (
+                        "truck_stopped_for_period"
+                    ),
+                    "severity": "WARNING",
+                    "field": "Truck",
+                    "raw_value": "BIFA-01",
+                }
+            ],
+            raw_data={
+                "Truck": "BIFA-01",
+            },
+            get_status_display=lambda: "Stopped",
+        )
+
+        row_manager = SimpleNamespace(
+            order_by=lambda _field: [
+                stopped_row,
+            ]
+        )
+
+        batch = SimpleNamespace(
+            rows=row_manager,
+        )
+
+        result = _present_problem_rows(
+            batch
+        )
+
+        self.assertEqual(result, [])
 
     def test_manager_cannot_open_batch_detail(self):
         self.client.force_login(

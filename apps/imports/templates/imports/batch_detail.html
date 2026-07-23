@@ -27,7 +27,7 @@
 <section class="batch-identity panel">
     <div>
         <span class="section-kicker">
-            Import Batch #{{ batch.id }}
+            دفعة الاستيراد رقم {{ batch.id }}
         </span>
 
         <h2>{{ batch.original_filename }}</h2>
@@ -168,12 +168,11 @@
             <div class="issues-list">
                 {% for group in issue_groups %}
                     <article
-                        class="issue-card issue-{{ group.severity|lower }}"
+                        class="issue-card issue-{{ group.display_severity|lower }}"
                     >
                         <div>
                             <strong>{{ group.label }}</strong>
 
-                            <code>{{ group.code }}</code>
                         </div>
 
                         <span>
@@ -258,62 +257,157 @@
     </article>
 </section>
 
-<section class="panel rows-panel">
+
+{% if problem_rows %}
+<section class="panel problem-rows-panel">
     <div class="panel-heading">
         <div>
             <span class="section-kicker">
-                معاينة البيانات
+                السطور المتأثرة
             </span>
 
-            <h2>أول 100 صف محفوظ</h2>
+            <h2>
+                السطور التي
+                تحتاج مراجعة
+            </h2>
+
+            <p class="panel-description">
+                لا تظهر السطور
+                السليمة. اضغط
+                على السطر لمعرفة
+                المشكلة والقيم
+                الأصلية.
+            </p>
         </div>
 
         <span class="record-count">
-            {{ rows|length }} صف
+            {{ problem_rows|length }}
+            سطر
         </span>
     </div>
 
-    {% if rows %}
-        <div class="table-scroll">
-            <table class="batches-table">
-                <thead>
-                    <tr>
-                        <th>صف Excel</th>
-                        <th>الحالة</th>
-                        <th>عدد الملاحظات</th>
-                        <th>بصمة الصف</th>
-                    </tr>
-                </thead>
+    <div class="problem-rows-list">
+        {% for row in problem_rows %}
+            <details
+                class="
+                    problem-row
+                    {% if row.has_error %}
+                        problem-row-error
+                    {% else %}
+                        problem-row-warning
+                    {% endif %}
+                "
+            >
+                <summary>
+                    <div class="problem-row-title">
+                        <span class="problem-row-number">
+                            سطر Excel
+                            #{{ row.excel_row_number }}
+                        </span>
 
-                <tbody>
-                    {% for row in rows %}
-                        <tr>
-                            <td>{{ row.excel_row_number }}</td>
+                        <span
+                            class="row-status row-{{ row.status|lower }}"
+                        >
+                            {{ row.status_label }}
+                        </span>
+                    </div>
 
-                            <td>
-                                <span
-                                    class="row-status row-{{ row.status|lower }}"
-                                >
-                                    {{ row.get_status_display }}
-                                </span>
-                            </td>
+                    <div class="problem-row-summary">
+                        <span>
+                            {{ row.issue_count }}
+                            ملاحظة
+                        </span>
 
-                            <td>{{ row.issues|length }}</td>
+                        <span class="expand-label">
+                            إظهار التفاصيل
+                        </span>
+                    </div>
+                </summary>
 
-                            <td>
-                                <code dir="ltr">
-                                    {{ row.row_sha256|slice:":18" }}…
-                                </code>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div class="empty-state compact">
-            <p>لا توجد صفوف محفوظة داخل الدفعة.</p>
-        </div>
-    {% endif %}
+                <div class="problem-row-body">
+                    <div class="row-issues">
+                        {% for issue in row.issues %}
+                            <article
+                                class="
+                                    row-issue
+                                    row-issue-{{ issue.severity|lower }}
+                                "
+                            >
+                                <div class="row-issue-heading">
+                                    <strong>
+                                        {{ issue.label }}
+                                    </strong>
+
+                                    {% if issue.severity == "ERROR" %}
+                                        <span class="issue-type error">
+                                            خطأ مانع
+                                        </span>
+                                    {% else %}
+                                        <span class="issue-type warning">
+                                            تحذير
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="row-issue-meta">
+                                    {% if issue.field %}
+                                        <span>
+                                            <strong>
+                                                العمود:
+                                            </strong>
+
+                                            {{ issue.field }}
+                                        </span>
+                                    {% endif %}
+
+                                    {% if issue.has_raw_value %}
+                                        <span>
+                                            <strong>
+                                                القيمة
+                                                الأصلية:
+                                            </strong>
+
+                                            {{ issue.raw_value }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </article>
+                        {% endfor %}
+                    </div>
+
+                    <details class="raw-row-details">
+                        <summary>
+                            إظهار بيانات
+                            السطر الأصلية
+                        </summary>
+
+                        {% if row.raw_values %}
+                            <dl class="raw-values-grid">
+                                {% for item in row.raw_values %}
+                                    <div>
+                                        <dt>
+                                            {{ item.field }}
+                                        </dt>
+
+                                        <dd>
+                                            {{ item.value }}
+                                        </dd>
+                                    </div>
+                                {% endfor %}
+                            </dl>
+                        {% else %}
+                            <p class="no-raw-data">
+                                لا توجد قيم
+                                أصلية محفوظة
+                                لهذا السطر.
+                            </p>
+                        {% endif %}
+                    </details>
+                </div>
+            </details>
+        {% endfor %}
+    </div>
 </section>
+{% endif %}
+
 {% endblock %}

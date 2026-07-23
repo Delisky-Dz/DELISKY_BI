@@ -21,9 +21,9 @@
         </h2>
 
         <p>
-            يتم التعرف تلقائيًا على نوع التقرير،
-            العلامة والفترة من اسم الملف،
-            ثم فحص الأعمدة وتنظيف الصفوف.
+            حدد العلامة، نوع التقرير والفترة،
+            ثم ارفع ملف Excel. سيتحقق النظام من تطابق
+            الاختيارات مع اسم الملف قبل فحص البيانات.
         </p>
     </div>
 
@@ -82,6 +82,62 @@
             novalidate
         >
             {% csrf_token %}
+
+            <div class="import-meta-grid">
+                <div class="form-field">
+                    <label for="{{ upload_form.brand.id_for_label }}">
+                        {{ upload_form.brand.label }}
+                    </label>
+
+                    {{ upload_form.brand }}
+
+                    {% for error in upload_form.brand.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ upload_form.report_type.id_for_label }}">
+                        {{ upload_form.report_type.label }}
+                    </label>
+
+                    {{ upload_form.report_type }}
+
+                    {% for error in upload_form.report_type.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <label
+                        for="{{ upload_form.period_start.id_for_label }}"
+                        id="period-start-label"
+                    >
+                        {{ upload_form.period_start.label }}
+                    </label>
+
+                    {{ upload_form.period_start }}
+
+                    {% for error in upload_form.period_start.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+
+                <div
+                    class="form-field"
+                    id="period-end-field"
+                >
+                    <label for="{{ upload_form.period_end.id_for_label }}">
+                        {{ upload_form.period_end.label }}
+                    </label>
+
+                    {{ upload_form.period_end }}
+
+                    {% for error in upload_form.period_end.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+            </div>
 
             {% if upload_form.non_field_errors %}
                 <div class="form-alert error">
@@ -191,7 +247,7 @@
             </li>
 
             <li>
-                العلامة والفترة تؤخذان من اسم الملف.
+                يجب أن تطابق العلامة، النوع والفترة اسم الملف.
             </li>
         </ul>
     </aside>
