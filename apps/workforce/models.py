@@ -1,5 +1,17 @@
+from datetime import date
+
 from django.conf import settings
+from django.contrib.postgres.constraints import (
+    ExclusionConstraint,
+)
+from django.contrib.postgres.fields import (
+    DateRangeField,
+    RangeBoundary,
+    RangeOperators,
+)
+from django.core.exceptions import ValidationError
 from django.db import connection, models, transaction
+from django.db.models import Func, Q
 
 
 WORKER_CODE_PREFIX = "DW"
@@ -312,3 +324,278 @@ class Worker(models.Model):
         if self.employee_code:
             return f"{self.full_name} — {self.employee_code}"
         return self.full_name
+
+
+class WorkerPositionPeriod(models.Model):
+    worker = models.ForeignKey(
+        Worker,
+        verbose_name="\u0627\u0644\u0639\u0627\u0645\u0644",
+        on_delete=models.PROTECT,
+        related_name="position_periods",
+    )
+    category = models.ForeignKey(
+        WorkerCategory,
+        verbose_name=(
+            "\u0635\u0646\u0641 "
+            "\u0627\u0644\u0645\u0646\u0635\u0628"
+        ),
+        on_delete=models.PROTECT,
+        related_name="worker_position_periods",
+    )
+    start_date = models.DateField(
+        "\u062a\u0627\u0631\u064a\u062e "
+        "\u0628\u062f\u0627\u064a\u0629 "
+        "\u0627\u0644\u0645\u0646\u0635\u0628",
+        db_index=True,
+    )
+    end_date = models.DateField(
+        "\u062a\u0627\u0631\u064a\u062e "
+        "\u0646\u0647\u0627\u064a\u0629 "
+        "\u0627\u0644\u0645\u0646\u0635\u0628",
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "\u0627\u062a\u0631\u0643\u0647 "
+            "\u0641\u0627\u0631\u063a\u064b\u0627 "
+            "\u0625\u0630\u0627 \u0643\u0627\u0646 "
+            "\u0627\u0644\u0639\u0627\u0645\u0644 "
+            "\u0645\u0627 \u0632\u0627\u0644 "
+            "\u0641\u064a \u0647\u0630\u0627 "
+            "\u0627\u0644\u0645\u0646\u0635\u0628."
+        ),
+    )
+    notes = models.TextField(
+        "\u0645\u0644\u0627\u062d\u0638\u0627\u062a",
+        blank=True,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=(
+            "\u0623\u0646\u0634\u0623\u0647"
+        ),
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.SET_NULL,
+        related_name=(
+            "worker_position_periods_created"
+        ),
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=(
+            "\u0622\u062e\u0631 \u0645\u0646 "
+            "\u0639\u062f\u0644\u0647"
+        ),
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.SET_NULL,
+        related_name=(
+            "worker_position_periods_updated"
+        ),
+    )
+
+    created_at = models.DateTimeField(
+        "\u062a\u0627\u0631\u064a\u062e "
+        "\u0627\u0644\u0625\u0646\u0634\u0627\u0621",
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        "\u0622\u062e\u0631 \u062a\u0639\u062f\u064a\u0644",
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = (
+            "\u0641\u062a\u0631\u0629 "
+            "\u0645\u0646\u0635\u0628 "
+            "\u0639\u0627\u0645\u0644"
+        )
+        verbose_name_plural = (
+            "\u062a\u0627\u0631\u064a\u062e "
+            "\u0645\u0646\u0627\u0635\u0628 "
+            "\u0627\u0644\u0639\u0645\u0627\u0644"
+        )
+        ordering = (
+            "-start_date",
+            "worker",
+            "category",
+        )
+
+        indexes = [
+            models.Index(
+                fields=(
+                    "worker",
+                    "start_date",
+                ),
+                name=(
+                    "worker_position_start_idx"
+                ),
+            ),
+            models.Index(
+                fields=(
+                    "category",
+                    "start_date",
+                ),
+                name=(
+                    "position_category_start_idx"
+                ),
+            ),
+        ]
+
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(end_date__isnull=True)
+                    | Q(
+                        end_date__gte=models.F(
+                            "start_date"
+                        )
+                    )
+                ),
+                name=(
+                    "worker_position_end_after_start"
+                ),
+                violation_error_message=(
+                    "\u062a\u0627\u0631\u064a\u062e "
+                    "\u0646\u0647\u0627\u064a\u0629 "
+                    "\u0627\u0644\u0645\u0646\u0635\u0628 "
+                    "\u0644\u0627 \u064a\u0645\u0643\u0646 "
+                    "\u0623\u0646 \u064a\u0643\u0648\u0646 "
+                    "\u0642\u0628\u0644 "
+                    "\u062a\u0627\u0631\u064a\u062e "
+                    "\u0627\u0644\u0628\u062f\u0627\u064a\u0629."
+                ),
+            ),
+            ExclusionConstraint(
+                name=(
+                    "exclude_overlapping_worker_positions"
+                ),
+                expressions=[
+                    (
+                        Func(
+                            "start_date",
+                            "end_date",
+                            RangeBoundary(
+                                inclusive_lower=True,
+                                inclusive_upper=True,
+                            ),
+                            function="DATERANGE",
+                            output_field=DateRangeField(),
+                        ),
+                        RangeOperators.OVERLAPS,
+                    ),
+                    (
+                        "worker",
+                        RangeOperators.EQUAL,
+                    ),
+                ],
+                violation_error_message=(
+                    "\u0647\u0630\u0627 "
+                    "\u0627\u0644\u0639\u0627\u0645\u0644 "
+                    "\u0645\u0631\u062a\u0628\u0637 "
+                    "\u0628\u0645\u0646\u0635\u0628 "
+                    "\u0622\u062e\u0631 \u062e\u0644\u0627\u0644 "
+                    "\u062c\u0632\u0621 \u0645\u0646 "
+                    "\u0647\u0630\u0647 "
+                    "\u0627\u0644\u0641\u062a\u0631\u0629."
+                ),
+            ),
+        ]
+
+    @property
+    def is_current(self):
+        today = date.today()
+
+        return (
+            self.start_date <= today
+            and (
+                self.end_date is None
+                or self.end_date >= today
+            )
+        )
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        if (
+            self.start_date
+            and self.end_date
+            and self.end_date < self.start_date
+        ):
+            errors["end_date"] = (
+                "\u062a\u0627\u0631\u064a\u062e "
+                "\u0646\u0647\u0627\u064a\u0629 "
+                "\u0627\u0644\u0645\u0646\u0635\u0628 "
+                "\u0644\u0627 \u064a\u0645\u0643\u0646 "
+                "\u0623\u0646 \u064a\u0643\u0648\u0646 "
+                "\u0642\u0628\u0644 "
+                "\u062a\u0627\u0631\u064a\u062e "
+                "\u0627\u0644\u0628\u062f\u0627\u064a\u0629."
+            )
+
+        if not self.start_date:
+            if errors:
+                raise ValidationError(errors)
+            return
+
+        overlap_end = (
+            self.end_date or date.max
+        )
+
+        possible_overlaps = (
+            WorkerPositionPeriod.objects
+            .filter(
+                start_date__lte=overlap_end,
+            )
+            .filter(
+                Q(end_date__isnull=True)
+                | Q(
+                    end_date__gte=self.start_date
+                )
+            )
+        )
+
+        if self.pk:
+            possible_overlaps = (
+                possible_overlaps.exclude(
+                    pk=self.pk
+                )
+            )
+
+        if (
+            self.worker_id
+            and possible_overlaps.filter(
+                worker_id=self.worker_id
+            ).exists()
+        ):
+            errors["worker"] = (
+                "\u0647\u0630\u0627 "
+                "\u0627\u0644\u0639\u0627\u0645\u0644 "
+                "\u0644\u062f\u064a\u0647 "
+                "\u0645\u0646\u0635\u0628 \u0622\u062e\u0631 "
+                "\u062e\u0644\u0627\u0644 \u062c\u0632\u0621 "
+                "\u0645\u0646 \u0647\u0630\u0647 "
+                "\u0627\u0644\u0641\u062a\u0631\u0629."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        period_end = (
+            self.end_date
+            or "\u0645\u0633\u062a\u0645\u0631"
+        )
+
+        return (
+            f"{self.worker.full_name} \u2014 "
+            f"{self.category.name} \u2014 "
+            f"{self.start_date} "
+            f"\u0625\u0644\u0649 {period_end}"
+        )
