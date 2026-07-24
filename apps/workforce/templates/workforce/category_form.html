@@ -1,0 +1,233 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    {% if form_mode == "create" %}
+        إضافة صنف عمال
+    {% else %}
+        تعديل صنف عمال
+    {% endif %}
+    | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    {% if form_mode == "create" %}
+        إضافة صنف عمال
+    {% else %}
+        تعديل صنف العمال
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <section class="management-form-shell">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    الموارد البشرية
+                </span>
+
+                <h2>
+                    {% if form_mode == "create" %}
+                        صنف جديد
+                    {% else %}
+                        {{ category.name }}
+                    {% endif %}
+                </h2>
+
+                <p>
+                    القدرات المحددة هنا هي اقتراحات
+                    افتراضية عند إضافة العامل، ويمكن
+                    تعديل قدرات كل عامل بشكل مستقل.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'workforce:category_list' %}"
+                class="secondary-button"
+            >
+                الرجوع للأصناف
+            </a>
+        </div>
+
+        <form
+            method="post"
+            class="panel management-form-panel"
+            novalidate
+        >
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-error-summary">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="automatic-code-card">
+                <div>
+                    <span>&#35;</span>
+
+                    <div>
+                        <small>الرمز التقني</small>
+
+                        {% if category %}
+                            <strong dir="ltr">
+                                {{ category.code }}
+                            </strong>
+                        {% else %}
+                            <strong>
+                                تلقائي بعد الحفظ
+                            </strong>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <p>
+                    {% if category %}
+                        الرمز ثابت ولا يمكن تغييره،
+                        حتى عند تعديل اسم الصنف.
+                    {% else %}
+                        سينشئ النظام الرمز تلقائيًا
+                        بعد حفظ الصنف.
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="management-form-grid">
+                <div class="management-form-field">
+                    <label for="{{ form.name.id_for_label }}">
+                        {{ form.name.label }}
+                        <span class="required-mark">*</span>
+                    </label>
+
+                    {{ form.name }}
+
+                    {% if form.name.help_text %}
+                        <small class="field-help">
+                            {{ form.name.help_text }}
+                        </small>
+                    {% endif %}
+
+                    {% for error in form.name.errors %}
+                        <span class="field-error">
+                            {{ error }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <div class="management-form-field">
+                    <label for="{{ form.sort_order.id_for_label }}">
+                        {{ form.sort_order.label }}
+                        <span class="required-mark">*</span>
+                    </label>
+
+                    {{ form.sort_order }}
+
+                    {% if form.sort_order.help_text %}
+                        <small class="field-help">
+                            {{ form.sort_order.help_text }}
+                        </small>
+                    {% endif %}
+
+                    {% for error in form.sort_order.errors %}
+                        <span class="field-error">
+                            {{ error }}
+                        </span>
+                    {% endfor %}
+                </div>
+
+                <div class="management-form-field is-wide">
+                    <label for="{{ form.description.id_for_label }}">
+                        {{ form.description.label }}
+                    </label>
+
+                    {{ form.description }}
+
+                    {% for error in form.description.errors %}
+                        <span class="field-error">
+                            {{ error }}
+                        </span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <section class="category-capability-section">
+                <div>
+                    <span class="section-eyebrow">
+                        القدرات الافتراضية
+                    </span>
+
+                    <h3>
+                        ماذا يستطيع هذا الصنف أن يفعل؟
+                    </h3>
+
+                    <p>
+                        هذه الخيارات لا تمنع تعديل
+                        قدرات العامل لاحقًا.
+                    </p>
+                </div>
+
+                <div class="capability-options">
+                    {% for field in form %}
+                        {% if field.name == "default_can_drive" or field.name == "default_can_sell" or field.name == "default_can_work_in_warehouse" or field.name == "default_can_assist_distribution" or field.name == "default_can_train_workers" %}
+                            <label class="capability-option">
+                                {{ field }}
+
+                                <span>
+                                    <strong>{{ field.label }}</strong>
+                                    <small>
+                                        قدرة مقترحة للعامل
+                                        عند اختيار هذا الصنف.
+                                    </small>
+                                </span>
+                            </label>
+
+                            {% for error in field.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
+
+            <label class="category-status-option">
+                {{ form.is_active }}
+
+                <span>
+                    <strong>{{ form.is_active.label }}</strong>
+                    <small>
+                        {{ form.is_active.help_text }}
+                    </small>
+                </span>
+            </label>
+
+            {% for error in form.is_active.errors %}
+                <span class="field-error">
+                    {{ error }}
+                </span>
+            {% endfor %}
+
+            <div class="management-form-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    {% if form_mode == "create" %}
+                        حفظ الصنف
+                    {% else %}
+                        حفظ التعديلات
+                    {% endif %}
+                </button>
+
+                <a
+                    href="{% url 'workforce:category_list' %}"
+                    class="secondary-button"
+                >
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

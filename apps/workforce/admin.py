@@ -2,7 +2,156 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Worker
+from .models import Worker, WorkerCategory
+
+
+@admin.register(WorkerCategory)
+class WorkerCategoryAdmin(
+    admin.ModelAdmin
+):
+    list_display = (
+        "name",
+        "code",
+        "is_active",
+        "is_system",
+        "sort_order",
+        "updated_at",
+    )
+
+    list_display_links = (
+        "name",
+        "code",
+    )
+
+    list_filter = (
+        "is_active",
+        "is_system",
+        "default_can_drive",
+        "default_can_sell",
+        "default_can_work_in_warehouse",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+        "description",
+    )
+
+    ordering = (
+        "sort_order",
+        "name",
+    )
+
+    readonly_fields = (
+        "code",
+        "is_system",
+        "created_by",
+        "updated_by",
+        "created_at",
+        "updated_at",
+    )
+
+    actions = (
+        "activate_categories",
+        "deactivate_categories",
+    )
+
+    fieldsets = (
+        (
+            "\u0645\u0639\u0644\u0648\u0645\u0627\u062a "
+            "\u0627\u0644\u0635\u0646\u0641",
+            {
+                "fields": (
+                    "name",
+                    "code",
+                    "description",
+                    "sort_order",
+                    "is_active",
+                    "is_system",
+                )
+            },
+        ),
+        (
+            "\u0627\u0644\u0642\u062f\u0631\u0627\u062a "
+            "\u0627\u0644\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u0629",
+            {
+                "fields": (
+                    "default_can_drive",
+                    "default_can_sell",
+                    (
+                        "default_can_work_in_warehouse"
+                    ),
+                    (
+                        "default_can_assist_distribution"
+                    ),
+                    (
+                        "default_can_train_workers"
+                    ),
+                )
+            },
+        ),
+        (
+            "\u0645\u0639\u0644\u0648\u0645\u0627\u062a "
+            "\u0627\u0644\u0646\u0638\u0627\u0645",
+            {
+                "fields": (
+                    "created_by",
+                    "updated_by",
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    @admin.action(
+        description=(
+            "\u062a\u0641\u0639\u064a\u0644 "
+            "\u0627\u0644\u0623\u0635\u0646\u0627\u0641 "
+            "\u0627\u0644\u0645\u062d\u062f\u062f\u0629"
+        )
+    )
+    def activate_categories(
+        self,
+        request,
+        queryset,
+    ):
+        updated = queryset.update(
+            is_active=True
+        )
+
+        self.message_user(
+            request,
+            (
+                f"\u062a\u0645 \u062a\u0641\u0639\u064a\u0644 "
+                f"{updated} \u0635\u0646\u0641."
+            ),
+        )
+
+    @admin.action(
+        description=(
+            "\u062a\u0639\u0637\u064a\u0644 "
+            "\u0627\u0644\u0623\u0635\u0646\u0627\u0641 "
+            "\u0627\u0644\u0645\u062d\u062f\u062f\u0629"
+        )
+    )
+    def deactivate_categories(
+        self,
+        request,
+        queryset,
+    ):
+        updated = queryset.update(
+            is_active=False
+        )
+
+        self.message_user(
+            request,
+            (
+                f"\u062a\u0645 \u062a\u0639\u0637\u064a\u0644 "
+                f"{updated} \u0635\u0646\u0641."
+            ),
+        )
 
 
 @admin.register(Worker)

@@ -31,9 +31,9 @@ class RolePermissionTests(TestCase):
 
     def test_official_roles_have_expected_permission_counts(self):
         expected = {
-            "Super Admin": 21,
-            "Accountant": 16,
-            "Manager": 6,
+            "Super Admin": 25,
+            "Accountant": 19,
+            "Manager": 7,
         }
 
         actual = {

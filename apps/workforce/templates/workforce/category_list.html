@@ -1,0 +1,302 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    أصناف العمال | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    أصناف العمال
+{% endblock %}
+
+{% block content %}
+    <section class="management-hero">
+        <div>
+            <span class="section-eyebrow">
+                الموارد البشرية
+            </span>
+
+            <h2>
+                إدارة أصناف العمال
+            </h2>
+
+            <p>
+                تحديد المناصب الأساسية والقدرات
+                الافتراضية لكل صنف. يمكن تعديل
+                الاسم والقدرات أو تعطيل الصنف
+                دون حذف سجله التاريخي.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'workforce:category_create' %}"
+            class="primary-button management-add-button"
+        >
+            <span aria-hidden="true">＋</span>
+            إضافة صنف
+        </a>
+    </section>
+
+    <section class="management-stats is-four">
+        <article class="management-stat-card">
+            <span>إجمالي الأصناف</span>
+            <strong>{{ total_categories }}</strong>
+        </article>
+
+        <article class="management-stat-card is-positive">
+            <span>الأصناف النشطة</span>
+            <strong>{{ active_categories }}</strong>
+        </article>
+
+        <article class="management-stat-card is-assigned">
+            <span>الأصناف الأساسية</span>
+            <strong>{{ system_categories }}</strong>
+        </article>
+
+        <article class="management-stat-card is-muted">
+            <span>أصناف أضافها المحاسب</span>
+            <strong>{{ custom_categories }}</strong>
+        </article>
+    </section>
+
+    <section class="panel management-panel">
+        <form
+            method="get"
+            class="management-filter-form"
+        >
+            <div class="management-filter-field">
+                <label for="category-search">
+                    البحث
+                </label>
+
+                <input
+                    id="category-search"
+                    type="search"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="اسم الصنف، الرمز أو الوصف"
+                    class="accountant-form-input"
+                >
+            </div>
+
+            <div class="management-filter-field">
+                <label for="category-status">
+                    الحالة
+                </label>
+
+                <select
+                    id="category-status"
+                    name="status"
+                    class="accountant-form-input"
+                >
+                    <option
+                        value="all"
+                        {% if selected_status == "all" %}selected{% endif %}
+                    >
+                        الكل
+                    </option>
+
+                    <option
+                        value="active"
+                        {% if selected_status == "active" %}selected{% endif %}
+                    >
+                        نشط
+                    </option>
+
+                    <option
+                        value="inactive"
+                        {% if selected_status == "inactive" %}selected{% endif %}
+                    >
+                        معطل
+                    </option>
+                </select>
+            </div>
+
+            <div class="management-filter-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    تطبيق
+                </button>
+
+                <a
+                    href="{% url 'workforce:category_list' %}"
+                    class="secondary-button"
+                >
+                    إعادة الضبط
+                </a>
+            </div>
+        </form>
+
+        {% if categories %}
+            <div class="management-table-wrapper">
+                <table class="management-table category-table">
+                    <thead>
+                        <tr>
+                            <th>الصنف</th>
+                            <th>الرمز التقني</th>
+                            <th>القدرات الافتراضية</th>
+                            <th>النوع</th>
+                            <th>الحالة</th>
+                            <th>آخر تعديل</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for category in categories %}
+                            <tr>
+                                <td>
+                                    <div class="management-identity">
+                                        <span class="management-avatar category-avatar">
+                                            {{ category.sort_order }}
+                                        </span>
+
+                                        <div>
+                                            <strong>
+                                                {{ category.name }}
+                                            </strong>
+
+                                            {% if category.description %}
+                                                <small>
+                                                    {{ category.description|truncatechars:80 }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="management-code">
+                                        {{ category.code }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <div class="category-capabilities">
+                                        {% if category.default_can_drive %}
+                                            <span class="capability-chip">
+                                                قيادة
+                                            </span>
+                                        {% endif %}
+
+                                        {% if category.default_can_sell %}
+                                            <span class="capability-chip">
+                                                بيع
+                                            </span>
+                                        {% endif %}
+
+                                        {% if category.default_can_work_in_warehouse %}
+                                            <span class="capability-chip">
+                                                مخزن
+                                            </span>
+                                        {% endif %}
+
+                                        {% if category.default_can_assist_distribution %}
+                                            <span class="capability-chip">
+                                                توزيع
+                                            </span>
+                                        {% endif %}
+
+                                        {% if category.default_can_train_workers %}
+                                            <span class="capability-chip">
+                                                تدريب
+                                            </span>
+                                        {% endif %}
+
+                                        {% if not category.default_can_drive and not category.default_can_sell and not category.default_can_work_in_warehouse and not category.default_can_assist_distribution and not category.default_can_train_workers %}
+                                            <span class="capability-chip is-empty">
+                                                دون قدرات افتراضية
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    {% if category.is_system %}
+                                        <span class="category-kind is-system">
+                                            أساسي
+                                        </span>
+                                    {% else %}
+                                        <span class="category-kind is-custom">
+                                            مضاف
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if category.is_active %}
+                                        <span class="management-status is-active">
+                                            نشط
+                                        </span>
+                                    {% else %}
+                                        <span class="management-status is-inactive">
+                                            معطل
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <div class="category-audit">
+                                        <strong>
+                                            {{ category.updated_at|date:"Y-m-d H:i" }}
+                                        </strong>
+
+                                        {% if category.updated_by %}
+                                            <small>
+                                                بواسطة
+                                                {{ category.updated_by.get_full_name|default:category.updated_by.username }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="management-actions">
+                                        <a
+                                            href="{% url 'workforce:category_update' category.id %}"
+                                            class="table-action-button"
+                                        >
+                                            تعديل
+                                        </a>
+
+                                        <form
+                                            method="post"
+                                            action="{% url 'workforce:category_toggle_status' category.id %}"
+                                        >
+                                            {% csrf_token %}
+
+                                            <button
+                                                type="submit"
+                                                class="table-action-button {% if category.is_active %}is-danger{% else %}is-success{% endif %}"
+                                            >
+                                                {% if category.is_active %}
+                                                    تعطيل
+                                                {% else %}
+                                                    تفعيل
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state management-empty">
+                <span aria-hidden="true">&#9783;</span>
+
+                <h3>
+                    لا توجد أصناف
+                </h3>
+
+                <p>
+                    لم نعثر على أصناف تطابق
+                    البحث أو الحالة المحددة.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

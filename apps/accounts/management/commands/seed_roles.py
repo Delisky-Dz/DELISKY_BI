@@ -11,6 +11,12 @@ ROLE_MANAGER = "Manager"
 MODEL_PERMISSIONS = {
     "workforce": {
         "worker": ("view", "add", "change", "delete"),
+        "workercategory": (
+            "view",
+            "add",
+            "change",
+            "delete",
+        ),
     },
     "fleet": {
         "truck": ("view", "add", "change", "delete"),
