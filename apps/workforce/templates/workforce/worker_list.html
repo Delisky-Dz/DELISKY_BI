@@ -1,11 +1,11 @@
 {% extends "imports/base.html" %}
 
 {% block title %}
-    إدارة البائعين | DELISKY BI
+    إدارة العمال | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
-    إدارة البائعين
+    إدارة العمال
 {% endblock %}
 
 {% block content %}
@@ -16,11 +16,11 @@
             </span>
 
             <h2>
-                قائمة البائعين
+                قائمة العمال
             </h2>
 
             <p>
-                إضافة البائعين
+                إضافة العمال
                 وتحديث بياناتهم
                 وتعطيلهم دون
                 حذف سجلاتهم السابقة.
@@ -32,23 +32,23 @@
             class="primary-button management-add-button"
         >
             <span aria-hidden="true">＋</span>
-            إضافة بائع
+            إضافة عامل
         </a>
     </section>
 
     <section class="management-stats">
         <article class="management-stat-card">
-            <span>إجمالي البائعين</span>
+            <span>إجمالي العمال</span>
             <strong>{{ total_workers }}</strong>
         </article>
 
         <article class="management-stat-card is-positive">
-            <span>البائعون النشطون</span>
+            <span>العمال النشطون</span>
             <strong>{{ active_workers }}</strong>
         </article>
 
         <article class="management-stat-card is-muted">
-            <span>البائعون المتوقفون</span>
+            <span>العمال المتوقفون</span>
             <strong>{{ inactive_workers }}</strong>
         </article>
     </section>
@@ -128,7 +128,7 @@
                 <table class="management-table">
                     <thead>
                         <tr>
-                            <th>البائع</th>
+                            <th>العامل</th>
                             <th>الرمز الداخلي</th>
                             <th>رقم الهاتف</th>
                             <th>الحالة</th>
@@ -229,7 +229,7 @@
 
                 <p>
                     لم نعثر على
-                    بائعين يطابقون
+                    عمال يطابقون
                     البحث أو الحالة
                     المحددة.
                 </p>

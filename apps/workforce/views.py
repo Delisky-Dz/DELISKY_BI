@@ -111,7 +111,7 @@ def worker_create(request):
                 (
                     "\u062a\u0645\u062a "
                     "\u0625\u0636\u0627\u0641\u0629 "
-                    "\u0627\u0644\u0628\u0627\u0626\u0639 "
+                    "\u0627\u0644\u0639\u0627\u0645\u0644 "
                     f"{worker.full_name} "
                     "\u0628\u0646\u062c\u0627\u062d."
                 ),
@@ -160,7 +160,7 @@ def worker_update(request, worker_id):
                     "\u062a\u0645 "
                     "\u062a\u062d\u062f\u064a\u062b "
                     "\u0628\u064a\u0627\u0646\u0627\u062a "
-                    "\u0627\u0644\u0628\u0627\u0626\u0639 "
+                    "\u0627\u0644\u0639\u0627\u0645\u0644 "
                     f"{worker.full_name} "
                     "\u0628\u0646\u062c\u0627\u062d."
                 ),
@@ -224,7 +224,7 @@ def worker_toggle_status(
         request,
         (
             f"\u062a\u0645 {status_message} "
-            "\u0627\u0644\u0628\u0627\u0626\u0639 "
+            "\u0627\u0644\u0639\u0627\u0645\u0644 "
             f"{worker.full_name}."
         ),
     )

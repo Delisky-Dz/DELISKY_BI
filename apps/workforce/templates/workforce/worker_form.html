@@ -2,18 +2,18 @@
 
 {% block title %}
     {% if form_mode == "create" %}
-        إضافة بائع
+        إضافة عامل
     {% else %}
-        تعديل بائع
+        تعديل عامل
     {% endif %}
     | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
     {% if form_mode == "create" %}
-        إضافة بائع
+        إضافة عامل
     {% else %}
-        تعديل بيانات البائع
+        تعديل بيانات العامل
     {% endif %}
 {% endblock %}
 
@@ -27,7 +27,7 @@
 
                 <h2>
                     {% if form_mode == "create" %}
-                        بائع جديد
+                        عامل جديد
                     {% else %}
                         {{ worker.full_name }}
                     {% endif %}
@@ -35,7 +35,7 @@
 
                 <p>
                     يتم الحفاظ على
-                    سجل البائع وتاريخ
+                    سجل العامل وتاريخ
                     تعييناته، لذلك
                     نستعمل التعطيل
                     بدل الحذف.
@@ -157,7 +157,7 @@
                     class="primary-button"
                 >
                     {% if form_mode == "create" %}
-                        حفظ البائع
+                        حفظ العامل
                     {% else %}
                         حفظ التعديلات
                     {% endif %}
