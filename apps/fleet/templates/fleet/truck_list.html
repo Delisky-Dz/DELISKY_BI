@@ -1,0 +1,260 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    إدارة الشاحنات | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    إدارة الشاحنات
+{% endblock %}
+
+{% block content %}
+    <section class="management-hero">
+        <div>
+            <span class="section-eyebrow">
+                إدارة الأسطول
+            </span>
+
+            <h2>
+                قائمة الشاحنات
+            </h2>
+
+            <p>
+                إدارة بيانات
+                الشاحنات
+                وحالتها
+                ومعرفة البائع
+                المرتبط حاليًا
+                بكل شاحنة.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'fleet:truck_create' %}"
+            class="primary-button management-add-button"
+        >
+            <span aria-hidden="true">＋</span>
+            إضافة شاحنة
+        </a>
+    </section>
+
+    <section class="management-stats is-four">
+        <article class="management-stat-card">
+            <span>إجمالي الشاحنات</span>
+            <strong>{{ total_trucks }}</strong>
+        </article>
+
+        <article class="management-stat-card is-positive">
+            <span>الشاحنات النشطة</span>
+            <strong>{{ active_trucks }}</strong>
+        </article>
+
+        <article class="management-stat-card is-muted">
+            <span>الشاحنات المعطلة</span>
+            <strong>{{ inactive_trucks }}</strong>
+        </article>
+
+        <article class="management-stat-card is-assigned">
+            <span>مرتبطة ببائع حالي</span>
+            <strong>{{ assigned_truck_count }}</strong>
+        </article>
+    </section>
+
+    <section class="panel management-panel">
+        <form
+            method="get"
+            class="management-filter-form"
+        >
+            <div class="management-filter-field">
+                <label for="truck-search">
+                    البحث
+                </label>
+
+                <input
+                    id="truck-search"
+                    type="search"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="الرمز، رقم التسجيل، العلامة أو الطراز"
+                    class="accountant-form-input"
+                >
+            </div>
+
+            <div class="management-filter-field">
+                <label for="truck-status">
+                    الحالة
+                </label>
+
+                <select
+                    id="truck-status"
+                    name="status"
+                    class="accountant-form-input"
+                >
+                    <option value="all"
+                        {% if selected_status == "all" %}selected{% endif %}
+                    >
+                        الكل
+                    </option>
+
+                    <option value="active"
+                        {% if selected_status == "active" %}selected{% endif %}
+                    >
+                        نشطة
+                    </option>
+
+                    <option value="inactive"
+                        {% if selected_status == "inactive" %}selected{% endif %}
+                    >
+                        معطلة
+                    </option>
+                </select>
+            </div>
+
+            <div class="management-filter-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    تطبيق
+                </button>
+
+                <a
+                    href="{% url 'fleet:truck_list' %}"
+                    class="secondary-button"
+                >
+                    إعادة الضبط
+                </a>
+            </div>
+        </form>
+
+        {% if trucks %}
+            <div class="management-table-wrapper">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th>الشاحنة</th>
+                            <th>الرمز الداخلي</th>
+                            <th>رقم التسجيل</th>
+                            <th>البائع الحالي</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for truck in trucks %}
+                            <tr>
+                                <td>
+                                    <div class="management-identity">
+                                        <span class="management-avatar truck-avatar">
+                                            ▣
+                                        </span>
+
+                                        <div>
+                                            <strong>
+                                                {{ truck.brand }}
+                                                {{ truck.model }}
+                                            </strong>
+
+                                            <small>
+                                                {% if truck.manufacturing_year %}
+                                                    سنة {{ truck.manufacturing_year }}
+                                                {% else %}
+                                                    سنة الصنع غير مسجلة
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="management-code">
+                                        {{ truck.internal_code|default:"—" }}
+                                    </span>
+                                </td>
+
+                                <td dir="ltr">
+                                    <strong>
+                                        {{ truck.registration_number }}
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    {% if truck.current_assignment %}
+                                        <div class="current-worker">
+                                            <strong>
+                                                {{ truck.current_assignment.worker.full_name }}
+                                            </strong>
+
+                                            <small dir="ltr">
+                                                {{ truck.current_assignment.worker.employee_code }}
+                                            </small>
+                                        </div>
+                                    {% else %}
+                                        <span class="management-status is-unassigned">
+                                            غير مرتبطة
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if truck.is_active %}
+                                        <span class="management-status is-active">
+                                            نشطة
+                                        </span>
+                                    {% else %}
+                                        <span class="management-status is-inactive">
+                                            معطلة
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <div class="management-actions">
+                                        <a
+                                            href="{% url 'fleet:truck_update' truck.id %}"
+                                            class="table-action-button"
+                                        >
+                                            تعديل
+                                        </a>
+
+                                        <form
+                                            method="post"
+                                            action="{% url 'fleet:truck_toggle_status' truck.id %}"
+                                        >
+                                            {% csrf_token %}
+
+                                            <button
+                                                type="submit"
+                                                class="table-action-button {% if truck.is_active %}is-danger{% else %}is-success{% endif %}"
+                                            >
+                                                {% if truck.is_active %}
+                                                    تعطيل
+                                                {% else %}
+                                                    تفعيل
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state management-empty">
+                <span aria-hidden="true">▣</span>
+
+                <h3>لا توجد نتائج</h3>
+
+                <p>
+                    لم نعثر على
+                    شاحنات تطابق
+                    البحث أو الحالة
+                    المحددة.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

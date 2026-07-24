@@ -9,6 +9,14 @@ urlpatterns = [
         include("apps.dashboard.urls"),
     ),
     path(
+        "accountant/workers/",
+        include("apps.workforce.urls"),
+    ),
+    path(
+        "accountant/",
+        include("apps.fleet.urls"),
+    ),
+    path(
         "accountant/",
         include("apps.imports.urls"),
     ),

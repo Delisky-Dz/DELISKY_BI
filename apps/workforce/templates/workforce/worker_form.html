@@ -1,0 +1,175 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    {% if form_mode == "create" %}
+        إضافة بائع
+    {% else %}
+        تعديل بائع
+    {% endif %}
+    | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    {% if form_mode == "create" %}
+        إضافة بائع
+    {% else %}
+        تعديل بيانات البائع
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <section class="management-form-shell">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    الموارد البشرية
+                </span>
+
+                <h2>
+                    {% if form_mode == "create" %}
+                        بائع جديد
+                    {% else %}
+                        {{ worker.full_name }}
+                    {% endif %}
+                </h2>
+
+                <p>
+                    يتم الحفاظ على
+                    سجل البائع وتاريخ
+                    تعييناته، لذلك
+                    نستعمل التعطيل
+                    بدل الحذف.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'workforce:worker_list' %}"
+                class="secondary-button"
+            >
+                الرجوع للقائمة
+            </a>
+        </div>
+
+        <form
+            method="post"
+            class="panel management-form-panel"
+            novalidate
+        >
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-error-summary">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+
+            <div class="automatic-code-card">
+                <div>
+                    <span>
+                        &#35;
+                    </span>
+
+                    <div>
+                        <small>
+                            الرمز
+                            الداخلي
+                        </small>
+
+                        {% if worker %}
+                            <strong dir="ltr">
+                                {{ worker.employee_code }}
+                            </strong>
+                        {% else %}
+                            <strong dir="ltr">
+                                DW-00001
+                            </strong>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if worker %}
+                    <p>
+                        هذا الرمز
+                        ثابت ولا
+                        يمكن تعديله
+                        أو إعادة
+                        استعماله.
+                    </p>
+                {% else %}
+                    <p>
+                        سينشئ النظام
+                        الرمز تلقائيًا
+                        بعد الحفظ.
+                        DW-00001 مثال
+                        على الصيغة.
+                    </p>
+                {% endif %}
+            </div>
+
+            <div class="management-form-grid">
+                {% for field in form %}
+                    <div
+                        class="management-form-field
+                        {% if field.name == 'notes' %}is-wide{% endif %}
+                        {% if field.name == 'is_active' %}is-checkbox{% endif %}"
+                    >
+                        {% if field.name == "is_active" %}
+                            <label class="management-checkbox-label">
+                                {{ field }}
+
+                                <span>
+                                    {{ field.label }}
+                                </span>
+                            </label>
+                        {% else %}
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+
+                                {% if field.field.required %}
+                                    <span class="required-mark">*</span>
+                                {% endif %}
+                            </label>
+
+                            {{ field }}
+                        {% endif %}
+
+                        {% if field.help_text %}
+                            <small class="field-help">
+                                {{ field.help_text }}
+                            </small>
+                        {% endif %}
+
+                        {% for error in field.errors %}
+                            <span class="field-error">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="management-form-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    {% if form_mode == "create" %}
+                        حفظ البائع
+                    {% else %}
+                        حفظ التعديلات
+                    {% endif %}
+                </button>
+
+                <a
+                    href="{% url 'workforce:worker_list' %}"
+                    class="secondary-button"
+                >
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

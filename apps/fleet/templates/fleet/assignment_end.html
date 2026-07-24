@@ -1,0 +1,131 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    إنهاء التعيين | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    إنهاء التعيين
+{% endblock %}
+
+{% block content %}
+    <section class="management-form-shell assignment-end-shell">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    إنهاء الارتباط
+                </span>
+
+                <h2>
+                    {{ assignment.worker.full_name }}
+                    —
+                    {{ assignment.truck.internal_code }}
+                </h2>
+
+                <p>
+                    سيبقى التعيين
+                    محفوظًا في
+                    السجل التاريخي،
+                    ولن يتم حذفه.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'fleet:assignment_list' %}"
+                class="secondary-button"
+            >
+                الرجوع للقائمة
+            </a>
+        </div>
+
+        <div class="assignment-end-summary">
+            <article>
+                <span>البائع</span>
+
+                <strong>
+                    {{ assignment.worker.full_name }}
+                </strong>
+
+                <small dir="ltr">
+                    {{ assignment.worker.employee_code }}
+                </small>
+            </article>
+
+            <article>
+                <span>الشاحنة</span>
+
+                <strong dir="ltr">
+                    {{ assignment.truck.internal_code }}
+                </strong>
+
+                <small dir="ltr">
+                    {{ assignment.truck.registration_number }}
+                </small>
+            </article>
+
+            <article>
+                <span>تاريخ البداية</span>
+
+                <strong dir="ltr">
+                    {{ assignment.start_date|date:"Y-m-d" }}
+                </strong>
+            </article>
+        </div>
+
+        <form
+            method="post"
+            class="panel management-form-panel assignment-end-form"
+            novalidate
+        >
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-error-summary">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="management-form-field">
+                <label for="{{ form.end_date.id_for_label }}">
+                    {{ form.end_date.label }}
+
+                    <span class="required-mark">*</span>
+                </label>
+
+                {{ form.end_date }}
+
+                <small class="field-help">
+                    اختر آخر يوم
+                    عمل فيه
+                    البائع
+                    بهذه الشاحنة.
+                </small>
+
+                {% for error in form.end_date.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+
+            <div class="management-form-actions">
+                <button
+                    type="submit"
+                    class="primary-button is-danger-action"
+                >
+                    تأكيد إنهاء
+                    التعيين
+                </button>
+
+                <a
+                    href="{% url 'fleet:assignment_list' %}"
+                    class="secondary-button"
+                >
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

@@ -1,4 +1,4 @@
-﻿from django.contrib import admin
+from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
@@ -39,6 +39,7 @@ class WorkerAdmin(admin.ModelAdmin):
     )
 
     readonly_fields = (
+        "employee_code",
         "created_at",
         "updated_at",
     )

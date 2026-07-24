@@ -1,4 +1,30 @@
-﻿from django.db import models
+from django.db import connection, models
+
+
+WORKER_CODE_PREFIX = "DW"
+WORKER_CODE_SEQUENCE = (
+    "workforce_worker_code_seq"
+)
+
+
+def generate_worker_code() -> str:
+    if connection.vendor != "postgresql":
+        raise RuntimeError(
+            "Automatic worker codes require PostgreSQL."
+        )
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT nextval(%s::regclass)",
+            [WORKER_CODE_SEQUENCE],
+        )
+
+        sequence_value = cursor.fetchone()[0]
+
+    return (
+        f"{WORKER_CODE_PREFIX}-"
+        f"{sequence_value:05d}"
+    )
 
 
 class Worker(models.Model):
@@ -56,6 +82,31 @@ class Worker(models.Model):
     @property
     def full_name(self):
         return f"{self.last_name} {self.first_name}".strip()
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original_code = (
+                type(self)
+                .objects
+                .filter(pk=self.pk)
+                .values_list(
+                    "employee_code",
+                    flat=True,
+                )
+                .first()
+            )
+
+            if original_code:
+                self.employee_code = (
+                    original_code
+                )
+
+        elif not self.employee_code:
+            self.employee_code = (
+                generate_worker_code()
+            )
+
+        super().save(*args, **kwargs)
 
     def __str__(self):
         if self.employee_code:

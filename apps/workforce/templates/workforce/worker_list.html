@@ -1,0 +1,239 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    إدارة البائعين | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    إدارة البائعين
+{% endblock %}
+
+{% block content %}
+    <section class="management-hero">
+        <div>
+            <span class="section-eyebrow">
+                الموارد البشرية
+            </span>
+
+            <h2>
+                قائمة البائعين
+            </h2>
+
+            <p>
+                إضافة البائعين
+                وتحديث بياناتهم
+                وتعطيلهم دون
+                حذف سجلاتهم السابقة.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'workforce:worker_create' %}"
+            class="primary-button management-add-button"
+        >
+            <span aria-hidden="true">＋</span>
+            إضافة بائع
+        </a>
+    </section>
+
+    <section class="management-stats">
+        <article class="management-stat-card">
+            <span>إجمالي البائعين</span>
+            <strong>{{ total_workers }}</strong>
+        </article>
+
+        <article class="management-stat-card is-positive">
+            <span>البائعون النشطون</span>
+            <strong>{{ active_workers }}</strong>
+        </article>
+
+        <article class="management-stat-card is-muted">
+            <span>البائعون المتوقفون</span>
+            <strong>{{ inactive_workers }}</strong>
+        </article>
+    </section>
+
+    <section class="panel management-panel">
+        <form
+            method="get"
+            class="management-filter-form"
+        >
+            <div class="management-filter-field">
+                <label for="worker-search">
+                    البحث
+                </label>
+
+                <input
+                    id="worker-search"
+                    type="search"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="الاسم، اللقب، الرمز أو الهاتف"
+                    class="accountant-form-input"
+                >
+            </div>
+
+            <div class="management-filter-field">
+                <label for="worker-status">
+                    الحالة
+                </label>
+
+                <select
+                    id="worker-status"
+                    name="status"
+                    class="accountant-form-input"
+                >
+                    <option
+                        value="all"
+                        {% if selected_status == "all" %}selected{% endif %}
+                    >
+                        الكل
+                    </option>
+
+                    <option
+                        value="active"
+                        {% if selected_status == "active" %}selected{% endif %}
+                    >
+                        نشط
+                    </option>
+
+                    <option
+                        value="inactive"
+                        {% if selected_status == "inactive" %}selected{% endif %}
+                    >
+                        متوقف
+                    </option>
+                </select>
+            </div>
+
+            <div class="management-filter-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    تطبيق
+                </button>
+
+                <a
+                    href="{% url 'workforce:worker_list' %}"
+                    class="secondary-button"
+                >
+                    إعادة الضبط
+                </a>
+            </div>
+        </form>
+
+        {% if workers %}
+            <div class="management-table-wrapper">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th>البائع</th>
+                            <th>الرمز الداخلي</th>
+                            <th>رقم الهاتف</th>
+                            <th>الحالة</th>
+                            <th>آخر تعديل</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for worker in workers %}
+                            <tr>
+                                <td>
+                                    <div class="management-identity">
+                                        <span class="management-avatar">
+                                            {{ worker.first_name|slice:":1"|upper }}
+                                        </span>
+
+                                        <div>
+                                            <strong>
+                                                {{ worker.full_name }}
+                                            </strong>
+
+                                            {% if worker.notes %}
+                                                <small>
+                                                    {{ worker.notes|truncatechars:55 }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="management-code">
+                                        {{ worker.employee_code|default:"—" }}
+                                    </span>
+                                </td>
+
+                                <td dir="ltr">
+                                    {{ worker.phone|default:"—" }}
+                                </td>
+
+                                <td>
+                                    {% if worker.is_active %}
+                                        <span class="management-status is-active">
+                                            نشط
+                                        </span>
+                                    {% else %}
+                                        <span class="management-status is-inactive">
+                                            متوقف
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {{ worker.updated_at|date:"Y-m-d H:i" }}
+                                </td>
+
+                                <td>
+                                    <div class="management-actions">
+                                        <a
+                                            href="{% url 'workforce:worker_update' worker.id %}"
+                                            class="table-action-button"
+                                        >
+                                            تعديل
+                                        </a>
+
+                                        <form
+                                            method="post"
+                                            action="{% url 'workforce:worker_toggle_status' worker.id %}"
+                                        >
+                                            {% csrf_token %}
+
+                                            <button
+                                                type="submit"
+                                                class="table-action-button {% if worker.is_active %}is-danger{% else %}is-success{% endif %}"
+                                            >
+                                                {% if worker.is_active %}
+                                                    تعطيل
+                                                {% else %}
+                                                    تفعيل
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state management-empty">
+                <span aria-hidden="true">☷</span>
+
+                <h3>
+                    لا توجد نتائج
+                </h3>
+
+                <p>
+                    لم نعثر على
+                    بائعين يطابقون
+                    البحث أو الحالة
+                    المحددة.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

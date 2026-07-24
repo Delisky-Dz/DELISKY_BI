@@ -66,7 +66,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'imports/css/accountant.css' %}?v=20260723-3"
+        href="{% static 'imports/css/accountant.css' %}?v=20260724-5"
     >
 </head>
 
@@ -103,6 +103,36 @@
                 >
                     <span class="side-icon">▤</span>
                     سجل الدفعات
+                </a>
+
+                <div class="side-navigation-divider">
+                    <span>
+                        إدارة العمل
+                    </span>
+                </div>
+
+                <a
+                    href="{% url 'workforce:worker_list' %}"
+                    class="side-link{% if request.resolver_match.namespace == 'workforce' %} is-active{% endif %}"
+                >
+                    <span class="side-icon">☷</span>
+                    البائعون
+                </a>
+
+                <a
+                    href="{% url 'fleet:truck_list' %}"
+                    class="side-link{% if '/trucks/' in request.path %} is-active{% endif %}"
+                >
+                    <span class="side-icon">▣</span>
+                    الشاحنات
+                </a>
+
+                <a
+                    href="{% url 'fleet:assignment_list' %}"
+                    class="side-link{% if '/assignments/' in request.path %} is-active{% endif %}"
+                >
+                    <span class="side-icon">⇄</span>
+                    تعيينات البائعين
                 </a>
             </nav>
 

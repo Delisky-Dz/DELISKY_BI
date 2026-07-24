@@ -1,0 +1,146 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    {% if form_mode == "create" %}
+        إضافة شاحنة
+    {% else %}
+        تعديل شاحنة
+    {% endif %}
+    | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    {% if form_mode == "create" %}
+        إضافة شاحنة
+    {% else %}
+        تعديل بيانات الشاحنة
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <section class="management-form-shell">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    إدارة الأسطول
+                </span>
+
+                <h2>
+                    {% if form_mode == "create" %}
+                        شاحنة جديدة
+                    {% else %}
+                        {{ truck.registration_number }}
+                    {% endif %}
+                </h2>
+
+                <p>
+                    يجب أن يطابق
+                    الرمز الداخلي
+                    الرمز المستعمل
+                    في ملفات Excel
+                    حتى يتم ربط
+                    التقارير
+                    بالشاحنة الصحيحة.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'fleet:truck_list' %}"
+                class="secondary-button"
+            >
+                الرجوع للقائمة
+            </a>
+        </div>
+
+        <aside class="truck-code-notice" role="note">
+            <span class="truck-code-notice__icon" aria-hidden="true">!</span>
+
+            <div>
+                <strong>
+                    تنبيه مهم
+                </strong>
+
+                <p>
+                    اكتب الرمز الداخلي مطابقًا تمامًا للرمز الموجود في ملفات Excel، مثل
+                    <code dir="ltr">BIFA PSLIV01</code>.
+                    أي اختلاف يمنع ربط التقارير بالشاحنة الصحيحة.
+                </p>
+            </div>
+        </aside>
+
+        <form
+            method="post"
+            class="panel management-form-panel"
+            novalidate
+        >
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-error-summary">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="management-form-grid">
+                {% for field in form %}
+                    <div
+                        class="management-form-field
+                        {% if field.name == 'notes' %}is-wide{% endif %}
+                        {% if field.name == 'is_active' %}is-checkbox{% endif %}"
+                    >
+                        {% if field.name == "is_active" %}
+                            <label class="management-checkbox-label">
+                                {{ field }}
+                                <span>{{ field.label }}</span>
+                            </label>
+                        {% else %}
+                            <label for="{{ field.id_for_label }}">
+                                {{ field.label }}
+
+                                {% if field.field.required %}
+                                    <span class="required-mark">*</span>
+                                {% endif %}
+                            </label>
+
+                            {{ field }}
+                        {% endif %}
+
+                        {% if field.help_text %}
+                            <small class="field-help">
+                                {{ field.help_text }}
+                            </small>
+                        {% endif %}
+
+                        {% for error in field.errors %}
+                            <span class="field-error">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="management-form-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    {% if form_mode == "create" %}
+                        حفظ الشاحنة
+                    {% else %}
+                        حفظ التعديلات
+                    {% endif %}
+                </button>
+
+                <a
+                    href="{% url 'fleet:truck_list' %}"
+                    class="secondary-button"
+                >
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

@@ -1,0 +1,310 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    تعيينات البائعين | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    تعيينات البائعين
+{% endblock %}
+
+{% block content %}
+    <section class="management-hero">
+        <div>
+            <span class="section-eyebrow">
+                إدارة العمل
+            </span>
+
+            <h2>
+                ربط البائعين
+                بالشاحنات
+            </h2>
+
+            <p>
+                متابعة البائع
+                المسؤول عن
+                كل شاحنة
+                مع الحفاظ
+                على السجل
+                التاريخي
+                للتعيينات.
+            </p>
+        </div>
+
+        <a
+            href="{% url 'fleet:assignment_create' %}"
+            class="primary-button management-add-button"
+        >
+            <span aria-hidden="true">＋</span>
+            إضافة تعيين
+        </a>
+    </section>
+
+    <section class="management-stats is-four">
+        <article class="management-stat-card">
+            <span>
+                إجمالي التعيينات
+            </span>
+
+            <strong>
+                {{ total_assignments }}
+            </strong>
+        </article>
+
+        <article class="management-stat-card is-positive">
+            <span>
+                التعيينات الحالية
+            </span>
+
+            <strong>
+                {{ current_assignments }}
+            </strong>
+        </article>
+
+        <article class="management-stat-card is-assigned">
+            <span>
+                التعيينات القادمة
+            </span>
+
+            <strong>
+                {{ upcoming_assignments }}
+            </strong>
+        </article>
+
+        <article class="management-stat-card is-muted">
+            <span>
+                التعيينات المنتهية
+            </span>
+
+            <strong>
+                {{ ended_assignments }}
+            </strong>
+        </article>
+    </section>
+
+    <aside class="assignment-history-notice" role="note">
+        <span aria-hidden="true">i</span>
+
+        <div>
+            <strong>
+                يتم الاحتفاظ
+                بسجل التعيينات
+            </strong>
+
+            <p>
+                لا يتم حذف
+                التعيينات
+                السابقة،
+                لأنها تستعمل
+                لتحديد البائع
+                المسؤول عن
+                الشاحنة خلال
+                كل فترة تقرير.
+            </p>
+        </div>
+    </aside>
+
+    <section class="panel management-panel">
+        <form
+            method="get"
+            class="management-filter-form"
+        >
+            <div class="management-filter-field">
+                <label for="assignment-search">
+                    البحث
+                </label>
+
+                <input
+                    id="assignment-search"
+                    type="search"
+                    name="q"
+                    value="{{ query }}"
+                    placeholder="اسم البائع، رمزه، رمز الشاحنة أو رقم التسجيل"
+                    class="accountant-form-input"
+                >
+            </div>
+
+            <div class="management-filter-field">
+                <label for="assignment-status">
+                    الحالة
+                </label>
+
+                <select
+                    id="assignment-status"
+                    name="status"
+                    class="accountant-form-input"
+                >
+                    <option
+                        value="all"
+                        {% if selected_status == "all" %}selected{% endif %}
+                    >
+                        الكل
+                    </option>
+
+                    <option
+                        value="current"
+                        {% if selected_status == "current" %}selected{% endif %}
+                    >
+                        حالية
+                    </option>
+
+                    <option
+                        value="upcoming"
+                        {% if selected_status == "upcoming" %}selected{% endif %}
+                    >
+                        قادمة
+                    </option>
+
+                    <option
+                        value="ended"
+                        {% if selected_status == "ended" %}selected{% endif %}
+                    >
+                        منتهية
+                    </option>
+                </select>
+            </div>
+
+            <div class="management-filter-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    تطبيق
+                </button>
+
+                <a
+                    href="{% url 'fleet:assignment_list' %}"
+                    class="secondary-button"
+                >
+                    إعادة الضبط
+                </a>
+            </div>
+        </form>
+
+        {% if assignments %}
+            <div class="management-table-wrapper">
+                <table class="management-table assignment-table">
+                    <thead>
+                        <tr>
+                            <th>البائع</th>
+                            <th>الشاحنة</th>
+                            <th>تاريخ البداية</th>
+                            <th>تاريخ النهاية</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for assignment in assignments %}
+                            <tr>
+                                <td>
+                                    <div class="assignment-party">
+                                        <strong>
+                                            {{ assignment.worker.full_name }}
+                                        </strong>
+
+                                        <small dir="ltr">
+                                            {{ assignment.worker.employee_code }}
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <div class="assignment-party">
+                                        <strong dir="ltr">
+                                            {{ assignment.truck.internal_code }}
+                                        </strong>
+
+                                        <small dir="ltr">
+                                            {{ assignment.truck.registration_number }}
+                                        </small>
+                                    </div>
+                                </td>
+
+                                <td dir="ltr">
+                                    <span class="assignment-date">
+                                        {{ assignment.start_date|date:"Y-m-d" }}
+                                    </span>
+                                </td>
+
+                                <td dir="ltr">
+                                    <span class="assignment-date">
+                                        {% if assignment.end_date %}
+                                            {{ assignment.end_date|date:"Y-m-d" }}
+                                        {% else %}
+                                            مفتوح
+                                        {% endif %}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    {% if assignment.status_key == "current" %}
+                                        <span class="management-status is-active">
+                                            حالي
+                                        </span>
+                                    {% elif assignment.status_key == "upcoming" %}
+                                        <span class="management-status is-upcoming">
+                                            قادم
+                                        </span>
+                                    {% else %}
+                                        <span class="management-status is-inactive">
+                                            منتهي
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <div class="management-actions">
+                                        <a
+                                            href="{% url 'fleet:assignment_update' assignment.id %}"
+                                            class="table-action-button"
+                                        >
+                                            تعديل
+                                        </a>
+
+                                        {% if assignment.status_key == "current" %}
+                                            <a
+                                                href="{% url 'fleet:assignment_end' assignment.id %}"
+                                                class="table-action-button is-danger"
+                                            >
+                                                إنهاء
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+
+                            {% if assignment.notes %}
+                                <tr class="assignment-notes-row">
+                                    <td colspan="6">
+                                        <strong>
+                                            ملاحظات:
+                                        </strong>
+
+                                        {{ assignment.notes }}
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state management-empty">
+                <span aria-hidden="true">⇄</span>
+
+                <h3>
+                    لا توجد تعيينات
+                </h3>
+
+                <p>
+                    لم نعثر على
+                    تعيينات تطابق
+                    البحث أو الحالة
+                    المحددة.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

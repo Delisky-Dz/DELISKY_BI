@@ -1,0 +1,148 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    {% if form_mode == "create" %}
+        إضافة تعيين
+    {% else %}
+        تعديل تعيين
+    {% endif %}
+    | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    {% if form_mode == "create" %}
+        إضافة تعيين
+    {% else %}
+        تعديل تعيين
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <section class="management-form-shell">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    ربط البائعين
+                    بالشاحنات
+                </span>
+
+                <h2>
+                    {% if form_mode == "create" %}
+                        تعيين جديد
+                    {% else %}
+                        {{ assignment.worker.full_name }}
+                        —
+                        {{ assignment.truck.internal_code }}
+                    {% endif %}
+                </h2>
+
+                <p>
+                    يمكن ربط
+                    بائع واحد
+                    بشاحنة واحدة
+                    خلال نفس
+                    الفترة.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'fleet:assignment_list' %}"
+                class="secondary-button"
+            >
+                الرجوع للقائمة
+            </a>
+        </div>
+
+        <aside class="assignment-period-notice" role="note">
+            <span aria-hidden="true">!</span>
+
+            <div>
+                <strong>
+                    كيفية تغيير
+                    البائع
+                </strong>
+
+                <p>
+                    تاريخ النهاية
+                    محسوب ضمن
+                    فترة التعيين.
+                    مثلاً، إذا
+                    كان آخر يوم
+                    للبائع الأول
+                    هو
+                    <code dir="ltr">2026-07-10</code>
+                    يبدأ البائع
+                    الجديد في
+                    <code dir="ltr">2026-07-11</code>.
+                </p>
+            </div>
+        </aside>
+
+        <form
+            method="post"
+            class="panel management-form-panel"
+            novalidate
+        >
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="form-error-summary">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="management-form-grid assignment-form-grid">
+                {% for field in form %}
+                    <div
+                        class="management-form-field
+                        {% if field.name == 'notes' %}is-wide{% endif %}"
+                    >
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }}
+
+                            {% if field.field.required %}
+                                <span class="required-mark">*</span>
+                            {% endif %}
+                        </label>
+
+                        {{ field }}
+
+                        {% if field.help_text %}
+                            <small class="field-help">
+                                {{ field.help_text }}
+                            </small>
+                        {% endif %}
+
+                        {% for error in field.errors %}
+                            <span class="field-error">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="management-form-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    {% if form_mode == "create" %}
+                        حفظ التعيين
+                    {% else %}
+                        حفظ التعديلات
+                    {% endif %}
+                </button>
+
+                <a
+                    href="{% url 'fleet:assignment_list' %}"
+                    class="secondary-button"
+                >
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}
