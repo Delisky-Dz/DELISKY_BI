@@ -2,7 +2,11 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Worker, WorkerCategory
+from .models import (
+    Worker,
+    WorkerCapability,
+    WorkerCategory,
+)
 
 
 @admin.register(WorkerCategory)
@@ -26,9 +30,11 @@ class WorkerCategoryAdmin(
     list_filter = (
         "is_active",
         "is_system",
-        "default_can_drive",
-        "default_can_sell",
-        "default_can_work_in_warehouse",
+        "default_capabilities",
+    )
+
+    filter_horizontal = (
+        "default_capabilities",
     )
 
     search_fields = (
@@ -72,22 +78,16 @@ class WorkerCategoryAdmin(
             },
         ),
         (
-            "\u0627\u0644\u0642\u062f\u0631\u0627\u062a "
-            "\u0627\u0644\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u0629",
+            "القدرات الافتراضية",
             {
                 "fields": (
-                    "default_can_drive",
-                    "default_can_sell",
-                    (
-                        "default_can_work_in_warehouse"
-                    ),
-                    (
-                        "default_can_assist_distribution"
-                    ),
-                    (
-                        "default_can_train_workers"
-                    ),
-                )
+                    "default_capabilities",
+                ),
+                "description": (
+                    "قدرات مقترحة للصنف، "
+                    "ولا تغيّر قدرات العمال "
+                    "تلقائيًا."
+                ),
             },
         ),
         (
@@ -154,6 +154,138 @@ class WorkerCategoryAdmin(
         )
 
 
+@admin.register(WorkerCapability)
+class WorkerCapabilityAdmin(
+    admin.ModelAdmin
+):
+    list_display = (
+        "name",
+        "code",
+        "is_active",
+        "is_system",
+        "sort_order",
+        "updated_at",
+    )
+
+    list_display_links = (
+        "name",
+        "code",
+    )
+
+    list_filter = (
+        "is_active",
+        "is_system",
+    )
+
+    search_fields = (
+        "name",
+        "code",
+        "description",
+    )
+
+    ordering = (
+        "sort_order",
+        "name",
+    )
+
+    readonly_fields = (
+        "code",
+        "is_system",
+        "created_by",
+        "updated_by",
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        (
+            "معلومات القدرة",
+            {
+                "fields": (
+                    "name",
+                    "code",
+                    "description",
+                    "sort_order",
+                    "is_active",
+                    "is_system",
+                )
+            },
+        ),
+        (
+            "معلومات النظام",
+            {
+                "fields": (
+                    "created_by",
+                    "updated_by",
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    actions = (
+        "activate_capabilities",
+        "deactivate_capabilities",
+    )
+
+    def save_model(
+        self,
+        request,
+        obj,
+        form,
+        change,
+    ):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+
+        obj.updated_by = request.user
+
+        super().save_model(
+            request,
+            obj,
+            form,
+            change,
+        )
+
+    @admin.action(
+        description="تفعيل القدرات المحددة"
+    )
+    def activate_capabilities(
+        self,
+        request,
+        queryset,
+    ):
+        updated = queryset.update(
+            is_active=True,
+            updated_by=request.user,
+        )
+
+        self.message_user(
+            request,
+            f"تم تفعيل {updated} قدرة.",
+        )
+
+    @admin.action(
+        description="تعطيل القدرات المحددة"
+    )
+    def deactivate_capabilities(
+        self,
+        request,
+        queryset,
+    ):
+        updated = queryset.update(
+            is_active=False,
+            updated_by=request.user,
+        )
+
+        self.message_user(
+            request,
+            f"تم تعطيل {updated} قدرة.",
+        )
+
+
 @admin.register(Worker)
 class WorkerAdmin(admin.ModelAdmin):
     list_display = (
@@ -198,6 +330,10 @@ class WorkerAdmin(admin.ModelAdmin):
         "deactivate_workers",
     )
 
+    filter_horizontal = (
+        "capabilities",
+    )
+
     fieldsets = (
         (
             "معلومات العامل",
@@ -208,6 +344,18 @@ class WorkerAdmin(admin.ModelAdmin):
                     "last_name",
                     "phone",
                 )
+            },
+        ),
+        (
+            "قدرات العامل",
+            {
+                "fields": (
+                    "capabilities",
+                ),
+                "description": (
+                    "القدرات الفعلية للعامل "
+                    "مستقلة عن منصبه الرسمي."
+                ),
             },
         ),
         (

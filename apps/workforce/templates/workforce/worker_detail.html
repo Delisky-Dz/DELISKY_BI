@@ -1,0 +1,340 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    ملف العامل |
+    DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    ملف العامل
+{% endblock %}
+
+{% block content %}
+    <section class="management-hero">
+        <div>
+            <span class="section-eyebrow">
+                الموارد
+                البشرية
+            </span>
+
+            <h2>{{ worker.full_name }}</h2>
+
+            <p>
+                عرض
+                بيانات
+                العامل
+                وتاريخ
+                مناصبه
+                دون حذف
+                السجلات
+                السابقة.
+            </p>
+        </div>
+
+        <div class="management-actions">
+            {% if can_access_worker_management %}
+                <a
+                    href="{% url 'workforce:worker_list' %}"
+                    class="secondary-button"
+                >
+                    الرجوع
+                    للقائمة
+                </a>
+            {% endif %}
+
+            {% if perms.workforce.change_worker %}
+                <a
+                    href="{% url 'workforce:worker_update' worker.id %}"
+                    class="secondary-button"
+                >
+                    تعديل
+                    البيانات
+                </a>
+            {% endif %}
+
+            {% if perms.workforce.add_workerpositionperiod %}
+                <a
+                    href="{% url 'workforce:worker_position_create' worker.id %}"
+                    class="primary-button management-add-button"
+                >
+                    <span aria-hidden="true">＋</span>
+                    إضافة
+                    منصب
+                </a>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="automatic-code-card">
+        <div>
+            <span>&#35;</span>
+
+            <div>
+                <small>
+                    الرمز
+                    الداخلي
+                </small>
+
+                <strong dir="ltr">
+                    {{ worker.employee_code|default:"—" }}
+                </strong>
+            </div>
+        </div>
+
+        <p>
+            {% if worker.is_active %}
+                العامل
+                نشط حاليًا.
+            {% else %}
+                العامل
+                متوقف
+                مع الحفاظ
+                على تاريخه.
+            {% endif %}
+        </p>
+    </section>
+
+    <section class="management-stats is-four">
+        <article class="management-stat-card
+            {% if worker.is_active %}is-positive{% else %}is-muted{% endif %}">
+            <span>حالة العامل</span>
+
+            <strong>
+                {% if worker.is_active %}
+                    نشط
+                {% else %}
+                    متوقف
+                {% endif %}
+            </strong>
+        </article>
+
+        <article class="management-stat-card">
+            <span>إجمالي المناصب</span>
+            <strong>{{ position_periods|length }}</strong>
+        </article>
+
+        <article class="management-stat-card is-positive">
+            <span>المنصب الحالي</span>
+
+            <strong>
+                {% if current_position %}
+                    {{ current_position.category.name }}
+                {% else %}
+                    لا يوجد
+                {% endif %}
+            </strong>
+        </article>
+
+        <article class="management-stat-card">
+            <span>المناصب القادمة</span>
+            <strong>{{ upcoming_count }}</strong>
+        </article>
+    </section>
+
+    <section class="panel management-panel">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    المؤهلات العملية
+                </span>
+
+                <h2>
+                    قدرات العامل
+                </h2>
+
+                <p>
+                    القدرات توضح ما يستطيع العامل
+                    القيام به فعليًا، وهي مستقلة
+                    عن منصبه الرسمي.
+                </p>
+            </div>
+        </div>
+
+        {% if worker.capabilities.all %}
+            <div class="management-stats">
+                {% for capability in worker.capabilities.all %}
+                    <article class="management-stat-card {% if capability.is_active %}is-positive{% else %}is-muted{% endif %}">
+                        <span>
+                            {{ capability.name }}
+                        </span>
+
+                        <strong>
+                            {% if capability.is_active %}
+                                مؤهل
+                            {% else %}
+                                مؤهل — القدرة معطلة
+                            {% endif %}
+                        </strong>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state management-empty">
+                <span aria-hidden="true">☷</span>
+
+                <h3>
+                    لا توجد قدرات محددة
+                </h3>
+
+                <p>
+                    لم يتم تحديد قدرات عملية
+                    لهذا العامل بعد.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="panel management-panel">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    السجل
+                    الوظيفي
+                </span>
+
+                <h2>
+                    تاريخ
+                    مناصب
+                    العامل
+                </h2>
+
+                <p>
+                    {{ previous_count }}
+                    منصب
+                    سابق،
+                    و{{ upcoming_count }}
+                    منصب
+                    مبرمج
+                    للمستقبل.
+                </p>
+            </div>
+        </div>
+
+        {% if position_periods %}
+            <div class="management-table-wrapper">
+                <table class="management-table">
+                    <thead>
+                        <tr>
+                            <th>صنف المنصب</th>
+                            <th>البداية</th>
+                            <th>النهاية</th>
+                            <th>الحالة</th>
+                            <th>آخر تعديل</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for position in position_periods %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        {{ position.category.name }}
+                                    </strong>
+
+                                    <br>
+
+                                    <span class="management-code">
+                                        {{ position.category.code }}
+                                    </span>
+                                </td>
+
+                                <td dir="ltr">
+                                    {{ position.start_date|date:"Y-m-d" }}
+                                </td>
+
+                                <td dir="ltr">
+                                    {% if position.end_date %}
+                                        {{ position.end_date|date:"Y-m-d" }}
+                                    {% else %}
+                                        مستمر
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if position.ui_status == "current" %}
+                                        <span class="management-status is-active">
+                                            حالي
+                                        </span>
+                                    {% elif position.ui_status == "upcoming" %}
+                                        <span class="management-status is-upcoming">
+                                            قادم
+                                        </span>
+                                    {% else %}
+                                        <span class="management-status is-inactive">
+                                            سابق
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {{ position.updated_at|date:"Y-m-d H:i" }}
+                                </td>
+
+                                <td>
+                                    {% if perms.workforce.change_workerpositionperiod %}
+                                        <div class="management-actions">
+                                            <a
+                                                href="{% url 'workforce:worker_position_update' worker.id position.id %}"
+                                                class="table-action-button"
+                                            >
+                                                تعديل
+                                            </a>
+
+                                            {% if position.ui_status == "current" %}
+                                                <form
+                                                    method="post"
+                                                    action="{% url 'workforce:worker_position_end' worker.id position.id %}"
+                                                >
+                                                    {% csrf_token %}
+
+                                                    <button
+                                                        type="submit"
+                                                        class="table-action-button is-danger"
+                                                        onclick="return confirm('هل تؤكد إنهاء هذا المنصب بتاريخ اليوم؟');"
+                                                    >
+                                                        إنهاء
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                            </tr>
+
+                            {% if position.notes %}
+                                <tr class="assignment-notes-row">
+                                    <td colspan="6">
+                                        <strong>ملاحظة:</strong>
+                                        {{ position.notes }}
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state management-empty">
+                <span aria-hidden="true">☷</span>
+
+                <h3>
+                    لا يوجد
+                    سجل
+                    وظيفي
+                </h3>
+
+                <p>
+                    لم تتم
+                    إضافة
+                    أي فترة
+                    منصب
+                    لهذا
+                    العامل.
+                </p>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

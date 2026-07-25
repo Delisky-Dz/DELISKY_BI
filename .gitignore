@@ -1,4 +1,4 @@
-﻿.env
+.env
 .venv/
 __pycache__/
 *.py[cod]
@@ -7,3 +7,6 @@ db.sqlite3
 .vscode/
 staticfiles/
 media/
+
+# Local database and cleanup backups
+backups/

@@ -189,6 +189,13 @@
                                 <td>
                                     <div class="management-actions">
                                         <a
+                                            href="{% url 'workforce:worker_detail' worker.id %}"
+                                            class="table-action-button"
+                                        >
+                                            عرض الملف
+                                        </a>
+
+                                        <a
                                             href="{% url 'workforce:worker_update' worker.id %}"
                                             class="table-action-button"
                                         >

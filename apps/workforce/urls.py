@@ -18,6 +18,11 @@ urlpatterns = [
         name="worker_create",
     ),
     path(
+        "<int:worker_id>/",
+        views.worker_detail,
+        name="worker_detail",
+    ),
+    path(
         "<int:worker_id>/edit/",
         views.worker_update,
         name="worker_update",
@@ -26,6 +31,28 @@ urlpatterns = [
         "<int:worker_id>/toggle-status/",
         views.worker_toggle_status,
         name="worker_toggle_status",
+    ),
+
+    path(
+        "<int:worker_id>/positions/add/",
+        views.worker_position_create,
+        name="worker_position_create",
+    ),
+    path(
+        (
+            "<int:worker_id>/positions/"
+            "<int:position_id>/edit/"
+        ),
+        views.worker_position_update,
+        name="worker_position_update",
+    ),
+    path(
+        (
+            "<int:worker_id>/positions/"
+            "<int:position_id>/end/"
+        ),
+        views.worker_position_end,
+        name="worker_position_end",
     ),
 
     path(
@@ -47,5 +74,29 @@ urlpatterns = [
         "categories/<int:category_id>/toggle-status/",
         views.category_toggle_status,
         name="category_toggle_status",
+    ),
+
+    path(
+        "capabilities/",
+        views.capability_list,
+        name="capability_list",
+    ),
+    path(
+        "capabilities/add/",
+        views.capability_create,
+        name="capability_create",
+    ),
+    path(
+        "capabilities/<int:capability_id>/edit/",
+        views.capability_update,
+        name="capability_update",
+    ),
+    path(
+        (
+            "capabilities/"
+            "<int:capability_id>/toggle-status/"
+        ),
+        views.capability_toggle_status,
+        name="capability_toggle_status",
     ),
 ]

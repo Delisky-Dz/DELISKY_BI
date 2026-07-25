@@ -2,18 +2,18 @@
 
 {% block title %}
     {% if form_mode == "create" %}
-        إضافة صنف عمال
+        إضافة قدرة
     {% else %}
-        تعديل صنف عمال
+        تعديل قدرة
     {% endif %}
     | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
     {% if form_mode == "create" %}
-        إضافة صنف عمال
+        إضافة قدرة عامل
     {% else %}
-        تعديل صنف العمال
+        تعديل قدرة عامل
     {% endif %}
 {% endblock %}
 
@@ -27,24 +27,24 @@
 
                 <h2>
                     {% if form_mode == "create" %}
-                        صنف جديد
+                        قدرة جديدة
                     {% else %}
-                        {{ category.name }}
+                        {{ capability.name }}
                     {% endif %}
                 </h2>
 
                 <p>
-                    القدرات المحددة هنا هي اقتراحات
-                    افتراضية عند إضافة العامل، ويمكن
-                    تعديل قدرات كل عامل بشكل مستقل.
+                    القدرة تصف ما يستطيع العامل
+                    القيام به فعليًا، وهي مستقلة
+                    عن منصبه الرسمي.
                 </p>
             </div>
 
             <a
-                href="{% url 'workforce:category_list' %}"
+                href="{% url 'workforce:capability_list' %}"
                 class="secondary-button"
             >
-                الرجوع للأصناف
+                الرجوع للقدرات
             </a>
         </div>
 
@@ -70,9 +70,9 @@
                     <div>
                         <small>الرمز التقني</small>
 
-                        {% if category %}
+                        {% if capability %}
                             <strong dir="ltr">
-                                {{ category.code }}
+                                {{ capability.code }}
                             </strong>
                         {% else %}
                             <strong>
@@ -83,12 +83,12 @@
                 </div>
 
                 <p>
-                    {% if category %}
-                        الرمز ثابت ولا يمكن تغييره،
-                        حتى عند تعديل اسم الصنف.
+                    {% if capability %}
+                        الرمز ثابت ولا يتغير عند
+                        تعديل اسم القدرة.
                     {% else %}
                         سينشئ النظام الرمز تلقائيًا
-                        بعد حفظ الصنف.
+                        بعد حفظ القدرة.
                     {% endif %}
                 </p>
             </div>
@@ -151,65 +151,6 @@
                 </div>
             </div>
 
-            <section class="category-capability-section">
-                <div>
-                    <span class="section-eyebrow">
-                        القدرات الافتراضية
-                    </span>
-
-                    <h3>
-                        ما القدرات المقترحة لهذا الصنف؟
-                    </h3>
-
-                    <p>
-                        هذه القدرات إرشادية فقط،
-                        ولا تضاف إلى العامل أو تزال
-                        منه تلقائيًا.
-                    </p>
-                </div>
-
-                <div class="capability-options">
-                    {% for choice in form.default_capabilities %}
-                        <label class="capability-option">
-                            {{ choice.tag }}
-
-                            <span>
-                                <strong>
-                                    {{ choice.choice_label }}
-                                </strong>
-
-                                <small>
-                                    قدرة مقترحة لهذا الصنف.
-                                </small>
-                            </span>
-                        </label>
-                    {% empty %}
-                        <div class="empty-state management-empty">
-                            <h3>
-                                لا توجد قدرات نشطة
-                            </h3>
-
-                            <p>
-                                أضف القدرات من صفحة
-                                إدارة قدرات العمال أولًا.
-                            </p>
-                        </div>
-                    {% endfor %}
-                </div>
-
-                {% if form.default_capabilities.help_text %}
-                    <small class="field-help">
-                        {{ form.default_capabilities.help_text }}
-                    </small>
-                {% endif %}
-
-                {% for error in form.default_capabilities.errors %}
-                    <span class="field-error">
-                        {{ error }}
-                    </span>
-                {% endfor %}
-            </section>
-
             <label class="category-status-option">
                 {{ form.is_active }}
 
@@ -233,14 +174,14 @@
                     class="primary-button"
                 >
                     {% if form_mode == "create" %}
-                        حفظ الصنف
+                        حفظ القدرة
                     {% else %}
                         حفظ التعديلات
                     {% endif %}
                 </button>
 
                 <a
-                    href="{% url 'workforce:category_list' %}"
+                    href="{% url 'workforce:capability_list' %}"
                     class="secondary-button"
                 >
                     إلغاء

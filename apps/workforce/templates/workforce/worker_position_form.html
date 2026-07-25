@@ -1,0 +1,146 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    {% if form_mode == "create" %}
+        إضافة منصب
+    {% else %}
+        تعديل فترة منصب
+    {% endif %}
+    | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    {% if form_mode == "create" %}
+        إضافة منصب
+    {% else %}
+        تعديل فترة منصب
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <section class="management-form-shell">
+        <div class="management-form-heading">
+            <div>
+                <span class="section-eyebrow">
+                    السجل
+                    الوظيفي
+                </span>
+
+                <h2>
+                    {{ worker.full_name }}
+                </h2>
+
+                <p>
+                    يمنع
+                    النظام
+                    تداخل
+                    منصبين
+                    للعامل
+                    في نفس
+                    الفترة.
+                </p>
+            </div>
+
+            <a
+                href="{% url 'workforce:worker_detail' worker.id %}"
+                class="secondary-button"
+            >
+                الرجوع
+                لملف
+                العامل
+            </a>
+        </div>
+
+        <form
+            method="post"
+            class="panel management-form-panel"
+            novalidate
+        >
+            {% csrf_token %}
+            {{ form.worker }}
+
+            {% if form.non_field_errors or form.worker.errors %}
+                <div class="form-error-summary">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+
+                    {% for error in form.worker.errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="automatic-code-card">
+                <div>
+                    <span>&#35;</span>
+
+                    <div>
+                        <small>
+                            العامل
+                        </small>
+
+                        <strong>
+                            {{ worker.full_name }}
+                        </strong>
+                    </div>
+                </div>
+
+                <p dir="ltr">
+                    {{ worker.employee_code }}
+                </p>
+            </div>
+
+            <div class="management-form-grid">
+                {% for field in form.visible_fields %}
+                    <div
+                        class="management-form-field
+                        {% if field.name == 'notes' %}is-wide{% endif %}"
+                    >
+                        <label for="{{ field.id_for_label }}">
+                            {{ field.label }}
+
+                            {% if field.field.required %}
+                                <span class="required-mark">*</span>
+                            {% endif %}
+                        </label>
+
+                        {{ field }}
+
+                        {% if field.help_text %}
+                            <small class="field-help">
+                                {{ field.help_text }}
+                            </small>
+                        {% endif %}
+
+                        {% for error in field.errors %}
+                            <span class="field-error">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="management-form-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    {% if form_mode == "create" %}
+                        حفظ المنصب
+                    {% else %}
+                        حفظ التعديلات
+                    {% endif %}
+                </button>
+
+                <a
+                    href="{% url 'workforce:worker_detail' worker.id %}"
+                    class="secondary-button"
+                >
+                    إلغاء
+                </a>
+            </div>
+        </form>
+    </section>
+{% endblock %}

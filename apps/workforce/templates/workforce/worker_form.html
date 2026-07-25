@@ -110,45 +110,73 @@
             </div>
 
             <div class="management-form-grid">
-                {% for field in form %}
-                    <div
-                        class="management-form-field
-                        {% if field.name == 'notes' %}is-wide{% endif %}
-                        {% if field.name == 'is_active' %}is-checkbox{% endif %}"
-                    >
-                        {% if field.name == "is_active" %}
-                            <label class="management-checkbox-label">
-                                {{ field }}
+                {% include "workforce/partials/worker_form_field.html" with field=form.first_name %}
+                {% include "workforce/partials/worker_form_field.html" with field=form.last_name %}
+                {% include "workforce/partials/worker_form_field.html" with field=form.phone %}
+            </div>
 
-                                <span>
-                                    {{ field.label }}
-                                </span>
-                            </label>
-                        {% else %}
-                            <label for="{{ field.id_for_label }}">
-                                {{ field.label }}
+            <section class="category-capability-section">
+                <div>
+                    <span class="section-eyebrow">
+                        المؤهلات العملية
+                    </span>
 
-                                {% if field.field.required %}
-                                    <span class="required-mark">*</span>
-                                {% endif %}
-                            </label>
+                    <h3>
+                        قدرات العامل
+                    </h3>
 
-                            {{ field }}
-                        {% endif %}
+                    <p>
+                        حدد ما يستطيع العامل القيام
+                        به فعليًا. القدرات مستقلة عن
+                        المنصب الرسمي وسجله التاريخي.
+                    </p>
+                </div>
 
-                        {% if field.help_text %}
-                            <small class="field-help">
-                                {{ field.help_text }}
-                            </small>
-                        {% endif %}
+                <div class="capability-options">
+                    {% for choice in form.capabilities %}
+                        <label class="capability-option">
+                            {{ choice.tag }}
 
-                        {% for error in field.errors %}
-                            <span class="field-error">
-                                {{ error }}
+                            <span>
+                                <strong>
+                                    {{ choice.choice_label }}
+                                </strong>
+
+                                <small>
+                                    قدرة فعلية خاصة بهذا العامل.
+                                </small>
                             </span>
-                        {% endfor %}
-                    </div>
+                        </label>
+                    {% empty %}
+                        <div class="empty-state management-empty">
+                            <h3>
+                                لا توجد قدرات نشطة
+                            </h3>
+
+                            <p>
+                                أضف القدرات من صفحة
+                                إدارة قدرات العمال أولًا.
+                            </p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if form.capabilities.help_text %}
+                    <small class="field-help">
+                        {{ form.capabilities.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in form.capabilities.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
                 {% endfor %}
+            </section>
+
+            <div class="management-form-grid">
+                {% include "workforce/partials/worker_form_field.html" with field=form.is_active %}
+                {% include "workforce/partials/worker_form_field.html" with field=form.notes %}
             </div>
 
             <div class="management-form-actions">

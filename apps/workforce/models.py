@@ -41,6 +41,155 @@ def generate_worker_code() -> str:
 
 
 
+class WorkerCapability(models.Model):
+    code = models.CharField(
+        "الرمز التقني",
+        max_length=40,
+        unique=True,
+        null=True,
+        blank=True,
+        editable=False,
+        help_text=(
+            "رمز ثابت تستعمله المنظومة "
+            "ولا يتغير بعد إنشاء القدرة."
+        ),
+    )
+    name = models.CharField(
+        "اسم القدرة",
+        max_length=100,
+        unique=True,
+    )
+    description = models.TextField(
+        "الوصف",
+        blank=True,
+    )
+    sort_order = models.PositiveSmallIntegerField(
+        "الترتيب",
+        default=100,
+        db_index=True,
+        help_text=(
+            "الرقم الأصغر يظهر أولًا."
+        ),
+    )
+    is_active = models.BooleanField(
+        "نشطة",
+        default=True,
+        db_index=True,
+        help_text=(
+            "عطّل القدرة بدل حذفها "
+            "للحفاظ على ارتباطاتها."
+        ),
+    )
+    is_system = models.BooleanField(
+        "قدرة أساسية",
+        default=False,
+        editable=False,
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="أنشأها",
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.SET_NULL,
+        related_name=(
+            "worker_capabilities_created"
+        ),
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="آخر من عدلها",
+        null=True,
+        blank=True,
+        editable=False,
+        on_delete=models.SET_NULL,
+        related_name=(
+            "worker_capabilities_updated"
+        ),
+    )
+
+    created_at = models.DateTimeField(
+        "تاريخ الإنشاء",
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        "آخر تعديل",
+        auto_now=True,
+    )
+
+    class Meta:
+        verbose_name = "قدرة عامل"
+        verbose_name_plural = "قدرات العمال"
+        ordering = (
+            "sort_order",
+            "name",
+        )
+        indexes = [
+            models.Index(
+                fields=(
+                    "is_active",
+                    "sort_order",
+                ),
+                name=(
+                    "worker_capability_state_idx"
+                ),
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original_code = (
+                type(self)
+                .objects
+                .filter(pk=self.pk)
+                .values_list(
+                    "code",
+                    flat=True,
+                )
+                .first()
+            )
+
+            if original_code:
+                self.code = original_code
+
+        self.name = self.name.strip()
+        self.description = (
+            self.description.strip()
+        )
+
+        if not self.code and not self.pk:
+            with transaction.atomic():
+                super().save(*args, **kwargs)
+
+                self.code = (
+                    f"CAP-{self.pk:05d}"
+                )
+
+                type(self).objects.filter(
+                    pk=self.pk
+                ).update(
+                    code=self.code
+                )
+
+            return
+
+        if not self.code and self.pk:
+            self.code = (
+                f"CAP-{self.pk:05d}"
+            )
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        if self.code:
+            return (
+                f"{self.name} — {self.code}"
+            )
+
+        return self.name
+
+
 class WorkerCategory(models.Model):
     code = models.CharField(
         "\u0627\u0644\u0631\u0645\u0632 "
@@ -67,39 +216,17 @@ class WorkerCategory(models.Model):
         blank=True,
     )
 
-    default_can_drive = models.BooleanField(
-        "\u0627\u0644\u0642\u064a\u0627\u062f\u0629 "
-        "\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u064b\u0627",
-        default=False,
-    )
-    default_can_sell = models.BooleanField(
-        "\u0627\u0644\u0628\u064a\u0639 "
-        "\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u064b\u0627",
-        default=False,
-    )
-    default_can_work_in_warehouse = (
-        models.BooleanField(
-            "\u0627\u0644\u0639\u0645\u0644 "
-            "\u0641\u064a \u0627\u0644\u0645\u062e\u0632\u0646 "
-            "\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u064b\u0627",
-            default=False,
-        )
-    )
-    default_can_assist_distribution = (
-        models.BooleanField(
-            "\u0645\u0633\u0627\u0639\u062f\u0629 "
-            "\u0627\u0644\u062a\u0648\u0632\u064a\u0639 "
-            "\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u064b\u0627",
-            default=False,
-        )
-    )
-    default_can_train_workers = (
-        models.BooleanField(
-            "\u062a\u062f\u0631\u064a\u0628 "
-            "\u0627\u0644\u0639\u0645\u0627\u0644 "
-            "\u0627\u0641\u062a\u0631\u0627\u0636\u064a\u064b\u0627",
-            default=False,
-        )
+    default_capabilities = models.ManyToManyField(
+        "WorkerCapability",
+        verbose_name="القدرات الافتراضية",
+        blank=True,
+        related_name=(
+            "default_for_categories"
+        ),
+        help_text=(
+            "قدرات مقترحة لهذا الصنف، "
+            "ولا تغيّر قدرات العامل تلقائيًا."
+        ),
     )
 
     sort_order = models.PositiveSmallIntegerField(
@@ -261,6 +388,18 @@ class Worker(models.Model):
         max_length=30,
         blank=True,
     )
+
+    capabilities = models.ManyToManyField(
+        "WorkerCapability",
+        verbose_name="قدرات العامل",
+        blank=True,
+        related_name="workers",
+        help_text=(
+            "القدرات الفعلية الخاصة بالعامل، "
+            "وهي مستقلة عن منصبه الرسمي."
+        ),
+    )
+
     is_active = models.BooleanField(
         "نشط",
         default=True,

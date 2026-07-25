@@ -1,11 +1,11 @@
 {% extends "imports/base.html" %}
 
 {% block title %}
-    أصناف العمال | DELISKY BI
+    قدرات العمال | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
-    أصناف العمال
+    قدرات العمال
 {% endblock %}
 
 {% block content %}
@@ -16,45 +16,53 @@
             </span>
 
             <h2>
-                إدارة أصناف العمال
+                إدارة قدرات العمال
             </h2>
 
             <p>
-                تحديد المناصب الأساسية والقدرات
-                الافتراضية لكل صنف. يمكن تعديل
-                الاسم والقدرات أو تعطيل الصنف
-                دون حذف سجله التاريخي.
+                إضافة القدرات العملية وتعديلها
+                أو تعطيلها دون حذف ارتباطاتها
+                السابقة بالعمال وأصنافهم.
             </p>
         </div>
 
-        <a
-            href="{% url 'workforce:category_create' %}"
-            class="primary-button management-add-button"
-        >
-            <span aria-hidden="true">＋</span>
-            إضافة صنف
-        </a>
+        <div class="management-actions">
+            <a
+                href="{% url 'workforce:category_list' %}"
+                class="secondary-button"
+            >
+                أصناف العمال
+            </a>
+
+            <a
+                href="{% url 'workforce:capability_create' %}"
+                class="primary-button management-add-button"
+            >
+                <span aria-hidden="true">＋</span>
+                إضافة قدرة
+            </a>
+        </div>
     </section>
 
     <section class="management-stats is-four">
         <article class="management-stat-card">
-            <span>إجمالي الأصناف</span>
-            <strong>{{ total_categories }}</strong>
+            <span>إجمالي القدرات</span>
+            <strong>{{ total_capabilities }}</strong>
         </article>
 
         <article class="management-stat-card is-positive">
-            <span>الأصناف النشطة</span>
-            <strong>{{ active_categories }}</strong>
+            <span>القدرات النشطة</span>
+            <strong>{{ active_capabilities }}</strong>
         </article>
 
         <article class="management-stat-card is-assigned">
-            <span>الأصناف الأساسية</span>
-            <strong>{{ system_categories }}</strong>
+            <span>القدرات الأساسية</span>
+            <strong>{{ system_capabilities }}</strong>
         </article>
 
         <article class="management-stat-card is-muted">
-            <span>أصناف أضافها المحاسب</span>
-            <strong>{{ custom_categories }}</strong>
+            <span>قدرات أضافها المحاسب</span>
+            <strong>{{ custom_capabilities }}</strong>
         </article>
     </section>
 
@@ -64,27 +72,27 @@
             class="management-filter-form"
         >
             <div class="management-filter-field">
-                <label for="category-search">
+                <label for="capability-search">
                     البحث
                 </label>
 
                 <input
-                    id="category-search"
+                    id="capability-search"
                     type="search"
                     name="q"
                     value="{{ query }}"
-                    placeholder="اسم الصنف، الرمز أو الوصف"
+                    placeholder="اسم القدرة، الرمز أو الوصف"
                     class="accountant-form-input"
                 >
             </div>
 
             <div class="management-filter-field">
-                <label for="category-status">
+                <label for="capability-status">
                     الحالة
                 </label>
 
                 <select
-                    id="category-status"
+                    id="capability-status"
                     name="status"
                     class="accountant-form-input"
                 >
@@ -99,14 +107,14 @@
                         value="active"
                         {% if selected_status == "active" %}selected{% endif %}
                     >
-                        نشط
+                        نشطة
                     </option>
 
                     <option
                         value="inactive"
                         {% if selected_status == "inactive" %}selected{% endif %}
                     >
-                        معطل
+                        معطلة
                     </option>
                 </select>
             </div>
@@ -120,7 +128,7 @@
                 </button>
 
                 <a
-                    href="{% url 'workforce:category_list' %}"
+                    href="{% url 'workforce:capability_list' %}"
                     class="secondary-button"
                 >
                     إعادة الضبط
@@ -128,14 +136,13 @@
             </div>
         </form>
 
-        {% if categories %}
+        {% if capabilities %}
             <div class="management-table-wrapper">
-                <table class="management-table category-table">
+                <table class="management-table">
                     <thead>
                         <tr>
-                            <th>الصنف</th>
+                            <th>القدرة</th>
                             <th>الرمز التقني</th>
-                            <th>القدرات الافتراضية</th>
                             <th>النوع</th>
                             <th>الحالة</th>
                             <th>آخر تعديل</th>
@@ -144,22 +151,22 @@
                     </thead>
 
                     <tbody>
-                        {% for category in categories %}
+                        {% for capability in capabilities %}
                             <tr>
                                 <td>
                                     <div class="management-identity">
                                         <span class="management-avatar category-avatar">
-                                            {{ category.sort_order }}
+                                            {{ capability.sort_order }}
                                         </span>
 
                                         <div>
                                             <strong>
-                                                {{ category.name }}
+                                                {{ capability.name }}
                                             </strong>
 
-                                            {% if category.description %}
+                                            {% if capability.description %}
                                                 <small>
-                                                    {{ category.description|truncatechars:80 }}
+                                                    {{ capability.description|truncatechars:90 }}
                                                 </small>
                                             {% endif %}
                                         </div>
@@ -168,48 +175,30 @@
 
                                 <td>
                                     <span class="management-code">
-                                        {{ category.code }}
+                                        {{ capability.code }}
                                     </span>
                                 </td>
 
                                 <td>
-                                    <div class="category-capabilities">
-                                        {% for capability in category.default_capabilities.all %}
-                                            <span class="capability-chip {% if not capability.is_active %}is-empty{% endif %}">
-                                                {{ capability.name }}
-
-                                                {% if not capability.is_active %}
-                                                    — معطلة
-                                                {% endif %}
-                                            </span>
-                                        {% empty %}
-                                            <span class="capability-chip is-empty">
-                                                دون قدرات افتراضية
-                                            </span>
-                                        {% endfor %}
-                                    </div>
-                                </td>
-
-                                <td>
-                                    {% if category.is_system %}
+                                    {% if capability.is_system %}
                                         <span class="category-kind is-system">
-                                            أساسي
+                                            أساسية
                                         </span>
                                     {% else %}
                                         <span class="category-kind is-custom">
-                                            مضاف
+                                            مضافة
                                         </span>
                                     {% endif %}
                                 </td>
 
                                 <td>
-                                    {% if category.is_active %}
+                                    {% if capability.is_active %}
                                         <span class="management-status is-active">
-                                            نشط
+                                            نشطة
                                         </span>
                                     {% else %}
                                         <span class="management-status is-inactive">
-                                            معطل
+                                            معطلة
                                         </span>
                                     {% endif %}
                                 </td>
@@ -217,13 +206,13 @@
                                 <td>
                                     <div class="category-audit">
                                         <strong>
-                                            {{ category.updated_at|date:"Y-m-d H:i" }}
+                                            {{ capability.updated_at|date:"Y-m-d H:i" }}
                                         </strong>
 
-                                        {% if category.updated_by %}
+                                        {% if capability.updated_by %}
                                             <small>
                                                 بواسطة
-                                                {{ category.updated_by.get_full_name|default:category.updated_by.username }}
+                                                {{ capability.updated_by.get_full_name|default:capability.updated_by.username }}
                                             </small>
                                         {% endif %}
                                     </div>
@@ -232,7 +221,7 @@
                                 <td>
                                     <div class="management-actions">
                                         <a
-                                            href="{% url 'workforce:category_update' category.id %}"
+                                            href="{% url 'workforce:capability_update' capability.id %}"
                                             class="table-action-button"
                                         >
                                             تعديل
@@ -240,15 +229,15 @@
 
                                         <form
                                             method="post"
-                                            action="{% url 'workforce:category_toggle_status' category.id %}"
+                                            action="{% url 'workforce:capability_toggle_status' capability.id %}"
                                         >
                                             {% csrf_token %}
 
                                             <button
                                                 type="submit"
-                                                class="table-action-button {% if category.is_active %}is-danger{% else %}is-success{% endif %}"
+                                                class="table-action-button {% if capability.is_active %}is-danger{% else %}is-success{% endif %}"
                                             >
-                                                {% if category.is_active %}
+                                                {% if capability.is_active %}
                                                     تعطيل
                                                 {% else %}
                                                     تفعيل
@@ -267,11 +256,11 @@
                 <span aria-hidden="true">&#9783;</span>
 
                 <h3>
-                    لا توجد أصناف
+                    لا توجد قدرات
                 </h3>
 
                 <p>
-                    لم نعثر على أصناف تطابق
+                    لم نعثر على قدرات تطابق
                     البحث أو الحالة المحددة.
                 </p>
             </div>

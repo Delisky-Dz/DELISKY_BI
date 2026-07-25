@@ -1,16 +1,21 @@
+from io import StringIO
+
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import (
-    Group,
-    Permission,
-)
+from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import WorkerCategory
+from .models import (
+    WorkerCapability,
+    WorkerCategory,
+)
 from .test_category_fixtures import (
     ensure_system_categories,
 )
+
+
+User = get_user_model()
 
 
 class WorkerCategoryAccountantViewTests(
@@ -22,72 +27,55 @@ class WorkerCategoryAccountantViewTests(
     def setUpTestData(cls):
         ensure_system_categories()
 
-        User = get_user_model()
-
-        cls.accountant = (
-            User.objects.create_user(
-                username="category_accountant",
-                password=cls.password,
-            )
+        call_command(
+            "seed_roles",
+            stdout=StringIO(),
         )
 
-        accountant_group = (
-            Group.objects.create(
+        cls.accountant = User.objects.create_user(
+            username="category_accountant",
+            password=cls.password,
+        )
+        cls.accountant.groups.add(
+            Group.objects.get(
                 name="Accountant"
             )
         )
 
-        category_permissions = (
-            Permission.objects.filter(
-                content_type__app_label=(
-                    "workforce"
-                ),
-                content_type__model=(
-                    "workercategory"
-                ),
-                codename__in=(
-                    "view_workercategory",
-                    "add_workercategory",
-                    "change_workercategory",
-                ),
-            )
+        cls.manager = User.objects.create_user(
+            username="category_manager",
+            password=cls.password,
         )
-
-        accountant_group.permissions.set(
-            category_permissions
-        )
-
-        cls.accountant.groups.add(
-            accountant_group
-        )
-
-        cls.manager = (
-            User.objects.create_user(
-                username="category_manager",
-                password=cls.password,
-            )
-        )
-
-        manager_group = Group.objects.create(
-            name="Manager"
-        )
-
-        view_permission = Permission.objects.get(
-            content_type__app_label=(
-                "workforce"
-            ),
-            content_type__model=(
-                "workercategory"
-            ),
-            codename="view_workercategory",
-        )
-
-        manager_group.permissions.add(
-            view_permission
-        )
-
         cls.manager.groups.add(
-            manager_group
+            Group.objects.get(
+                name="Manager"
+            )
+        )
+
+        cls.drive = WorkerCapability.objects.get(
+            code="CAP-DRIVE"
+        )
+        cls.sell = WorkerCapability.objects.get(
+            code="CAP-SELL"
+        )
+        cls.assist = WorkerCapability.objects.get(
+            code="CAP-DISTRIBUTION-ASSIST"
+        )
+        cls.train = WorkerCapability.objects.get(
+            code="CAP-TRAIN"
+        )
+
+        cls.inactive_capability = (
+            WorkerCapability.objects.create(
+                name="قدرة صنف معطلة",
+                sort_order=995,
+                is_active=False,
+            )
+        )
+
+    def login_accountant(self):
+        self.client.force_login(
+            self.accountant
         )
 
     def test_login_is_required(self):
@@ -103,10 +91,7 @@ class WorkerCategoryAccountantViewTests(
         )
 
     def test_accountant_can_view_categories(self):
-        self.client.login(
-            username=self.accountant.username,
-            password=self.password,
-        )
+        self.login_accountant()
 
         response = self.client.get(
             reverse(
@@ -118,25 +103,20 @@ class WorkerCategoryAccountantViewTests(
             response.status_code,
             200,
         )
-
         self.assertContains(
             response,
-            "\u0623\u0635\u0646\u0627\u0641 "
-            "\u0627\u0644\u0639\u0645\u0627\u0644",
+            "أصناف العمال",
         )
-
         self.assertContains(
             response,
-            "\u0628\u0627\u0626\u0639 "
-            "\u0645\u064a\u062f\u0627\u0646\u064a",
+            "بائع ميداني",
         )
 
     def test_manager_cannot_access_accountant_page(
         self,
     ):
-        self.client.login(
-            username=self.manager.username,
-            password=self.password,
+        self.client.force_login(
+            self.manager
         )
 
         response = self.client.get(
@@ -150,14 +130,10 @@ class WorkerCategoryAccountantViewTests(
             403,
         )
 
-
     def test_create_page_does_not_guess_next_code(
         self,
     ):
-        self.client.login(
-            username=self.accountant.username,
-            password=self.password,
-        )
+        self.login_accountant()
 
         response = self.client.get(
             reverse(
@@ -169,45 +145,33 @@ class WorkerCategoryAccountantViewTests(
             response.status_code,
             200,
         )
-
         self.assertContains(
             response,
-            (
-                "\u062a\u0644\u0642\u0627\u0626\u064a "
-                "\u0628\u0639\u062f "
-                "\u0627\u0644\u062d\u0641\u0638"
-            ),
+            "تلقائي بعد الحفظ",
         )
-
         self.assertNotContains(
             response,
             "WC-00011",
         )
 
-    def test_accountant_can_create_category(self):
-        self.client.login(
-            username=self.accountant.username,
-            password=self.password,
-        )
+    def test_accountant_can_create_category(
+        self,
+    ):
+        self.login_accountant()
 
         response = self.client.post(
             reverse(
                 "workforce:category_create"
             ),
             {
-                "name": (
-                    "\u0639\u0627\u0645\u0644 "
-                    "\u0635\u064a\u0627\u0646\u0629"
-                ),
+                "name": "عامل صيانة",
                 "description": (
-                    "\u0635\u064a\u0627\u0646\u0629 "
-                    "\u062a\u062c\u0647\u064a\u0632\u0627\u062a "
-                    "\u0627\u0644\u0634\u0631\u0643\u0629."
+                    "صيانة تجهيزات الشركة."
                 ),
-                "default_can_drive": "on",
-                "default_can_assist_distribution": (
-                    "on"
-                ),
+                "default_capabilities": [
+                    str(self.drive.pk),
+                    str(self.assist.pk),
+                ],
                 "sort_order": "110",
                 "is_active": "on",
             },
@@ -220,71 +184,69 @@ class WorkerCategoryAccountantViewTests(
             ),
         )
 
-        category = (
-            WorkerCategory.objects.get(
-                name=(
-                    "\u0639\u0627\u0645\u0644 "
-                    "\u0635\u064a\u0627\u0646\u0629"
-                )
-            )
+        category = WorkerCategory.objects.get(
+            name="عامل صيانة"
         )
 
         self.assertRegex(
             category.code,
             r"^WC-\d{5,}$",
         )
-
         self.assertEqual(
             category.created_by,
             self.accountant,
         )
-
         self.assertEqual(
             category.updated_by,
             self.accountant,
         )
 
-        self.assertTrue(
-            category.default_can_drive
-        )
-
-        self.assertTrue(
+        capability_codes = set(
             category
-            .default_can_assist_distribution
+            .default_capabilities
+            .values_list(
+                "code",
+                flat=True,
+            )
         )
 
-    def test_accountant_can_update_category(self):
+        self.assertEqual(
+            capability_codes,
+            {
+                "CAP-DRIVE",
+                "CAP-DISTRIBUTION-ASSIST",
+            },
+        )
+
+    def test_accountant_can_update_category(
+        self,
+    ):
         category = WorkerCategory.objects.create(
-            name="\u062d\u0627\u0631\u0633",
+            name="حارس",
             created_by=self.manager,
             updated_by=self.manager,
+        )
+        category.default_capabilities.add(
+            self.drive
         )
 
         original_code = category.code
 
-        self.client.login(
-            username=self.accountant.username,
-            password=self.password,
-        )
+        self.login_accountant()
 
         response = self.client.post(
             reverse(
                 "workforce:category_update",
-                args=[category.pk],
+                args=(category.pk,),
             ),
             {
-                "name": (
-                    "\u062d\u0627\u0631\u0633 "
-                    "\u0627\u0644\u0645\u0642\u0631"
-                ),
+                "name": "حارس المقر",
                 "description": (
-                    "\u062d\u0631\u0627\u0633\u0629 "
-                    "\u0645\u0642\u0631 "
-                    "\u0627\u0644\u0634\u0631\u0643\u0629."
+                    "حراسة مقر الشركة."
                 ),
-                "default_can_train_workers": (
-                    "on"
-                ),
+                "default_capabilities": [
+                    str(self.train.pk),
+                ],
                 "sort_order": "120",
                 "is_active": "on",
             },
@@ -303,23 +265,121 @@ class WorkerCategoryAccountantViewTests(
             category.code,
             original_code,
         )
-
         self.assertEqual(
             category.name,
-            (
-                "\u062d\u0627\u0631\u0633 "
-                "\u0627\u0644\u0645\u0642\u0631"
-            ),
+            "حارس المقر",
         )
-
         self.assertEqual(
             category.updated_by,
             self.accountant,
         )
-
         self.assertEqual(
             category.created_by,
             self.manager,
+        )
+
+        capability_codes = set(
+            category
+            .default_capabilities
+            .values_list(
+                "code",
+                flat=True,
+            )
+        )
+
+        self.assertEqual(
+            capability_codes,
+            {
+                "CAP-TRAIN",
+            },
+        )
+
+    def test_edit_form_keeps_selected_inactive_capability(
+        self,
+    ):
+        category = WorkerCategory.objects.create(
+            name="صنف بقدرة معطلة",
+            sort_order=970,
+        )
+        category.default_capabilities.add(
+            self.inactive_capability
+        )
+
+        self.login_accountant()
+
+        response = self.client.get(
+            reverse(
+                "workforce:category_update",
+                args=(category.pk,),
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        form = response.context["form"]
+
+        available_ids = set(
+            form.fields[
+                "default_capabilities"
+            ].queryset.values_list(
+                "pk",
+                flat=True,
+            )
+        )
+
+        selected_ids = {
+            str(value)
+            for value in (
+                form[
+                    "default_capabilities"
+                ].value()
+                or []
+            )
+        }
+
+        self.assertIn(
+            self.inactive_capability.pk,
+            available_ids,
+        )
+        self.assertIn(
+            str(
+                self.inactive_capability.pk
+            ),
+            selected_ids,
+        )
+        self.assertContains(
+            response,
+            "معطلة",
+        )
+
+    def test_create_form_excludes_inactive_capability(
+        self,
+    ):
+        self.login_accountant()
+
+        response = self.client.get(
+            reverse(
+                "workforce:category_create"
+            )
+        )
+
+        form = response.context["form"]
+
+        available_ids = set(
+            form.fields[
+                "default_capabilities"
+            ].queryset.values_list(
+                "pk",
+                flat=True,
+            )
+        )
+
+        self.assertNotIn(
+            self.inactive_capability.pk,
+            available_ids,
         )
 
     def test_accountant_can_toggle_status(self):
@@ -327,15 +387,12 @@ class WorkerCategoryAccountantViewTests(
             code="SELLER"
         )
 
-        self.client.login(
-            username=self.accountant.username,
-            password=self.password,
-        )
+        self.login_accountant()
 
         response = self.client.post(
             reverse(
                 "workforce:category_toggle_status",
-                args=[category.pk],
+                args=(category.pk,),
             )
         )
 
@@ -351,7 +408,6 @@ class WorkerCategoryAccountantViewTests(
         self.assertFalse(
             category.is_active
         )
-
         self.assertEqual(
             category.updated_by,
             self.accountant,
@@ -362,15 +418,12 @@ class WorkerCategoryAccountantViewTests(
             code="SELLER"
         )
 
-        self.client.login(
-            username=self.accountant.username,
-            password=self.password,
-        )
+        self.login_accountant()
 
         response = self.client.get(
             reverse(
                 "workforce:category_toggle_status",
-                args=[category.pk],
+                args=(category.pk,),
             )
         )
 
@@ -388,13 +441,12 @@ class WorkerCategoryRolePermissionTests(
     ):
         call_command(
             "seed_roles",
-            verbosity=0,
+            stdout=StringIO(),
         )
 
         accountant = Group.objects.get(
             name="Accountant"
         )
-
         manager = Group.objects.get(
             name="Manager"
         )

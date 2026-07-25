@@ -15,125 +15,129 @@ class WorkerCategorySeedTests(TestCase):
     EXPECTED_CATEGORIES = (
         (
             "SELLER",
-            "\u0628\u0627\u0626\u0639 \u0645\u064a\u062f\u0627\u0646\u064a",
-            False,
-            True,
-            False,
-            False,
-            False,
+            "بائع ميداني",
+            (
+                "CAP-SELL",
+            ),
             10,
         ),
         (
             "DRIVER",
-            "\u0633\u0627\u0626\u0642",
-            True,
-            False,
-            False,
-            False,
-            False,
+            "سائق",
+            (
+                "CAP-DRIVE",
+            ),
             20,
         ),
         (
             "DRIVER_SELLER",
-            "\u0633\u0627\u0626\u0642 \u0648\u0628\u0627\u0626\u0639",
-            True,
-            True,
-            False,
-            False,
-            False,
+            "سائق وبائع",
+            (
+                "CAP-DRIVE",
+                "CAP-SELL",
+            ),
             30,
         ),
         (
             "WAREHOUSE_WORKER",
-            "\u0639\u0627\u0645\u0644 \u0645\u062e\u0632\u0646",
-            False,
-            False,
-            True,
-            False,
-            False,
+            "عامل مخزن",
+            (
+                "CAP-WAREHOUSE",
+            ),
             40,
         ),
         (
             "DISTRIBUTION_ASSISTANT",
-            "\u0645\u0633\u0627\u0639\u062f \u062a\u0648\u0632\u064a\u0639",
-            False,
-            False,
-            False,
-            True,
-            False,
+            "مساعد توزيع",
+            (
+                "CAP-DISTRIBUTION-ASSIST",
+            ),
             50,
         ),
         (
             "WAREHOUSE_SUPERVISOR",
-            "\u0645\u0633\u0624\u0648\u0644 \u0645\u062e\u0632\u0646",
-            False,
-            False,
-            True,
-            False,
-            True,
+            "مسؤول مخزن",
+            (
+                "CAP-WAREHOUSE",
+                "CAP-TRAIN",
+            ),
             60,
         ),
         (
             "FIELD_SUPERVISOR",
-            "\u0645\u0634\u0631\u0641 \u0645\u064a\u062f\u0627\u0646\u064a",
-            False,
-            False,
-            False,
-            False,
-            True,
+            "مشرف ميداني",
+            (
+                "CAP-TRAIN",
+            ),
             70,
         ),
         (
             "ACCOUNTANT",
-            "\u0645\u062d\u0627\u0633\u0628",
-            False,
-            False,
-            False,
-            False,
-            False,
+            "محاسب",
+            (),
             80,
         ),
         (
             "ADMINISTRATIVE",
-            "\u0625\u062f\u0627\u0631\u064a",
-            False,
-            False,
-            False,
-            False,
-            False,
+            "إداري",
+            (),
             90,
         ),
         (
             "OTHER",
-            "\u0645\u0646\u0635\u0628 \u0622\u062e\u0631",
-            False,
-            False,
-            False,
-            False,
-            False,
+            "منصب آخر",
+            (),
             100,
         ),
     )
 
-    def test_all_system_categories_are_seeded(self):
-        categories = list(
-            WorkerCategory.objects.filter(
+    def test_all_system_categories_are_seeded(
+        self,
+    ):
+        categories = []
+
+        queryset = (
+            WorkerCategory.objects
+            .filter(
                 is_system=True,
-            ).values_list(
-                "code",
-                "name",
-                "default_can_drive",
-                "default_can_sell",
-                "default_can_work_in_warehouse",
-                "default_can_assist_distribution",
-                "default_can_train_workers",
+            )
+            .prefetch_related(
+                "default_capabilities",
+            )
+            .order_by(
                 "sort_order",
+                "name",
             )
         )
 
+        for category in queryset:
+            capability_codes = tuple(
+                category
+                .default_capabilities
+                .order_by(
+                    "sort_order",
+                    "name",
+                )
+                .values_list(
+                    "code",
+                    flat=True,
+                )
+            )
+
+            categories.append(
+                (
+                    category.code,
+                    category.name,
+                    capability_codes,
+                    category.sort_order,
+                )
+            )
+
         self.assertEqual(
             categories,
-            list(self.EXPECTED_CATEGORIES),
+            list(
+                self.EXPECTED_CATEGORIES
+            ),
         )
 
     def test_system_categories_are_active(self):

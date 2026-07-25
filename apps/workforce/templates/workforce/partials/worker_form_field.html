@@ -1,0 +1,37 @@
+<div
+    class="management-form-field
+    {% if field.name == 'notes' %}is-wide{% endif %}
+    {% if field.field.widget.input_type == 'checkbox' %}is-checkbox{% endif %}"
+>
+    {% if field.field.widget.input_type == "checkbox" %}
+        <label class="management-checkbox-label">
+            {{ field }}
+
+            <span>
+                {{ field.label }}
+            </span>
+        </label>
+    {% else %}
+        <label for="{{ field.id_for_label }}">
+            {{ field.label }}
+
+            {% if field.field.required %}
+                <span class="required-mark">*</span>
+            {% endif %}
+        </label>
+
+        {{ field }}
+    {% endif %}
+
+    {% if field.help_text %}
+        <small class="field-help">
+            {{ field.help_text }}
+        </small>
+    {% endif %}
+
+    {% for error in field.errors %}
+        <span class="field-error">
+            {{ error }}
+        </span>
+    {% endfor %}
+</div>

@@ -17,6 +17,18 @@ MODEL_PERMISSIONS = {
             "change",
             "delete",
         ),
+        "workercapability": (
+            "view",
+            "add",
+            "change",
+            "delete",
+        ),
+        "workerpositionperiod": (
+            "view",
+            "add",
+            "change",
+            "delete",
+        ),
     },
     "fleet": {
         "truck": ("view", "add", "change", "delete"),
