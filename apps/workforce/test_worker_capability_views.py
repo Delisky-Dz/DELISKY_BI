@@ -14,6 +14,8 @@ from .models import (
     WorkerPositionPeriod,
 )
 
+from .test_category_fixtures import ensure_system_categories
+
 
 User = get_user_model()
 
@@ -27,6 +29,8 @@ class WorkerCapabilityViewTests(TestCase):
             "seed_roles",
             stdout=StringIO(),
         )
+
+        ensure_system_categories()
 
         cls.accountant = User.objects.create_user(
             username="capability_accountant",

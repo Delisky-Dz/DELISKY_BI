@@ -14,97 +14,52 @@ class TruckForm(forms.ModelForm):
         model = Truck
 
         fields = (
-            "internal_code",
-            "registration_number",
-            "brand",
-            "model",
-            "manufacturing_year",
+            "distribution_brand",
+            "route_type",
+            "route_number",
             "is_active",
             "notes",
         )
 
         labels = {
-            "internal_code": (
-                "\u0627\u0644\u0631\u0645\u0632 "
-                "\u0627\u0644\u062f\u0627\u062e\u0644\u064a"
-            ),
-            "registration_number": (
-                "\u0631\u0642\u0645 "
-                "\u0627\u0644\u062a\u0633\u062c\u064a\u0644"
-            ),
-            "brand": "\u0627\u0644\u0639\u0644\u0627\u0645\u0629",
-            "model": "\u0627\u0644\u0637\u0631\u0627\u0632",
-            "manufacturing_year": (
-                "\u0633\u0646\u0629 "
-                "\u0627\u0644\u0635\u0646\u0639"
-            ),
-            "is_active": (
-                "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
-                "\u0646\u0634\u0637\u0629"
-            ),
-            "notes": "\u0645\u0644\u0627\u062d\u0638\u0627\u062a",
+            "distribution_brand": "العلامة",
+            "route_type": "نوع التوزيع",
+            "route_number": "الرقم",
+            "is_active": "رمز التوزيع نشط",
+            "notes": "ملاحظات",
         }
 
         help_texts = {
-            "internal_code": (
-                "\u0631\u0645\u0632 "
-                "\u0625\u062c\u0628\u0627\u0631\u064a "
-                "\u0648\u0641\u0631\u064a\u062f "
-                "\u0644\u0644\u0634\u0627\u062d\u0646\u0629\u060c "
-                "\u0648\u064a\u062c\u0628 \u0623\u0646 "
-                "\u064a\u0637\u0627\u0628\u0642 "
-                "\u0645\u0644\u0641\u0627\u062a Excel."
+            "distribution_brand": (
+                "اختر العلامة الرسمية."
             ),
-            "registration_number": (
-                "\u0623\u062f\u062e\u0644 "
-                "\u0631\u0642\u0645 "
-                "\u0627\u0644\u062a\u0633\u062c\u064a\u0644 "
-                "\u0643\u0645\u0627 \u0647\u0648 "
-                "\u0641\u064a "
-                "\u0627\u0644\u0648\u062b\u0627\u0626\u0642."
+            "route_type": (
+                "اختر نوع التوزيع."
+            ),
+            "route_number": (
+                "مثال: أدخل 1 ليولد النظام 01."
             ),
             "is_active": (
-                "\u0623\u0644\u063a\u0650 "
-                "\u0627\u0644\u062a\u062d\u062f\u064a\u062f "
-                "\u0644\u062a\u0639\u0637\u064a\u0644 "
-                "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
-                "\u062f\u0648\u0646 \u062d\u0630\u0641 "
-                "\u0633\u062c\u0644\u0647\u0627."
+                "ألغِ التحديد لتعطيله دون حذف تاريخه."
             ),
         }
 
         widgets = {
-            "internal_code": forms.TextInput(
+            "distribution_brand": forms.Select(
                 attrs={
                     "class": "accountant-form-input",
-                    "autocomplete": "off",
-                    "dir": "ltr",
                 }
             ),
-            "registration_number": forms.TextInput(
+            "route_type": forms.Select(
                 attrs={
                     "class": "accountant-form-input",
-                    "autocomplete": "off",
-                    "dir": "ltr",
                 }
             ),
-            "brand": forms.TextInput(
+            "route_number": forms.NumberInput(
                 attrs={
                     "class": "accountant-form-input",
-                    "autocomplete": "off",
-                }
-            ),
-            "model": forms.TextInput(
-                attrs={
-                    "class": "accountant-form-input",
-                    "autocomplete": "off",
-                }
-            ),
-            "manufacturing_year": forms.NumberInput(
-                attrs={
-                    "class": "accountant-form-input",
-                    "min": 1900,
-                    "max": 2100,
+                    "min": 1,
+                    "max": 999,
                     "inputmode": "numeric",
                     "dir": "ltr",
                 }
@@ -126,40 +81,129 @@ class TruckForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields[
-            "internal_code"
+            "distribution_brand"
         ].required = True
 
-    def clean_internal_code(self):
-        value = self.cleaned_data.get(
-            "internal_code"
+        self.fields[
+            "route_type"
+        ].required = True
+
+        self.fields[
+            "route_number"
+        ].required = True
+
+        self.fields[
+            "route_number"
+        ].min_value = 1
+
+        self.fields[
+            "route_number"
+        ].max_value = 999
+
+        self.fields[
+            "route_number"
+        ].widget.attrs["min"] = 1
+
+        self.fields[
+            "route_number"
+        ].widget.attrs["max"] = 999
+
+        self.fields[
+            "distribution_brand"
+        ].queryset = (
+            self.fields[
+                "distribution_brand"
+            ].queryset.order_by("code")
         )
 
-        if not value:
-            return None
+        if self.instance and self.instance.pk:
+            for field_name in (
+                "distribution_brand",
+                "route_type",
+                "route_number",
+            ):
+                self.fields.pop(field_name)
 
-        return value.strip().upper()
+    def clean(self):
+        cleaned_data = super().clean()
 
-    def clean_registration_number(self):
-        return self.cleaned_data[
-            "registration_number"
-        ].strip().upper()
+        if self.instance and self.instance.pk:
+            return cleaned_data
 
-    def clean_brand(self):
-        return self.cleaned_data[
-            "brand"
-        ].strip()
+        distribution_brand = cleaned_data.get(
+            "distribution_brand"
+        )
+        route_type = cleaned_data.get("route_type")
+        route_number = cleaned_data.get(
+            "route_number"
+        )
 
-    def clean_model(self):
-        return self.cleaned_data.get(
-            "model",
-            "",
-        ).strip()
+        if not (
+            distribution_brand
+            and route_type
+            and route_number
+        ):
+            return cleaned_data
 
-    def clean_notes(self):
-        return self.cleaned_data.get(
-            "notes",
-            "",
-        ).strip()
+        generated_code = Truck.build_internal_code(
+            distribution_brand.code,
+            route_type,
+            route_number,
+        )
+
+        duplicates = Truck.objects.filter(
+            Q(internal_code=generated_code)
+            | Q(
+                distribution_brand=distribution_brand,
+                route_type=route_type,
+                route_number=route_number,
+            )
+        )
+
+        if duplicates.exists():
+            self.add_error(
+                "route_number",
+                (
+                    "رمز التوزيع "
+                    f"{generated_code} "
+                    "موجود مسبقًا."
+                ),
+            )
+        else:
+            self.generated_internal_code = (
+                generated_code
+            )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        truck = super().save(commit=False)
+
+        generated_code = getattr(
+            self,
+            "generated_internal_code",
+            None,
+        )
+
+        if generated_code:
+            truck.internal_code = generated_code
+
+        # حقول قديمة ما زالت مطلوبة مؤقتًا
+        # للمحافظة على التوافق مع النظام الحالي.
+        if not truck.registration_number:
+            truck.registration_number = (
+                generated_code
+            )
+
+        if not truck.brand:
+            truck.brand = (
+                truck.distribution_brand.code
+            )
+
+        if commit:
+            truck.save()
+
+        return truck
 
 
 class WorkerChoiceField(
@@ -181,15 +225,9 @@ class TruckChoiceField(
     forms.ModelChoiceField
 ):
     def label_from_instance(self, truck):
-        code = (
+        return (
             truck.internal_code
             or "-"
-        )
-
-        return (
-            f"{code} "
-            f"\u2014 "
-            f"{truck.registration_number}"
         )
 
 

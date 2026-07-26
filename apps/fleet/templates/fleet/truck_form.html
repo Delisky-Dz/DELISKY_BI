@@ -2,18 +2,18 @@
 
 {% block title %}
     {% if form_mode == "create" %}
-        إضافة شاحنة
+        إضافة رمز توزيع
     {% else %}
-        تعديل شاحنة
+        تعديل رمز توزيع
     {% endif %}
     | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
     {% if form_mode == "create" %}
-        إضافة شاحنة
+        إضافة رمز توزيع
     {% else %}
-        تعديل بيانات الشاحنة
+        تعديل رمز التوزيع
     {% endif %}
 {% endblock %}
 
@@ -22,25 +22,25 @@
         <div class="management-form-heading">
             <div>
                 <span class="section-eyebrow">
-                    إدارة الأسطول
+                    إدارة شاحنات التوزيع
                 </span>
 
                 <h2>
                     {% if form_mode == "create" %}
-                        شاحنة جديدة
+                        رمز توزيع جديد
                     {% else %}
-                        {{ truck.registration_number }}
+                        {{ truck.internal_code }}
                     {% endif %}
                 </h2>
 
                 <p>
-                    يجب أن يطابق
-                    الرمز الداخلي
-                    الرمز المستعمل
-                    في ملفات Excel
-                    حتى يتم ربط
-                    التقارير
-                    بالشاحنة الصحيحة.
+                    {% if form_mode == "create" %}
+                        اختر العلامة ونوع التوزيع والرقم،
+                        وسيولد النظام الرمز الرسمي تلقائيًا.
+                    {% else %}
+                        هوية رمز التوزيع ثابتة بعد الإنشاء.
+                        يمكن تعديل الحالة والملاحظات فقط.
+                    {% endif %}
                 </p>
             </div>
 
@@ -53,18 +53,39 @@
         </div>
 
         <aside class="truck-code-notice" role="note">
-            <span class="truck-code-notice__icon" aria-hidden="true">!</span>
+            <span
+                class="truck-code-notice__icon"
+                aria-hidden="true"
+            >
+                ✓
+            </span>
 
             <div>
-                <strong>
-                    تنبيه مهم
-                </strong>
+                {% if form_mode == "create" %}
+                    <strong>
+                        توليد آلي للرمز
+                    </strong>
 
-                <p>
-                    اكتب الرمز الداخلي مطابقًا تمامًا للرمز الموجود في ملفات Excel، مثل
-                    <code dir="ltr">BIFA PSLIV01</code>.
-                    أي اختلاف يمنع ربط التقارير بالشاحنة الصحيحة.
-                </p>
+                    <p>
+                        اختيار
+                        <code dir="ltr">BIFA</code>
+                        و
+                        <code dir="ltr">PSLIV</code>
+                        والرقم
+                        <code dir="ltr">1</code>
+                        يولد:
+                        <code dir="ltr">BIFA PSLIV01</code>.
+                    </p>
+                {% else %}
+                    <strong>
+                        هوية رمز التوزيع مقفلة
+                    </strong>
+
+                    <p>
+                        عند وجود رمز خاطئ،
+                        عطّل الرمز الحالي وأنشئ رمزًا صحيحًا جديدًا.
+                    </p>
+                {% endif %}
             </div>
         </aside>
 
@@ -128,7 +149,7 @@
                     class="primary-button"
                 >
                     {% if form_mode == "create" %}
-                        حفظ الشاحنة
+                        حفظ رمز التوزيع
                     {% else %}
                         حفظ التعديلات
                     {% endif %}

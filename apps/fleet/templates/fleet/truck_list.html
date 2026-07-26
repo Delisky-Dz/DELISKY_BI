@@ -1,31 +1,27 @@
 {% extends "imports/base.html" %}
 
 {% block title %}
-    إدارة الشاحنات | DELISKY BI
+    إدارة شاحنات التوزيع | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
-    إدارة الشاحنات
+    إدارة شاحنات التوزيع
 {% endblock %}
 
 {% block content %}
     <section class="management-hero">
         <div>
             <span class="section-eyebrow">
-                إدارة الأسطول
+                إدارة التوزيع
             </span>
 
             <h2>
-                قائمة الشاحنات
+                قائمة رموز التوزيع
             </h2>
 
             <p>
-                إدارة بيانات
-                الشاحنات
-                وحالتها
-                ومعرفة البائع
-                المرتبط حاليًا
-                بكل شاحنة.
+                إدارة الرموز الموجودة في ملفات Excel
+                وربط العمال بكل شاحنة توزيع.
             </p>
         </div>
 
@@ -34,23 +30,23 @@
             class="primary-button management-add-button"
         >
             <span aria-hidden="true">＋</span>
-            إضافة شاحنة
+            إضافة رمز توزيع
         </a>
     </section>
 
     <section class="management-stats is-four">
         <article class="management-stat-card">
-            <span>إجمالي الشاحنات</span>
+            <span>إجمالي الرموز</span>
             <strong>{{ total_trucks }}</strong>
         </article>
 
         <article class="management-stat-card is-positive">
-            <span>الشاحنات النشطة</span>
+            <span>الرموز النشطة</span>
             <strong>{{ active_trucks }}</strong>
         </article>
 
         <article class="management-stat-card is-muted">
-            <span>الشاحنات المعطلة</span>
+            <span>الرموز المعطلة</span>
             <strong>{{ inactive_trucks }}</strong>
         </article>
 
@@ -75,7 +71,7 @@
                     type="search"
                     name="q"
                     value="{{ query }}"
-                    placeholder="الرمز، رقم التسجيل، العلامة أو الطراز"
+                    placeholder="الرمز، العلامة أو نوع التوزيع"
                     class="accountant-form-input"
                 >
             </div>
@@ -132,9 +128,10 @@
                 <table class="management-table">
                     <thead>
                         <tr>
-                            <th>الشاحنة</th>
-                            <th>الرمز الداخلي</th>
-                            <th>رقم التسجيل</th>
+                            <th>رمز التوزيع</th>
+                            <th>العلامة</th>
+                            <th>النوع</th>
+                            <th>الرقم</th>
                             <th>البائع الحالي</th>
                             <th>الحالة</th>
                             <th>الإجراءات</th>
@@ -145,38 +142,23 @@
                         {% for truck in trucks %}
                             <tr>
                                 <td>
-                                    <div class="management-identity">
-                                        <span class="management-avatar truck-avatar">
-                                            ▣
-                                        </span>
-
-                                        <div>
-                                            <strong>
-                                                {{ truck.brand }}
-                                                {{ truck.model }}
-                                            </strong>
-
-                                            <small>
-                                                {% if truck.manufacturing_year %}
-                                                    سنة {{ truck.manufacturing_year }}
-                                                {% else %}
-                                                    سنة الصنع غير مسجلة
-                                                {% endif %}
-                                            </small>
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <td>
                                     <span class="management-code">
-                                        {{ truck.internal_code|default:"—" }}
+                                        {{ truck.internal_code }}
                                     </span>
                                 </td>
 
-                                <td dir="ltr">
+                                <td>
                                     <strong>
-                                        {{ truck.registration_number }}
+                                        {{ truck.distribution_brand.code }}
                                     </strong>
+                                </td>
+
+                                <td dir="ltr">
+                                    {{ truck.route_type }}
+                                </td>
+
+                                <td dir="ltr">
+                                    {{ truck.route_number|stringformat:"02d" }}
                                 </td>
 
                                 <td>
@@ -249,10 +231,8 @@
                 <h3>لا توجد نتائج</h3>
 
                 <p>
-                    لم نعثر على
-                    شاحنات تطابق
-                    البحث أو الحالة
-                    المحددة.
+                    لم نعثر على رموز توزيع
+                    تطابق البحث أو الحالة المحددة.
                 </p>
             </div>
         {% endif %}

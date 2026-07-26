@@ -3,10 +3,12 @@ from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.test import TestCase
 from django.urls import reverse
 
+from apps.imports.models import DistributionBrand
 from apps.workforce.models import Worker
 
 from .models import Truck, WorkerTruckAssignment
@@ -49,6 +51,16 @@ class AccountantTruckViewTests(TestCase):
             password="StrongPass123!",
         )
 
+        cls.bifa = DistributionBrand.objects.create(
+            code="BIFA",
+            name="BIFA",
+        )
+
+        cls.nita = DistributionBrand.objects.create(
+            code="NITA",
+            name="NITA",
+        )
+
         cls.worker = Worker.objects.create(
             first_name="Ahmed",
             last_name="Mansouri",
@@ -57,6 +69,9 @@ class AccountantTruckViewTests(TestCase):
 
         cls.truck = Truck.objects.create(
             internal_code="BIFA PSLIV01",
+            distribution_brand=cls.bifa,
+            route_type=Truck.RouteType.PSLIV,
+            route_number=1,
             registration_number="001234-116-43",
             brand="Iveco",
             model="Daily",
@@ -116,17 +131,25 @@ class AccountantTruckViewTests(TestCase):
             response.status_code,
             200,
         )
+
         self.assertTemplateUsed(
             response,
             "fleet/truck_list.html",
         )
+
         self.assertContains(
             response,
             self.truck.internal_code,
         )
+
         self.assertContains(
             response,
-            self.truck.registration_number,
+            self.truck.distribution_brand.code,
+        )
+
+        self.assertContains(
+            response,
+            self.truck.route_type,
         )
 
     def test_superuser_can_open_truck_list(self):
@@ -166,6 +189,9 @@ class AccountantTruckViewTests(TestCase):
     def test_assigned_truck_statistic_is_correct(self):
         Truck.objects.create(
             internal_code="BIFA PSLIV02",
+            distribution_brand=self.bifa,
+            route_type=Truck.RouteType.PSLIV,
+            route_number=2,
             registration_number="009999-116-43",
             brand="Iveco",
             model="Daily",
@@ -189,6 +215,9 @@ class AccountantTruckViewTests(TestCase):
     def test_truck_list_supports_search(self):
         other_truck = Truck.objects.create(
             internal_code="NITA PSLIV02",
+            distribution_brand=self.nita,
+            route_type=Truck.RouteType.PSLIV,
+            route_number=2,
             registration_number="008888-116-43",
             brand="Isuzu",
             model="NPR",
@@ -217,6 +246,9 @@ class AccountantTruckViewTests(TestCase):
     def test_truck_list_supports_status_filter(self):
         inactive_truck = Truck.objects.create(
             internal_code="BIFA PSLIV03",
+            distribution_brand=self.bifa,
+            route_type=Truck.RouteType.PSLIV,
+            route_number=3,
             registration_number="007777-116-43",
             brand="Iveco",
             model="Daily",
@@ -243,7 +275,9 @@ class AccountantTruckViewTests(TestCase):
             self.truck.internal_code,
         )
 
-    def test_create_form_contains_excel_code_notice(self):
+    def test_create_form_explains_automatic_code_generation(
+        self,
+    ):
         self.login_accountant()
 
         response = self.client.get(
@@ -256,10 +290,12 @@ class AccountantTruckViewTests(TestCase):
             response.status_code,
             200,
         )
+
         self.assertTemplateUsed(
             response,
             "fleet/truck_form.html",
         )
+
         self.assertContains(
             response,
             "BIFA PSLIV01",
@@ -272,8 +308,7 @@ class AccountantTruckViewTests(TestCase):
         )
 
         self.assertIn(
-            "\u062a\u0646\u0628\u064a\u0647 "
-            "\u0645\u0647\u0645",
+            "توليد آلي للرمز",
             normalized_html,
         )
 
@@ -282,8 +317,9 @@ class AccountantTruckViewTests(TestCase):
             normalized_html,
         )
 
-
-    def test_create_form_requires_internal_code(self):
+    def test_create_form_requires_distribution_identity(
+        self,
+    ):
         self.login_accountant()
 
         response = self.client.get(
@@ -297,29 +333,46 @@ class AccountantTruckViewTests(TestCase):
             200,
         )
 
-        self.assertTrue(
-            response.context[
-                "form"
-            ].fields[
-                "internal_code"
-            ].required
+        fields = response.context[
+            "form"
+        ].fields
+
+        self.assertNotIn(
+            "internal_code",
+            fields,
         )
 
-    def test_blank_internal_code_is_rejected(self):
+        for field_name in (
+            "distribution_brand",
+            "route_type",
+            "route_number",
+        ):
+            with self.subTest(
+                field_name=field_name
+            ):
+                self.assertTrue(
+                    fields[
+                        field_name
+                    ].required
+                )
+
+    def test_missing_distribution_identity_is_rejected(
+        self,
+    ):
         self.login_accountant()
+
+        truck_count_before = (
+            Truck.objects.count()
+        )
 
         response = self.client.post(
             reverse(
                 "fleet:truck_create"
             ),
             {
-                "internal_code": "",
-                "registration_number": (
-                    "TEST-NO-CODE-001"
-                ),
-                "brand": "Isuzu",
-                "model": "NPR",
-                "manufacturing_year": "2021",
+                "distribution_brand": "",
+                "route_type": "",
+                "route_number": "",
                 "is_active": "on",
                 "notes": "",
             },
@@ -330,19 +383,22 @@ class AccountantTruckViewTests(TestCase):
             200,
         )
 
-        self.assertIn(
-            "internal_code",
-            response.context[
-                "form"
-            ].errors,
+        errors = response.context[
+            "form"
+        ].errors
+
+        self.assertEqual(
+            {
+                "distribution_brand",
+                "route_type",
+                "route_number",
+            },
+            set(errors),
         )
 
-        self.assertFalse(
-            Truck.objects.filter(
-                registration_number=(
-                    "TEST-NO-CODE-001"
-                )
-            ).exists()
+        self.assertEqual(
+            Truck.objects.count(),
+            truck_count_before,
         )
 
     def test_accountant_can_create_truck(self):
@@ -353,15 +409,13 @@ class AccountantTruckViewTests(TestCase):
                 "fleet:truck_create"
             ),
             {
-                "internal_code": (
-                    "  bifa psliv10  "
+                "distribution_brand": (
+                    self.bifa.pk
                 ),
-                "registration_number": (
-                    "  abc-123  "
+                "route_type": (
+                    Truck.RouteType.PSLIV
                 ),
-                "brand": "  Isuzu  ",
-                "model": "  NPR  ",
-                "manufacturing_year": "2021",
+                "route_number": "10",
                 "is_active": "on",
                 "notes": "  New truck  ",
             },
@@ -379,21 +433,25 @@ class AccountantTruckViewTests(TestCase):
         )
 
         self.assertEqual(
-            truck.registration_number,
-            "ABC-123",
+            truck.distribution_brand,
+            self.bifa,
         )
+
         self.assertEqual(
-            truck.brand,
-            "Isuzu",
+            truck.route_type,
+            Truck.RouteType.PSLIV,
         )
+
         self.assertEqual(
-            truck.model,
-            "NPR",
+            truck.route_number,
+            10,
         )
+
         self.assertEqual(
             truck.notes,
             "New truck",
         )
+
         self.assertTrue(
             truck.is_active
         )
@@ -407,15 +465,6 @@ class AccountantTruckViewTests(TestCase):
                 args=[self.truck.pk],
             ),
             {
-                "internal_code": (
-                    self.truck.internal_code
-                ),
-                "registration_number": (
-                    self.truck.registration_number
-                ),
-                "brand": "Iveco",
-                "model": "Eurocargo",
-                "manufacturing_year": "2020",
                 "is_active": "on",
                 "notes": "Updated truck",
             },
@@ -431,12 +480,52 @@ class AccountantTruckViewTests(TestCase):
         self.truck.refresh_from_db()
 
         self.assertEqual(
-            self.truck.model,
-            "Eurocargo",
+            self.truck.internal_code,
+            "BIFA PSLIV01",
+        )
+        self.assertEqual(
+            self.truck.distribution_brand,
+            self.bifa,
+        )
+        self.assertEqual(
+            self.truck.route_type,
+            Truck.RouteType.PSLIV,
+        )
+        self.assertEqual(
+            self.truck.route_number,
+            1,
         )
         self.assertEqual(
             self.truck.notes,
             "Updated truck",
+        )
+
+    def test_model_rejects_distribution_identity_change(
+        self,
+    ):
+        self.truck.distribution_brand = self.nita
+        self.truck.route_type = Truck.RouteType.LIV
+        self.truck.route_number = 4
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "هوية رمز التوزيع ثابتة بعد الإنشاء",
+        ):
+            self.truck.save()
+
+        self.truck.refresh_from_db()
+
+        self.assertEqual(
+            self.truck.internal_code,
+            "BIFA PSLIV01",
+        )
+        self.assertEqual(
+            self.truck.distribution_brand,
+            self.bifa,
+        )
+        self.assertEqual(
+            self.truck.route_number,
+            1,
         )
 
     def test_accountant_can_toggle_truck_status(self):

@@ -79,6 +79,10 @@ def truck_list(request):
     if query:
         trucks = trucks.filter(
             Q(internal_code__icontains=query)
+            | Q(
+                distribution_brand__code__icontains=query
+            )
+            | Q(route_type__icontains=query)
             | Q(registration_number__icontains=query)
             | Q(brand__icontains=query)
             | Q(model__icontains=query)
@@ -95,10 +99,11 @@ def truck_list(request):
 
     trucks = list(
         trucks
+        .select_related("distribution_brand")
         .prefetch_related(
             _current_assignment_prefetch()
         )
-        .order_by("registration_number")
+        .order_by("internal_code")
     )
 
     for truck in trucks:
@@ -164,8 +169,8 @@ def truck_create(request):
                 (
                     "\u062a\u0645\u062a "
                     "\u0625\u0636\u0627\u0641\u0629 "
-                    "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
-                    f"{truck.registration_number} "
+                    "\u0631\u0645\u0632 ""\u0627\u0644\u062a\u0648\u0632\u064a\u0639 "
+                    f"{truck.internal_code} "
                     "\u0628\u0646\u062c\u0627\u062d."
                 ),
             )
@@ -213,8 +218,8 @@ def truck_update(request, truck_id):
                     "\u062a\u0645 "
                     "\u062a\u062d\u062f\u064a\u062b "
                     "\u0628\u064a\u0627\u0646\u0627\u062a "
-                    "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
-                    f"{truck.registration_number} "
+                    "\u0631\u0645\u0632 ""\u0627\u0644\u062a\u0648\u0632\u064a\u0639 "
+                    f"{truck.internal_code} "
                     "\u0628\u0646\u062c\u0627\u062d."
                 ),
             )
@@ -275,8 +280,8 @@ def truck_toggle_status(
         request,
         (
             f"\u062a\u0645 {status_message} "
-            "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
-            f"{truck.registration_number}."
+            "\u0631\u0645\u0632 ""\u0627\u0644\u062a\u0648\u0632\u064a\u0639 "
+            f"{truck.internal_code}."
         ),
     )
 
