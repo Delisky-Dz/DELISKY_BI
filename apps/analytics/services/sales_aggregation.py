@@ -4,7 +4,6 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Iterable
 
-from apps.fleet.models import WorkerTruckAssignment
 from apps.imports.models import (
     ImportReportType,
     ImportRow,

@@ -10,7 +10,7 @@ from apps.analytics.services.stock_flow_aggregation import (
     aggregate_opening_stock,
     aggregate_stock_flow,
 )
-from apps.fleet.models import Truck, WorkerTruckAssignment
+from apps.fleet.models import Truck, TruckCrewAssignment
 from apps.imports.models import (
     DistributionBrand,
     ImportBatch,
@@ -64,9 +64,13 @@ class StockFlowAggregationTests(TestCase):
         start_date=date(2026, 7, 1),
         end_date=date(2026, 7, 31),
     ):
-        return WorkerTruckAssignment.objects.create(
+        return TruckCrewAssignment.objects.create(
             truck=truck,
             worker=worker,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=start_date,
             end_date=end_date,
         )

@@ -1,11 +1,11 @@
 {% extends "imports/base.html" %}
 
 {% block title %}
-    تعيينات البائعين | DELISKY BI
+    إدارة طواقم الشاحنات | DELISKY BI
 {% endblock %}
 
 {% block page_title %}
-    تعيينات البائعين
+    إدارة طواقم الشاحنات
 {% endblock %}
 
 {% block content %}
@@ -16,18 +16,14 @@
             </span>
 
             <h2>
-                ربط البائعين
-                بالشاحنات
+                طواقم شاحنات
+                التوزيع
             </h2>
 
             <p>
-                متابعة البائع
-                المسؤول عن
-                كل شاحنة
-                مع الحفاظ
-                على السجل
-                التاريخي
-                للتعيينات.
+                إدارة أعضاء الطواقم
+                وأدوارهم وفترات عملهم
+                مع الحفاظ على السجل التاريخي.
             </p>
         </div>
 
@@ -36,14 +32,14 @@
             class="primary-button management-add-button"
         >
             <span aria-hidden="true">＋</span>
-            إضافة تعيين
+            إضافة عضو طاقم
         </a>
     </section>
 
     <section class="management-stats is-four">
         <article class="management-stat-card">
             <span>
-                إجمالي التعيينات
+                إجمالي أعضاء الطواقم
             </span>
 
             <strong>
@@ -53,7 +49,7 @@
 
         <article class="management-stat-card is-positive">
             <span>
-                التعيينات الحالية
+                الأعضاء الحاليون
             </span>
 
             <strong>
@@ -63,7 +59,7 @@
 
         <article class="management-stat-card is-assigned">
             <span>
-                التعيينات القادمة
+                الأعضاء القادمون
             </span>
 
             <strong>
@@ -88,18 +84,14 @@
         <div>
             <strong>
                 يتم الاحتفاظ
-                بسجل التعيينات
+                بسجل الطواقم
             </strong>
 
             <p>
-                لا يتم حذف
-                التعيينات
-                السابقة،
-                لأنها تستعمل
-                لتحديد البائع
-                المسؤول عن
-                الشاحنة خلال
-                كل فترة تقرير.
+                لا يتم حذف السجلات السابقة.
+                ويُستعمل البائع الرئيسي فقط
+                لإسناد المبيعات والزيارات
+                خلال كل فترة تقرير.
             </p>
         </div>
     </aside>
@@ -119,7 +111,7 @@
                     type="search"
                     name="q"
                     value="{{ query }}"
-                    placeholder="اسم البائع، رمزه، رمز الشاحنة أو رقم التسجيل"
+                    placeholder="اسم العامل، رمزه، رمز التوزيع أو الدور"
                     class="accountant-form-input"
                 >
             </div>
@@ -186,8 +178,10 @@
                 <table class="management-table assignment-table">
                     <thead>
                         <tr>
-                            <th>البائع</th>
-                            <th>الشاحنة</th>
+                            <th>العامل</th>
+                            <th>شاحنة التوزيع</th>
+                            <th>الدور</th>
+                            <th>البائع الرئيسي</th>
                             <th>تاريخ البداية</th>
                             <th>تاريخ النهاية</th>
                             <th>الحالة</th>
@@ -217,9 +211,29 @@
                                         </strong>
 
                                         <small dir="ltr">
-                                            {{ assignment.truck.internal_code }}
+                                            {{ assignment.truck.distribution_brand.code }}
+                                            —
+                                            {{ assignment.truck.route_type }}
                                         </small>
                                     </div>
+                                </td>
+
+                                <td>
+                                    <strong>
+                                        {{ assignment.get_crew_role_display }}
+                                    </strong>
+                                </td>
+
+                                <td>
+                                    {% if assignment.is_primary_seller %}
+                                        <span class="management-status is-active">
+                                            نعم
+                                        </span>
+                                    {% else %}
+                                        <span class="management-status is-muted">
+                                            لا
+                                        </span>
+                                    {% endif %}
                                 </td>
 
                                 <td dir="ltr">
@@ -277,7 +291,7 @@
 
                             {% if assignment.notes %}
                                 <tr class="assignment-notes-row">
-                                    <td colspan="6">
+                                    <td colspan="8">
                                         <strong>
                                             ملاحظات:
                                         </strong>
@@ -295,14 +309,12 @@
                 <span aria-hidden="true">⇄</span>
 
                 <h3>
-                    لا توجد تعيينات
+                    لا توجد طواقم مسجلة
                 </h3>
 
                 <p>
-                    لم نعثر على
-                    تعيينات تطابق
-                    البحث أو الحالة
-                    المحددة.
+                    لم نعثر على أعضاء طاقم
+                    يطابقون البحث أو الحالة المحددة.
                 </p>
             </div>
         {% endif %}

@@ -5,7 +5,7 @@ from typing import Iterable
 
 from apps.fleet.models import (
     Truck,
-    WorkerTruckAssignment,
+    TruckCrewAssignment,
 )
 from apps.workforce.models import Worker
 
@@ -24,7 +24,7 @@ class AssignmentResolutionStatus(StrEnum):
 class AssignmentResolution:
     status: AssignmentResolutionStatus
     worker: Worker | None = None
-    assignment: WorkerTruckAssignment | None = None
+    assignment: TruckCrewAssignment | None = None
     matching_assignment_ids: tuple[int, ...] = ()
 
     @property
@@ -38,24 +38,24 @@ class AssignmentResolution:
 
 AssignmentIndex = dict[
     int,
-    tuple[WorkerTruckAssignment, ...],
+    tuple[TruckCrewAssignment, ...],
 ]
 
 
 def build_assignment_index(
-    assignments: Iterable[WorkerTruckAssignment] | None = None,
+    assignments: Iterable[TruckCrewAssignment] | None = None,
 ) -> AssignmentIndex:
     """
-    Build an in-memory assignment index grouped by truck.
+    Build an in-memory primary-seller assignment index grouped by truck.
 
     Historical assignments are included even when the worker or
     truck is currently inactive.
     """
     if assignments is None:
         assignments = (
-            WorkerTruckAssignment.objects
+            TruckCrewAssignment.objects
+            .filter(is_primary_seller=True)
             .select_related("worker", "truck")
-            .all()
             .order_by(
                 "truck_id",
                 "start_date",
@@ -65,7 +65,7 @@ def build_assignment_index(
 
     buckets: dict[
         int,
-        list[WorkerTruckAssignment],
+        list[TruckCrewAssignment],
     ] = {}
 
     for assignment in assignments:
@@ -84,7 +84,7 @@ def build_assignment_index(
 
 
 def _assignment_ids(
-    assignments: Iterable[WorkerTruckAssignment],
+    assignments: Iterable[TruckCrewAssignment],
 ) -> tuple[int, ...]:
     return tuple(
         sorted(
@@ -102,7 +102,7 @@ def resolve_worker_for_date(
     assignment_index: AssignmentIndex | None = None,
 ) -> AssignmentResolution:
     """
-    Resolve the worker assigned to a truck on an exact date.
+    Resolve the primary seller assigned to a truck on an exact date.
 
     Intended for reports containing an exact date, such as
     SALES and POS.
@@ -163,7 +163,7 @@ def resolve_worker_for_period(
     assignment_index: AssignmentIndex | None = None,
 ) -> AssignmentResolution:
     """
-    Resolve a worker only when one assignment covers the entire period.
+    Resolve a primary seller only when one assignment covers the entire period.
 
     Intended for period-level reports without an exact row date,
     especially ITEMS, CHARGEMENT and OPENING_STOCK.

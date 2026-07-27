@@ -8,7 +8,7 @@ from apps.analytics.services.assignment_resolver import (
     resolve_worker_for_date,
     resolve_worker_for_period,
 )
-from apps.fleet.models import Truck, WorkerTruckAssignment
+from apps.fleet.models import Truck, TruckCrewAssignment
 from apps.workforce.models import Worker
 
 
@@ -48,9 +48,13 @@ class AssignmentResolverTests(TestCase):
         start_date,
         end_date=None,
     ):
-        return WorkerTruckAssignment.objects.create(
+        return TruckCrewAssignment.objects.create(
             worker=worker,
             truck=truck,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=start_date,
             end_date=end_date,
         )
@@ -152,17 +156,25 @@ class AssignmentResolverTests(TestCase):
         first_worker = self.create_worker("WORKER-AMBIGUOUS-1")
         second_worker = self.create_worker("WORKER-AMBIGUOUS-2")
 
-        first_assignment = WorkerTruckAssignment(
+        first_assignment = TruckCrewAssignment(
             pk=9001,
             worker=first_worker,
             truck=truck,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=date(2026, 5, 1),
             end_date=date(2026, 5, 10),
         )
-        second_assignment = WorkerTruckAssignment(
+        second_assignment = TruckCrewAssignment(
             pk=9002,
             worker=second_worker,
             truck=truck,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=date(2026, 5, 1),
             end_date=date(2026, 5, 10),
         )

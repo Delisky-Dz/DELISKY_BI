@@ -16,11 +16,11 @@ from django.views.decorators.http import require_POST
 from apps.imports.access import accountant_required
 
 from .forms import (
-    AssignmentEndForm,
+    CrewAssignmentEndForm,
+    TruckCrewAssignmentForm,
     TruckForm,
-    WorkerTruckAssignmentForm,
 )
-from .models import Truck, WorkerTruckAssignment
+from .models import Truck, TruckCrewAssignment
 
 
 STATUS_ALL = "all"
@@ -38,10 +38,11 @@ def _current_assignment_prefetch():
     today = date.today()
 
     return Prefetch(
-        "worker_assignments",
+        "crew_assignments",
         queryset=(
-            WorkerTruckAssignment.objects
+            TruckCrewAssignment.objects
             .filter(
+                is_primary_seller=True,
                 start_date__lte=today,
             )
             .filter(
@@ -116,8 +117,11 @@ def truck_list(request):
     today = date.today()
 
     assigned_truck_count = (
-        WorkerTruckAssignment.objects
-        .filter(start_date__lte=today)
+        TruckCrewAssignment.objects
+        .filter(
+            is_primary_seller=True,
+            start_date__lte=today,
+        )
         .filter(
             Q(end_date__isnull=True)
             | Q(end_date__gte=today)
@@ -336,7 +340,7 @@ def _save_assignment_form(form):
 
 @accountant_required
 @permission_required(
-    "fleet.view_workertruckassignment",
+    "fleet.view_truckcrewassignment",
     raise_exception=True,
 )
 def assignment_list(request):
@@ -356,7 +360,7 @@ def assignment_list(request):
         status = ASSIGNMENT_STATUS_ALL
 
     assignments = (
-        WorkerTruckAssignment.objects
+        TruckCrewAssignment.objects
         .select_related(
             "worker",
             "truck",
@@ -379,6 +383,9 @@ def assignment_list(request):
             )
             | Q(
                 truck__registration_number__icontains=query
+            )
+            | Q(
+                crew_role__icontains=query
             )
         )
 
@@ -434,7 +441,7 @@ def assignment_list(request):
             )
 
     all_assignments = (
-        WorkerTruckAssignment.objects.all()
+        TruckCrewAssignment.objects.all()
     )
 
     context = {
@@ -471,12 +478,12 @@ def assignment_list(request):
 
 @accountant_required
 @permission_required(
-    "fleet.add_workertruckassignment",
+    "fleet.add_truckcrewassignment",
     raise_exception=True,
 )
 def assignment_create(request):
     if request.method == "POST":
-        form = WorkerTruckAssignmentForm(
+        form = TruckCrewAssignmentForm(
             request.POST
         )
 
@@ -501,7 +508,7 @@ def assignment_create(request):
                     "fleet:assignment_list"
                 )
     else:
-        form = WorkerTruckAssignmentForm(
+        form = TruckCrewAssignmentForm(
             initial={
                 "start_date": date.today(),
             }
@@ -520,7 +527,7 @@ def assignment_create(request):
 
 @accountant_required
 @permission_required(
-    "fleet.change_workertruckassignment",
+    "fleet.change_truckcrewassignment",
     raise_exception=True,
 )
 def assignment_update(
@@ -528,7 +535,7 @@ def assignment_update(
     assignment_id,
 ):
     assignment = get_object_or_404(
-        WorkerTruckAssignment.objects
+        TruckCrewAssignment.objects
         .select_related(
             "worker",
             "truck",
@@ -537,7 +544,7 @@ def assignment_update(
     )
 
     if request.method == "POST":
-        form = WorkerTruckAssignmentForm(
+        form = TruckCrewAssignmentForm(
             request.POST,
             instance=assignment,
         )
@@ -562,7 +569,7 @@ def assignment_update(
                     "fleet:assignment_list"
                 )
     else:
-        form = WorkerTruckAssignmentForm(
+        form = TruckCrewAssignmentForm(
             instance=assignment
         )
 
@@ -579,7 +586,7 @@ def assignment_update(
 
 @accountant_required
 @permission_required(
-    "fleet.change_workertruckassignment",
+    "fleet.change_truckcrewassignment",
     raise_exception=True,
 )
 def assignment_end(
@@ -587,7 +594,7 @@ def assignment_end(
     assignment_id,
 ):
     assignment = get_object_or_404(
-        WorkerTruckAssignment.objects
+        TruckCrewAssignment.objects
         .select_related(
             "worker",
             "truck",
@@ -596,7 +603,7 @@ def assignment_end(
     )
 
     if request.method == "POST":
-        form = AssignmentEndForm(
+        form = CrewAssignmentEndForm(
             request.POST,
             instance=assignment,
         )
@@ -627,7 +634,7 @@ def assignment_end(
             assignment.start_date,
         )
 
-        form = AssignmentEndForm(
+        form = CrewAssignmentEndForm(
             instance=assignment,
             initial={
                 "end_date": (

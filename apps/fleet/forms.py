@@ -5,7 +5,7 @@ from apps.workforce.models import Worker
 
 from .models import (
     Truck,
-    WorkerTruckAssignment,
+    TruckCrewAssignment,
 )
 
 
@@ -231,12 +231,12 @@ class TruckChoiceField(
         )
 
 
-class WorkerTruckAssignmentForm(
+class TruckCrewAssignmentForm(
     forms.ModelForm
 ):
     worker = WorkerChoiceField(
         queryset=Worker.objects.none(),
-        label="\u0627\u0644\u0628\u0627\u0626\u0639",
+        label="العامل",
         widget=forms.Select(
             attrs={
                 "class": (
@@ -248,7 +248,7 @@ class WorkerTruckAssignmentForm(
 
     truck = TruckChoiceField(
         queryset=Truck.objects.none(),
-        label="\u0627\u0644\u0634\u0627\u062d\u0646\u0629",
+        label="شاحنة التوزيع",
         widget=forms.Select(
             attrs={
                 "class": (
@@ -259,17 +259,21 @@ class WorkerTruckAssignmentForm(
     )
 
     class Meta:
-        model = WorkerTruckAssignment
+        model = TruckCrewAssignment
 
         fields = (
             "worker",
             "truck",
+            "crew_role",
+            "is_primary_seller",
             "start_date",
             "end_date",
             "notes",
         )
 
         labels = {
+            "crew_role": "الدور داخل الطاقم",
+            "is_primary_seller": "البائع الرئيسي",
             "start_date": (
                 "\u062a\u0627\u0631\u064a\u062e "
                 "\u0627\u0644\u0628\u062f\u0627\u064a\u0629"
@@ -288,7 +292,7 @@ class WorkerTruckAssignmentForm(
                 "\u0627\u062a\u0631\u0643\u0647 "
                 "\u0641\u0627\u0631\u063a\u064b\u0627 "
                 "\u0625\u0630\u0627 \u0643\u0627\u0646 "
-                "\u0627\u0644\u0628\u0627\u0626\u0639 "
+                "\u0627\u0644\u0639\u0627\u0645\u0644 "
                 "\u0645\u0627 \u0632\u0627\u0644 "
                 "\u0645\u0631\u062a\u0628\u0637\u064b\u0627 "
                 "\u0628\u0627\u0644\u0634\u0627\u062d\u0646\u0629."
@@ -296,6 +300,16 @@ class WorkerTruckAssignmentForm(
         }
 
         widgets = {
+            "crew_role": forms.Select(
+                attrs={
+                    "class": "accountant-form-input",
+                }
+            ),
+            "is_primary_seller": forms.CheckboxInput(
+                attrs={
+                    "class": "accountant-form-checkbox",
+                }
+            ),
             "start_date": forms.DateInput(
                 format="%Y-%m-%d",
                 attrs={
@@ -386,11 +400,11 @@ class WorkerTruckAssignmentForm(
         ).strip()
 
 
-class AssignmentEndForm(
+class CrewAssignmentEndForm(
     forms.ModelForm
 ):
     class Meta:
-        model = WorkerTruckAssignment
+        model = TruckCrewAssignment
 
         fields = (
             "end_date",

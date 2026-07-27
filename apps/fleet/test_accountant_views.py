@@ -11,7 +11,7 @@ from django.urls import reverse
 from apps.imports.models import DistributionBrand
 from apps.workforce.models import Worker
 
-from .models import Truck, WorkerTruckAssignment
+from .models import Truck, TruckCrewAssignment
 
 
 User = get_user_model()
@@ -79,9 +79,13 @@ class AccountantTruckViewTests(TestCase):
             is_active=True,
         )
 
-        WorkerTruckAssignment.objects.create(
+        TruckCrewAssignment.objects.create(
             worker=cls.worker,
             truck=cls.truck,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=date.today(),
         )
 

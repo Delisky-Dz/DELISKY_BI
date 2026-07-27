@@ -32,7 +32,8 @@ MODEL_PERMISSIONS = {
     },
     "fleet": {
         "truck": ("view", "add", "change", "delete"),
-        "workertruckassignment": ("view", "add", "change", "delete"),
+        "workertruckassignment": ("view", "add", "change"),
+        "truckcrewassignment": ("view", "add", "change"),
     },
     "imports": {
         "distributionbrand": ("view", "add", "change", "delete"),

@@ -2,7 +2,11 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Truck, WorkerTruckAssignment
+from .models import (
+    Truck,
+    TruckCrewAssignment,
+    WorkerTruckAssignment,
+)
 
 
 LABEL_EDIT = "\u062a\u0639\u062f\u064a\u0644"
@@ -259,3 +263,107 @@ class WorkerTruckAssignmentAdmin(admin.ModelAdmin):
             url,
             LABEL_EDIT,
         )
+
+    def has_delete_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False
+
+
+@admin.register(TruckCrewAssignment)
+class TruckCrewAssignmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "worker",
+        "truck",
+        "crew_role",
+        "is_primary_seller",
+        "start_date",
+        "end_date",
+    )
+
+    list_display_links = (
+        "worker",
+        "truck",
+    )
+
+    list_filter = (
+        "crew_role",
+        "is_primary_seller",
+        "start_date",
+        "end_date",
+        "truck",
+    )
+
+    search_fields = (
+        "worker__employee_code",
+        "worker__first_name",
+        "worker__last_name",
+        "truck__internal_code",
+    )
+
+    autocomplete_fields = (
+        "worker",
+        "truck",
+    )
+
+    ordering = (
+        "-start_date",
+        "id",
+    )
+
+    date_hierarchy = "start_date"
+
+    list_select_related = (
+        "worker",
+        "truck",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        (
+            "معلومات عضو الطاقم",
+            {
+                "fields": (
+                    "worker",
+                    "truck",
+                    "crew_role",
+                    "is_primary_seller",
+                    "start_date",
+                    "end_date",
+                )
+            },
+        ),
+        (
+            "الملاحظات",
+            {
+                "fields": (
+                    "notes",
+                )
+            },
+        ),
+        (
+            "معلومات النظام",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                ),
+                "classes": (
+                    "collapse",
+                ),
+            },
+        ),
+    )
+
+    def has_delete_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False

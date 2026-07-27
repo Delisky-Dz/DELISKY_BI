@@ -11,7 +11,7 @@ from apps.workforce.models import Worker
 
 from .models import (
     Truck,
-    WorkerTruckAssignment,
+    TruckCrewAssignment,
 )
 
 
@@ -98,9 +98,13 @@ class AccountantAssignmentViewTests(TestCase):
         )
 
         cls.current_assignment = (
-            WorkerTruckAssignment.objects.create(
+            TruckCrewAssignment.objects.create(
                 worker=cls.worker_one,
                 truck=cls.truck_one,
+                crew_role=(
+                    TruckCrewAssignment.CrewRole.SELLER
+                ),
+                is_primary_seller=True,
                 start_date=(
                     date.today()
                     - timedelta(days=10)
@@ -198,9 +202,13 @@ class AccountantAssignmentViewTests(TestCase):
             brand="Isuzu",
         )
 
-        WorkerTruckAssignment.objects.create(
+        TruckCrewAssignment.objects.create(
             worker=ended_worker,
             truck=ended_truck,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=(
                 date.today()
                 - timedelta(days=20)
@@ -223,9 +231,13 @@ class AccountantAssignmentViewTests(TestCase):
             brand="Isuzu",
         )
 
-        WorkerTruckAssignment.objects.create(
+        TruckCrewAssignment.objects.create(
             worker=upcoming_worker,
             truck=upcoming_truck,
+            crew_role=(
+                TruckCrewAssignment.CrewRole.SELLER
+            ),
+            is_primary_seller=True,
             start_date=(
                 date.today()
                 + timedelta(days=5)
@@ -358,6 +370,8 @@ class AccountantAssignmentViewTests(TestCase):
             {
                 "worker": self.worker_two.pk,
                 "truck": self.truck_two.pk,
+                "crew_role": TruckCrewAssignment.CrewRole.SELLER,
+                "is_primary_seller": "on",
                 "start_date": (
                     date.today()
                     .isoformat()
@@ -375,7 +389,7 @@ class AccountantAssignmentViewTests(TestCase):
         )
 
         self.assertTrue(
-            WorkerTruckAssignment.objects.filter(
+            TruckCrewAssignment.objects.filter(
                 worker=self.worker_two,
                 truck=self.truck_two,
                 notes="New assignment",
@@ -384,7 +398,7 @@ class AccountantAssignmentViewTests(TestCase):
 
     def test_overlapping_truck_is_rejected(self):
         initial_count = (
-            WorkerTruckAssignment.objects.count()
+            TruckCrewAssignment.objects.count()
         )
 
         self.login_accountant()
@@ -396,6 +410,8 @@ class AccountantAssignmentViewTests(TestCase):
             {
                 "worker": self.worker_two.pk,
                 "truck": self.truck_one.pk,
+                "crew_role": TruckCrewAssignment.CrewRole.SELLER,
+                "is_primary_seller": "on",
                 "start_date": (
                     date.today()
                     .isoformat()
@@ -415,13 +431,13 @@ class AccountantAssignmentViewTests(TestCase):
             ].errors
         )
         self.assertEqual(
-            WorkerTruckAssignment.objects.count(),
+            TruckCrewAssignment.objects.count(),
             initial_count,
         )
 
     def test_overlapping_worker_is_rejected(self):
         initial_count = (
-            WorkerTruckAssignment.objects.count()
+            TruckCrewAssignment.objects.count()
         )
 
         self.login_accountant()
@@ -433,6 +449,8 @@ class AccountantAssignmentViewTests(TestCase):
             {
                 "worker": self.worker_one.pk,
                 "truck": self.truck_two.pk,
+                "crew_role": TruckCrewAssignment.CrewRole.SELLER,
+                "is_primary_seller": "on",
                 "start_date": (
                     date.today()
                     .isoformat()
@@ -452,7 +470,7 @@ class AccountantAssignmentViewTests(TestCase):
             ].errors
         )
         self.assertEqual(
-            WorkerTruckAssignment.objects.count(),
+            TruckCrewAssignment.objects.count(),
             initial_count,
         )
 
@@ -476,6 +494,8 @@ class AccountantAssignmentViewTests(TestCase):
             {
                 "worker": self.worker_two.pk,
                 "truck": self.truck_one.pk,
+                "crew_role": TruckCrewAssignment.CrewRole.SELLER,
+                "is_primary_seller": "on",
                 "start_date": (
                     next_day.isoformat()
                 ),
@@ -492,7 +512,7 @@ class AccountantAssignmentViewTests(TestCase):
         )
 
         self.assertTrue(
-            WorkerTruckAssignment.objects.filter(
+            TruckCrewAssignment.objects.filter(
                 worker=self.worker_two,
                 truck=self.truck_one,
                 start_date=next_day,
@@ -512,6 +532,8 @@ class AccountantAssignmentViewTests(TestCase):
             {
                 "worker": self.worker_one.pk,
                 "truck": self.truck_one.pk,
+                "crew_role": TruckCrewAssignment.CrewRole.SELLER,
+                "is_primary_seller": "on",
                 "start_date": (
                     self.current_assignment
                     .start_date
@@ -576,7 +598,7 @@ class AccountantAssignmentViewTests(TestCase):
             date.today(),
         )
         self.assertTrue(
-            WorkerTruckAssignment.objects.filter(
+            TruckCrewAssignment.objects.filter(
                 pk=original_id
             ).exists()
         )
