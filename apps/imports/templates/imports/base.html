@@ -113,7 +113,7 @@
 
                 <a
                     href="{% url 'workforce:worker_list' %}"
-                    class="side-link{% if request.resolver_match.namespace == 'workforce' and '/categories/' not in request.path %} is-active{% endif %}"
+                    class="side-link{% if request.resolver_match.namespace == 'workforce' and '/categories/' not in request.path and request.resolver_match.url_name|slice:':11' != 'capability_' %} is-active{% endif %}"
                 >
                     <span class="side-icon">☷</span>
                     العمال
@@ -125,6 +125,14 @@
                 >
                     <span class="side-icon">&#9783;</span>
                     أصناف العمال
+                </a>
+
+                <a
+                    href="{% url 'workforce:capability_list' %}"
+                    class="side-link{% if request.resolver_match.namespace == 'workforce' and request.resolver_match.url_name|slice:':11' == 'capability_' %} is-active{% endif %}"
+                >
+                    <span class="side-icon">◈</span>
+                    قدرات العمال
                 </a>
 
                 <a

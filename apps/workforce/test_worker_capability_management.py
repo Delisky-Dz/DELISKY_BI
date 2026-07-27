@@ -95,6 +95,24 @@ class WorkerCapabilityManagementViewTests(
             self.capability.name,
         )
 
+        expected_sidebar_link = f"""
+            <a
+                href="{reverse(
+                    'workforce:capability_list'
+                )}"
+                class="side-link is-active"
+            >
+                <span class="side-icon">◈</span>
+                قدرات العمال
+            </a>
+        """
+
+        self.assertContains(
+            response,
+            expected_sidebar_link,
+            html=True,
+        )
+
     def test_manager_cannot_access_accountant_page(
         self,
     ):
