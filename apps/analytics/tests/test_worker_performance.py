@@ -554,6 +554,71 @@ class WorkerPerformanceTests(SimpleTestCase):
             [3],
         )
 
+    def test_visit_ranking_respects_minimum_records_and_limit(
+        self,
+    ):
+        pos = self.make_pos_result(
+            workers=(
+                WorkerVisitTotal(
+                    worker_id=1,
+                    metrics=self.visit_metrics(
+                        total=10,
+                        visited=8,
+                        not_visited=2,
+                        unique_days=10,
+                    ),
+                ),
+                WorkerVisitTotal(
+                    worker_id=2,
+                    metrics=self.visit_metrics(
+                        total=2,
+                        visited=2,
+                        not_visited=0,
+                        unique_days=2,
+                    ),
+                ),
+                WorkerVisitTotal(
+                    worker_id=3,
+                    metrics=self.visit_metrics(
+                        total=8,
+                        visited=6,
+                        not_visited=2,
+                        unique_days=8,
+                    ),
+                ),
+                WorkerVisitTotal(
+                    worker_id=4,
+                    metrics=self.visit_metrics(
+                        total=5,
+                        visited=4,
+                        not_visited=1,
+                        unique_days=5,
+                    ),
+                ),
+            ),
+        )
+
+        result = self.combine(pos=pos)
+
+        ranked = result.highest_visit_rate_workers(
+            minimum_pos_records=5,
+        )
+
+        self.assertEqual(
+            [worker.worker_id for worker in ranked],
+            [1, 4, 3],
+        )
+
+        limited = result.highest_visit_rate_workers(
+            limit=2,
+            minimum_pos_records=5,
+        )
+
+        self.assertEqual(
+            [worker.worker_id for worker in limited],
+            [1, 4],
+        )
+
     def test_non_visit_ranking_respects_minimum_records(self):
         pos = self.make_pos_result(
             workers=(

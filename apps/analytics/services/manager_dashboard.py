@@ -252,6 +252,22 @@ class ManagerDashboardResult:
             .lowest_sales_workers(limit)
         )
 
+    def highest_visit_rate_workers(
+        self,
+        limit: int = 10,
+        *,
+        minimum_pos_records: int = 1,
+    ) -> tuple[WorkerPerformanceKpi, ...]:
+        return (
+            self.worker_performance
+            .highest_visit_rate_workers(
+                limit,
+                minimum_pos_records=(
+                    minimum_pos_records
+                ),
+            )
+        )
+
     def highest_non_visit_rate_workers(
         self,
         limit: int = 10,

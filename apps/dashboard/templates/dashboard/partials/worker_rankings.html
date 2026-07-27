@@ -199,6 +199,97 @@
             </section>
         {% endif %}
 
+        {% if highest_visit_workers %}
+            <section
+                class="ranking-panel ranking-panel--success"
+                aria-labelledby="highest-visit-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            مؤشر الزيارات
+                        </p>
+
+                        <h3 id="highest-visit-title">
+                            أعلى نسب نجاح الزيارة
+                        </h3>
+
+                        <p>
+                            الترتيب حسب نسبة نجاح الزيارة، ويشمل
+                            البائعين الذين لديهم ثلاثة سجلات زيارة
+                            على الأقل خلال الفترة.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        حد أدنى: 3 سجلات
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">المركز</th>
+                            <th scope="col">البائع</th>
+                            <th scope="col">نسبة نجاح الزيارة</th>
+                            <th scope="col">الزيارات الناجحة</th>
+                            <th scope="col">إجمالي السجلات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for worker in highest_visit_workers %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--{{ forloop.counter }}">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+
+                                <th scope="row">
+                                    <span class="worker-identity">
+                                        <span class="worker-identity__name">
+                                            {{ worker.worker_name }}
+                                        </span>
+
+                                        {% if worker.employee_code %}
+                                            <span class="worker-identity__code">
+                                                {{ worker.employee_code }}
+                                            </span>
+                                        {% endif %}
+                                    </span>
+                                </th>
+
+                                <td>
+                                    {% if worker.visit_success_percentage == None %}
+                                        <span class="table-empty">
+                                            لا توجد بيانات
+                                        </span>
+                                    {% else %}
+                                        <strong class="table-value table-value--success">
+                                            {{ worker.visit_success_percentage|floatformat:1 }}%
+                                        </strong>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--success">
+                                        {{ worker.visited_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ worker.pos_record_count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
         {% if highest_non_visit_workers %}
             <section
                 class="ranking-panel ranking-panel--warning"

@@ -2734,3 +2734,77 @@ class SalesTimelinePresenterTests(
         self.assertIsNone(
             zero_presentation.peak_total_sales
         )
+
+class HighestVisitRankingCollectionTests(SimpleTestCase):
+    def test_highest_visit_ranking_uses_dashboard_limits(
+        self,
+    ):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+
+        from apps.dashboard.views import (
+            _collect_worker_ranking_kpis,
+        )
+
+        kpi = SimpleNamespace(worker_id=7)
+        highest_visit_method = Mock(
+            return_value=(kpi,)
+        )
+
+        result = _collect_worker_ranking_kpis(
+            SimpleNamespace(
+                top_sales_workers=None,
+                lowest_sales_workers=None,
+                highest_visit_rate_workers=(
+                    highest_visit_method
+                ),
+                highest_non_visit_rate_workers=None,
+                worker_performance=None,
+            )
+        )
+
+        highest_visit_method.assert_called_once_with(
+            limit=10,
+            minimum_pos_records=3,
+        )
+
+        self.assertEqual(
+            result["highest_visit_workers"],
+            (kpi,),
+        )
+
+
+class HighestVisitRankingTemplateTests(SimpleTestCase):
+    def test_template_contains_highest_visit_panel(
+        self,
+    ):
+        from pathlib import Path
+
+        template_path = (
+            Path(__file__).resolve().parent
+            / "templates"
+            / "dashboard"
+            / "partials"
+            / "worker_rankings.html"
+        )
+
+        template_text = template_path.read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "{% if highest_visit_workers %}",
+            template_text,
+        )
+        self.assertIn(
+            "أعلى نسب نجاح الزيارة",
+            template_text,
+        )
+        self.assertIn(
+            "worker.visit_success_percentage",
+            template_text,
+        )
+        self.assertIn(
+            "worker.visited_record_count",
+            template_text,
+        )

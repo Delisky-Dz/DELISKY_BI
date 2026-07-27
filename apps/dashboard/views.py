@@ -21,6 +21,7 @@ from .presenters import (
 
 DASHBOARD_PRODUCT_LIMIT = 10
 WORKER_RANKING_LIMIT = 10
+VISIT_MINIMUM_POS_RECORDS = 3
 NON_VISIT_MINIMUM_POS_RECORDS = 3
 
 DASHBOARD_TEMPLATE_NAME = (
@@ -56,6 +57,18 @@ def _collect_worker_ranking_kpis(
         limit=WORKER_RANKING_LIMIT,
     )
 
+    highest_visit_kpis = _ranking_result(
+        getattr(
+            dashboard_result,
+            "highest_visit_rate_workers",
+            None,
+        ),
+        limit=WORKER_RANKING_LIMIT,
+        minimum_pos_records=(
+            VISIT_MINIMUM_POS_RECORDS
+        ),
+    )
+
     highest_non_visit_kpis = _ranking_result(
         getattr(
             dashboard_result,
@@ -86,6 +99,7 @@ def _collect_worker_ranking_kpis(
     return {
         "top_sales_workers": top_sales_kpis,
         "lowest_sales_workers": lowest_sales_kpis,
+        "highest_visit_workers": highest_visit_kpis,
         "highest_non_visit_workers": (
             highest_non_visit_kpis
         ),
@@ -301,6 +315,7 @@ def manager_dashboard(request):
     worker_presentations = {
         "top_sales_workers": (),
         "lowest_sales_workers": (),
+        "highest_visit_workers": (),
         "highest_non_visit_workers": (),
         "most_not_sold_workers": (),
         "worker_cards": (),

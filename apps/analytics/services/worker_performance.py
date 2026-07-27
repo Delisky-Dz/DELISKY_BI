@@ -299,6 +299,36 @@ class WorkerPerformanceResult:
 
         return tuple(ranked[:limit])
 
+    def highest_visit_rate_workers(
+        self,
+        limit: int = 10,
+        *,
+        minimum_pos_records: int = 1,
+    ) -> tuple[WorkerPerformanceKpi, ...]:
+        _validate_limit(limit)
+        _validate_minimum_records(
+            minimum_pos_records
+        )
+
+        ranked = sorted(
+            (
+                worker
+                for worker in self.workers
+                if (
+                    worker.pos_record_count
+                    >= minimum_pos_records
+                )
+            ),
+            key=lambda worker: (
+                -worker.visit_success_rate,
+                -worker.visited_record_count,
+                -worker.pos_record_count,
+                worker.worker_id,
+            ),
+        )
+
+        return tuple(ranked[:limit])
+
     def highest_non_visit_rate_workers(
         self,
         limit: int = 10,
