@@ -2959,3 +2959,32 @@ class ClientVisitRankingTemplateTests(SimpleTestCase):
             "client.brand_name",
             template_text,
         )
+
+
+class HighestVisitManagerDashboardConditionTests(
+    SimpleTestCase
+):
+    def test_highest_visit_workers_can_show_rankings(
+        self,
+    ):
+        from pathlib import Path
+
+        template_path = (
+            Path(__file__).resolve().parent
+            / "templates"
+            / "dashboard"
+            / "manager_dashboard.html"
+        )
+
+        template_text = template_path.read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "{% if top_sales_workers or "
+            "lowest_sales_workers or "
+            "highest_visit_workers or "
+            "highest_non_visit_workers or "
+            "most_not_sold_workers %}",
+            template_text,
+        )
