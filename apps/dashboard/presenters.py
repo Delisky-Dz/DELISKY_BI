@@ -526,6 +526,44 @@ def _brand_display_name(
     return f"العلامة رقم {brand_id}"
 
 
+@dataclass(frozen=True, slots=True)
+class ClientVisitRankingPresentation:
+    brand_id: int
+    brand_name: str
+    client_name: str
+
+    total_record_count: int
+    visited_record_count: int
+    not_visited_record_count: int
+    unique_client_day_count: int
+
+
+def present_client_visit_ranking(
+    item,
+    brands_by_id: dict[int, object],
+) -> ClientVisitRankingPresentation:
+    return ClientVisitRankingPresentation(
+        brand_id=item.brand_id,
+        brand_name=_brand_display_name(
+            item.brand_id,
+            brands_by_id,
+        ),
+        client_name=item.client,
+        total_record_count=(
+            item.metrics.total_record_count
+        ),
+        visited_record_count=(
+            item.metrics.visited_record_count
+        ),
+        not_visited_record_count=(
+            item.metrics.not_visited_record_count
+        ),
+        unique_client_day_count=(
+            item.metrics.unique_client_day_count
+        ),
+    )
+
+
 def present_worker_product(
     product: WorkerProductPerformance,
     brands_by_id: dict[int, object],

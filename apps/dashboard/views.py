@@ -11,6 +11,7 @@ from .forms import ManagerDashboardFilterForm
 from .presenters import (
     present_analytical_coverage,
     present_brand_sales_chart,
+    present_client_visit_ranking,
     present_data_quality,
     present_sales_timeline,
     present_manager_dashboard_summary,
@@ -21,6 +22,7 @@ from .presenters import (
 
 DASHBOARD_PRODUCT_LIMIT = 10
 WORKER_RANKING_LIMIT = 10
+CLIENT_RANKING_LIMIT = 10
 VISIT_MINIMUM_POS_RECORDS = 3
 NON_VISIT_MINIMUM_POS_RECORDS = 3
 
@@ -109,6 +111,41 @@ def _collect_worker_ranking_kpis(
     }
 
 
+def _collect_client_visit_rankings(
+    dashboard_result,
+) -> dict[str, tuple]:
+    visits = getattr(
+        dashboard_result,
+        "visits",
+        None,
+    )
+
+    if visits is None:
+        return {
+            "top_visited_clients": (),
+            "top_not_visited_clients": (),
+        }
+
+    return {
+        "top_visited_clients": _ranking_result(
+            getattr(
+                visits,
+                "top_visited_clients",
+                None,
+            ),
+            limit=CLIENT_RANKING_LIMIT,
+        ),
+        "top_not_visited_clients": _ranking_result(
+            getattr(
+                visits,
+                "top_not_visited_clients",
+                None,
+            ),
+            limit=CLIENT_RANKING_LIMIT,
+        ),
+    }
+
+
 def _collect_worker_ids(
     ranking_kpis: dict[str, tuple],
     worker_cards: tuple,
@@ -153,6 +190,16 @@ def _collect_card_brand_ids(
 
     return brand_ids
 
+
+
+def _collect_client_visit_brand_ids(
+    client_visit_rankings: dict[str, tuple],
+) -> set[int]:
+    return {
+        item.brand_id
+        for ranking in client_visit_rankings.values()
+        for item in ranking
+    }
 
 
 def _collect_sales_brand_ids(
@@ -220,11 +267,34 @@ def _present_worker_rankings(
     }
 
 
+def _present_client_visit_rankings(
+    client_visit_rankings: dict[str, tuple],
+    brands_by_id: dict[int, DistributionBrand],
+) -> dict[str, tuple]:
+    return {
+        ranking_name: tuple(
+            present_client_visit_ranking(
+                item,
+                brands_by_id,
+            )
+            for item in items
+        )
+        for ranking_name, items
+        in client_visit_rankings.items()
+    }
+
+
 def _build_worker_presentations(
     dashboard_result,
 ) -> dict[str, object]:
     ranking_kpis = (
         _collect_worker_ranking_kpis(
+            dashboard_result
+        )
+    )
+
+    client_visit_rankings = (
+        _collect_client_visit_rankings(
             dashboard_result
         )
     )
@@ -251,6 +321,12 @@ def _build_worker_presentations(
         )
     )
 
+    brand_ids.update(
+        _collect_client_visit_brand_ids(
+            client_visit_rankings
+        )
+    )
+
     workers_by_id = _load_workers_by_id(
         worker_ids
     )
@@ -261,6 +337,13 @@ def _build_worker_presentations(
     worker_rankings = _present_worker_rankings(
         ranking_kpis,
         workers_by_id,
+    )
+
+    client_visit_presentations = (
+        _present_client_visit_rankings(
+            client_visit_rankings,
+            brands_by_id,
+        )
     )
 
     worker_cards = tuple(
@@ -295,6 +378,7 @@ def _build_worker_presentations(
 
     return {
         **worker_rankings,
+        **client_visit_presentations,
         "worker_cards": worker_cards,
         "brand_sales_chart": brand_sales_chart,
         "sales_timeline": sales_timeline,
@@ -318,6 +402,8 @@ def manager_dashboard(request):
         "highest_visit_workers": (),
         "highest_non_visit_workers": (),
         "most_not_sold_workers": (),
+        "top_visited_clients": (),
+        "top_not_visited_clients": (),
         "worker_cards": (),
         "brand_sales_chart": (),
         "sales_timeline": None,

@@ -47,5 +47,160 @@
             <p>{{ summary.distinct_brand_client_count }}</p>
         </article>
     </div>
+    <div class="ranking-panel-list">
+        {% if top_visited_clients %}
+            <section
+                class="ranking-panel ranking-panel--success"
+                aria-labelledby="top-visited-clients-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            متابعة الزبائن
+                        </p>
+
+                        <h3 id="top-visited-clients-title">
+                            أكثر الزبائن زيارة
+                        </h3>
+
+                        <p>
+                            أعلى عشرة زبائن حسب عدد الزيارات
+                            الناجحة خلال الفترة المختارة.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        Top 10
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">المركز</th>
+                            <th scope="col">الزبون</th>
+                            <th scope="col">العلامة</th>
+                            <th scope="col">زيارات ناجحة</th>
+                            <th scope="col">عدم الزيارة</th>
+                            <th scope="col">إجمالي السجلات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for client in top_visited_clients %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--{{ forloop.counter }}">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+
+                                <th scope="row">
+                                    {{ client.client_name }}
+                                </th>
+
+                                <td>{{ client.brand_name }}</td>
+
+                                <td>
+                                    <span class="count-badge count-badge--success">
+                                        {{ client.visited_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge {% if client.not_visited_record_count %}count-badge--warning{% else %}count-badge--success{% endif %}">
+                                        {{ client.not_visited_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ client.total_record_count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        {% if top_not_visited_clients %}
+            <section
+                class="ranking-panel ranking-panel--warning"
+                aria-labelledby="top-not-visited-clients-title"
+            >
+                <header class="ranking-panel__header">
+                    <div>
+                        <p class="ranking-panel__eyebrow">
+                            نقاط تحتاج متابعة
+                        </p>
+
+                        <h3 id="top-not-visited-clients-title">
+                            أكثر الزبائن تسجيلًا لعدم الزيارة
+                        </h3>
+
+                        <p>
+                            أعلى عشرة زبائن حسب عدد حالات عدم
+                            الزيارة المسجلة خلال الفترة المختارة.
+                        </p>
+                    </div>
+
+                    <span class="ranking-panel__status">
+                        Top 10
+                    </span>
+                </header>
+
+                <table class="ranking-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">المركز</th>
+                            <th scope="col">الزبون</th>
+                            <th scope="col">العلامة</th>
+                            <th scope="col">عدم الزيارة</th>
+                            <th scope="col">زيارات ناجحة</th>
+                            <th scope="col">إجمالي السجلات</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for client in top_not_visited_clients %}
+                            <tr>
+                                <td>
+                                    <span class="rank-badge rank-badge--warning">
+                                        {{ forloop.counter }}
+                                    </span>
+                                </td>
+
+                                <th scope="row">
+                                    {{ client.client_name }}
+                                </th>
+
+                                <td>{{ client.brand_name }}</td>
+
+                                <td>
+                                    <span class="count-badge count-badge--warning">
+                                        {{ client.not_visited_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--success">
+                                        {{ client.visited_record_count }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="count-badge count-badge--neutral">
+                                        {{ client.total_record_count }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+    </div>
 </section>
 

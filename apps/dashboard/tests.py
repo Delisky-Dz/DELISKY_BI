@@ -2808,3 +2808,154 @@ class HighestVisitRankingTemplateTests(SimpleTestCase):
             "worker.visited_record_count",
             template_text,
         )
+
+
+class ClientVisitRankingCollectionTests(SimpleTestCase):
+    def test_client_rankings_use_limit_ten(
+        self,
+    ):
+        from types import SimpleNamespace
+        from unittest.mock import Mock
+
+        from apps.dashboard.views import (
+            _collect_client_visit_rankings,
+        )
+
+        visited_item = SimpleNamespace(
+            brand_id=1,
+        )
+        not_visited_item = SimpleNamespace(
+            brand_id=2,
+        )
+
+        top_visited_method = Mock(
+            return_value=(visited_item,)
+        )
+        top_not_visited_method = Mock(
+            return_value=(not_visited_item,)
+        )
+
+        result = _collect_client_visit_rankings(
+            SimpleNamespace(
+                visits=SimpleNamespace(
+                    top_visited_clients=(
+                        top_visited_method
+                    ),
+                    top_not_visited_clients=(
+                        top_not_visited_method
+                    ),
+                )
+            )
+        )
+
+        top_visited_method.assert_called_once_with(
+            limit=10,
+        )
+        top_not_visited_method.assert_called_once_with(
+            limit=10,
+        )
+
+        self.assertEqual(
+            result["top_visited_clients"],
+            (visited_item,),
+        )
+        self.assertEqual(
+            result["top_not_visited_clients"],
+            (not_visited_item,),
+        )
+
+
+class ClientVisitRankingPresenterTests(SimpleTestCase):
+    def test_client_visit_values_are_presented(
+        self,
+    ):
+        from types import SimpleNamespace
+
+        from apps.dashboard.presenters import (
+            present_client_visit_ranking,
+        )
+
+        presentation = present_client_visit_ranking(
+            SimpleNamespace(
+                brand_id=7,
+                client="Client Alpha",
+                metrics=SimpleNamespace(
+                    total_record_count=9,
+                    visited_record_count=6,
+                    not_visited_record_count=3,
+                    unique_client_day_count=8,
+                ),
+            ),
+            {},
+        )
+
+        self.assertEqual(
+            presentation.brand_id,
+            7,
+        )
+        self.assertEqual(
+            presentation.brand_name,
+            "\u0627\u0644\u0639\u0644\u0627\u0645\u0629 "
+            "\u0631\u0642\u0645 7",
+        )
+        self.assertEqual(
+            presentation.client_name,
+            "Client Alpha",
+        )
+        self.assertEqual(
+            presentation.total_record_count,
+            9,
+        )
+        self.assertEqual(
+            presentation.visited_record_count,
+            6,
+        )
+        self.assertEqual(
+            presentation.not_visited_record_count,
+            3,
+        )
+        self.assertEqual(
+            presentation.unique_client_day_count,
+            8,
+        )
+
+
+class ClientVisitRankingTemplateTests(SimpleTestCase):
+    def test_visits_template_contains_client_rankings(
+        self,
+    ):
+        from pathlib import Path
+
+        template_path = (
+            Path(__file__).resolve().parent
+            / "templates"
+            / "dashboard"
+            / "partials"
+            / "visits_summary.html"
+        )
+
+        template_text = template_path.read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(
+            "{% if top_visited_clients %}",
+            template_text,
+        )
+        self.assertIn(
+            "{% if top_not_visited_clients %}",
+            template_text,
+        )
+        self.assertIn(
+            "أكثر الزبائن زيارة",
+            template_text,
+        )
+        self.assertIn(
+            "أكثر الزبائن "
+            "تسجيلًا لعدم الزيارة",
+            template_text,
+        )
+        self.assertIn(
+            "client.brand_name",
+            template_text,
+        )
