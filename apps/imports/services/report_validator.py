@@ -82,8 +82,8 @@ def validate_workbook_schema(
                 code="unexpected_worksheet_count",
                 severity=SEVERITY_ERROR,
                 message=(
-                    "??? ?? ????? ??? Excel ??? ???? ?????? "
-                    "????? ???."
+                    "عدد أوراق ملف Excel لا يطابق العدد المتوقع "
+                    "لهذا التقرير."
                 ),
                 details={
                     "expected": schema.expected_worksheet_count,
@@ -108,7 +108,7 @@ def validate_workbook_schema(
                 code="empty_headers",
                 severity=SEVERITY_ERROR,
                 message=(
-                    "????? ?? ???????? ??? ????? ??? ?????."
+                    "توجد أعمدة دون أسماء في صف العناوين."
                 ),
                 details={
                     "positions": list(
@@ -124,7 +124,7 @@ def validate_workbook_schema(
                 code="duplicate_headers",
                 severity=SEVERITY_ERROR,
                 message=(
-                    "????? ????? ??? ?????? ????? ?????."
+                    "توجد أسماء أعمدة مكررة في صف العناوين."
                 ),
                 details={
                     "headers": list(
@@ -163,7 +163,7 @@ def validate_workbook_schema(
                 code="missing_required_headers",
                 severity=SEVERITY_ERROR,
                 message=(
-                    "????? ????? ??? ????? ???????."
+                    "توجد أعمدة إلزامية مفقودة من الملف."
                 ),
                 details={
                     "headers": list(missing_headers),
@@ -177,8 +177,8 @@ def validate_workbook_schema(
                 code="extra_headers",
                 severity=SEVERITY_WARNING,
                 message=(
-                    "????? ????? ??? ????? ?????? "
-                    "?? ???? ????? ????????."
+                    "توجد أعمدة إضافية غير متوقعة "
+                    "وسيتم تجاهلها أثناء الاستيراد."
                 ),
                 details={
                     "headers": list(extra_headers),

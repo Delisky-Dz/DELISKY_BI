@@ -413,7 +413,7 @@
                     </h3>
                 </div>
 
-                {% if data_quality.total_issue_and_warning_count or summary.worker_not_sold_product_count or summary.worker_negative_gap_product_count or summary.possible_stopped_truck_count or summary.conflicting_truck_state_count or coverage.period_excluded_row_count %}
+                {% if data_quality.total_issue_and_warning_count or summary.worker_not_sold_product_count or summary.truck_not_sold_product_count or summary.worker_negative_gap_product_count or summary.truck_negative_gap_product_count or summary.possible_stopped_truck_count or summary.conflicting_truck_state_count or coverage.period_excluded_row_count %}
                     <span class="executive-panel__badge executive-panel__badge--warning">
                         توجد ملاحظات
                     </span>
@@ -425,7 +425,7 @@
             </header>
 
             <div class="executive-alert-list">
-                {% if summary.worker_not_sold_product_count %}
+                {% if summary.worker_not_sold_product_count or summary.truck_not_sold_product_count %}
                     <a
                         class="executive-alert executive-alert--warning"
                         href="#attention-summary-title"
@@ -436,12 +436,23 @@
 
                         <span>
                             <strong>
-                                {{ summary.worker_not_sold_product_count }}
-                                حالة منتجات غير مباعة
+                                منتجات غير مباعة تحتاج مراجعة
                             </strong>
 
                             <small>
-                                حسب البائعين خلال الفترة
+                                {% if summary.worker_not_sold_product_count %}
+                                    {{ summary.worker_not_sold_product_count }}
+                                    حسب البائعين خلال الفترة
+                                {% endif %}
+
+                                {% if summary.worker_not_sold_product_count and summary.truck_not_sold_product_count %}
+                                    ·
+                                {% endif %}
+
+                                {% if summary.truck_not_sold_product_count %}
+                                    {{ summary.truck_not_sold_product_count }}
+                                    حسب الشاحنات خلال الفترة
+                                {% endif %}
                             </small>
                         </span>
 
@@ -559,7 +570,7 @@
                     </a>
                 {% endif %}
 
-                {% if not data_quality.total_issue_and_warning_count and not summary.worker_not_sold_product_count and not summary.worker_negative_gap_product_count and not summary.truck_negative_gap_product_count and not summary.possible_stopped_truck_count and not summary.conflicting_truck_state_count and not coverage.period_excluded_row_count %}
+                {% if not data_quality.total_issue_and_warning_count and not summary.worker_not_sold_product_count and not summary.truck_not_sold_product_count and not summary.worker_negative_gap_product_count and not summary.truck_negative_gap_product_count and not summary.possible_stopped_truck_count and not summary.conflicting_truck_state_count and not coverage.period_excluded_row_count %}
                     <div class="executive-alert executive-alert--success">
                         <span class="executive-alert__icon">
                             ✓
@@ -653,7 +664,7 @@
                         </strong>
                     {% else %}
                         <strong class="text-success">
-                            تغطية كاملة
+                            لا توجد استبعادات زمنية
                         </strong>
                     {% endif %}
                 </div>
@@ -667,7 +678,7 @@
                         </strong>
                     {% else %}
                         <strong class="text-success">
-                            سليمة
+                            لا توجد مشاكل ربط مرصودة
                         </strong>
                     {% endif %}
                 </div>

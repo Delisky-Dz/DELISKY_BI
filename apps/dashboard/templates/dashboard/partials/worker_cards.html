@@ -251,34 +251,54 @@
                     </section>
 
                     <section
-                        class="metric-card {% if card.metrics.sold_product_count %}metric-card--success{% else %}metric-card--neutral{% endif %}"
+                        class="metric-card {% if not card.has_product_measurement %}metric-card--neutral{% elif card.metrics.sold_product_count %}metric-card--success{% else %}metric-card--neutral{% endif %}"
                     >
                         <div class="metric-card__header">
                             <h4>المنتجات المباعة</h4>
 
-                            <span class="metric-status metric-status--success">
-                                مباع
-                            </span>
+                            {% if not card.has_product_measurement %}
+                                <span class="metric-status metric-status--neutral">
+                                    غير متاح
+                                </span>
+                            {% elif card.metrics.sold_product_count %}
+                                <span class="metric-status metric-status--success">
+                                    مباع
+                                </span>
+                            {% else %}
+                                <span class="metric-status metric-status--neutral">
+                                    لا توجد مبيعات
+                                </span>
+                            {% endif %}
                         </div>
 
-                        <p>
-                            {{ card.metrics.sold_product_count }}
-                        </p>
+                        {% if not card.has_product_measurement %}
+                            <p class="metric-empty">
+                                بيانات المنتجات غير متاحة
+                            </p>
+                        {% else %}
+                            <p>
+                                {{ card.metrics.sold_product_count }}
+                            </p>
 
-                        <small class="metric-card__context">
-                            من
-                            {{ card.metrics.brand_product_count }}
-                            منتجًا مقاسًا
-                        </small>
+                            <small class="metric-card__context">
+                                من
+                                {{ card.metrics.brand_product_count }}
+                                منتجًا مقاسًا
+                            </small>
+                        {% endif %}
                     </section>
 
                     <section
-                        class="metric-card {% if card.metrics.not_sold_product_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
+                        class="metric-card {% if not card.has_product_measurement %}metric-card--neutral{% elif card.metrics.not_sold_product_count %}metric-card--warning{% else %}metric-card--success{% endif %}"
                     >
                         <div class="metric-card__header">
                             <h4>المنتجات غير المباعة</h4>
 
-                            {% if card.metrics.not_sold_product_count %}
+                            {% if not card.has_product_measurement %}
+                                <span class="metric-status metric-status--neutral">
+                                    غير متاح
+                                </span>
+                            {% elif card.metrics.not_sold_product_count %}
                                 <span class="metric-status metric-status--warning">
                                     مراجعة
                                 </span>
@@ -289,15 +309,21 @@
                             {% endif %}
                         </div>
 
-                        <p>
-                            {{ card.metrics.not_sold_product_count }}
-                        </p>
+                        {% if not card.has_product_measurement %}
+                            <p class="metric-empty">
+                                بيانات المنتجات غير متاحة
+                            </p>
+                        {% else %}
+                            <p>
+                                {{ card.metrics.not_sold_product_count }}
+                            </p>
 
-                        <small class="metric-card__context">
-                            من
-                            {{ card.metrics.brand_product_count }}
-                            منتجًا مقاسًا
-                        </small>
+                            <small class="metric-card__context">
+                                من
+                                {{ card.metrics.brand_product_count }}
+                                منتجًا مقاسًا
+                            </small>
+                        {% endif %}
                     </section>
                 </div>
 

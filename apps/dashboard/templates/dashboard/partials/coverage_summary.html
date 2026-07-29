@@ -13,8 +13,8 @@
             </h2>
 
             <p class="section-description">
-                يوضح هذا القسم الصفوف المتاحة، والداخلة في
-                التحليل، والمستبعدة بسبب الفترة المحددة.
+                يوضح هذا القسم الصفوف المؤهلة للتحليل، والداخلة ضمن
+                الفترة، والمستبعدة بسبب الفترة المحددة.
             </p>
         </div>
 
@@ -24,7 +24,7 @@
             </span>
         {% else %}
             <span class="section-status section-status--success">
-                تغطية كاملة
+                لا توجد استبعادات زمنية
             </span>
         {% endif %}
     </header>
@@ -89,7 +89,7 @@
                 class="coverage-legend__dot coverage-legend__dot--neutral"
                 aria-hidden="true"
             ></span>
-            متاح في المصدر
+            مؤهل للتحليل
         </span>
 
         <span class="coverage-legend__item">
@@ -97,7 +97,7 @@
                 class="coverage-legend__dot coverage-legend__dot--success"
                 aria-hidden="true"
             ></span>
-            مشمول في التحليل
+            داخل الفترة
         </span>
 
         <span class="coverage-legend__item">
@@ -131,11 +131,11 @@
                     </th>
 
                     <th scope="col">
-                        الصفوف المتاحة
+                        الصفوف المؤهلة للتحليل
                     </th>
 
                     <th scope="col">
-                        الصفوف المشمولة
+                        الصفوف داخل الفترة
                     </th>
 
                     <th scope="col">

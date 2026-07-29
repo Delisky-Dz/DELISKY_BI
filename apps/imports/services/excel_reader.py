@@ -66,7 +66,7 @@ def _get_filename(
 
     raise ExcelInspectionError(
         "missing_filename",
-        "???? ????? ??? ????? ???????.",
+        "تعذر تحديد اسم ملف المصدر.",
     )
 
 
@@ -84,7 +84,7 @@ def _get_file_size(source: Any) -> int:
     ):
         raise ExcelInspectionError(
             "unreadable_source",
-            "???? ????? ?? ???? ??????? ??????.",
+            "تعذر قراءة مصدر الملف المرفوع.",
         )
 
     current_position = source.tell()
@@ -213,8 +213,8 @@ def _inspect_worksheet(worksheet) -> WorksheetInspection:
         raise ExcelInspectionError(
             "missing_header",
             (
-                f"???? Excel ?{worksheet.title}? "
-                "?? ????? ??? ?? ?????? ????."
+                f"ورقة Excel «{worksheet.title}» "
+                "لا تحتوي على صف عناوين صالح.",
             ),
             details={
                 "worksheet": worksheet.title,
@@ -251,7 +251,7 @@ def inspect_excel_file(
     if extension not in SUPPORTED_EXTENSIONS:
         raise ExcelInspectionError(
             "unsupported_extension",
-            "??? ????? ??? ?????. ??????? ??? ????? .xlsx.",
+            "نوع الملف غير مدعوم. الامتداد المقبول هو .xlsx.",
             details={
                 "filename": filename,
                 "extension": extension,
@@ -263,19 +263,19 @@ def inspect_excel_file(
     except OSError as exc:
         raise ExcelInspectionError(
             "file_access_error",
-            "???? ?????? ??? ????? ???????.",
+            "تعذر الوصول إلى الملف المرفوع.",
         ) from exc
 
     if file_size_bytes <= 0:
         raise ExcelInspectionError(
             "empty_file",
-            "????? ??????? ????.",
+            "الملف المرفوع فارغ.",
         )
 
     if file_size_bytes > max_file_size_bytes:
         raise ExcelInspectionError(
             "file_too_large",
-            "??? ??? Excel ?????? ???? ???????.",
+            "حجم ملف Excel يتجاوز الحد المسموح.",
             details={
                 "file_size_bytes": file_size_bytes,
                 "max_file_size_bytes": max_file_size_bytes,
@@ -291,7 +291,7 @@ def inspect_excel_file(
         if not is_zipfile(source):
             raise ExcelInspectionError(
                 "invalid_xlsx",
-                "????? ?? ???? ??? Excel ?????? ????? .xlsx.",
+                "الملف ليس ملف Excel صالحًا بصيغة .xlsx.",
             )
 
         _seek_start(source)
@@ -311,7 +311,7 @@ def inspect_excel_file(
         if not worksheets:
             raise ExcelInspectionError(
                 "empty_workbook",
-                "??? Excel ?? ????? ??? ?? ????.",
+                "ملف Excel لا يحتوي على أي ورقة.",
             )
 
         return WorkbookInspection(
@@ -332,7 +332,7 @@ def inspect_excel_file(
     ) as exc:
         raise ExcelInspectionError(
             "invalid_xlsx",
-            "???? ??? ??? Excel ?? ?? ????? ??? ?????.",
+            "تعذر فتح ملف Excel أو أن محتواه غير صالح.",
             details={
                 "filename": filename,
             },

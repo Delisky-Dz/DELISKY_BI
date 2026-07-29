@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
 from django.test import TestCase
+from django.template.loader import render_to_string
 from django.urls import reverse
 
 
@@ -677,6 +678,72 @@ class ManagerDashboardSummaryViewTests(TestCase):
             "الشاحنة المتوقفة لا تُعتبر فشلًا للبائع",
         )
 
+    def test_executive_overview_flags_truck_only_not_sold_products(
+        self,
+    ):
+        summary = SimpleNamespace(
+            total_sales=Decimal("0"),
+            positive_sale_record_count=0,
+            sale_record_count=0,
+            visit_success_percentage=None,
+            visited_record_count=0,
+            pos_record_count=0,
+            measured_sales_worker_count=0,
+            worker_count=0,
+            not_visited_record_count=0,
+            distinct_brand_client_count=0,
+            worker_not_sold_product_count=0,
+            truck_not_sold_product_count=4,
+            worker_negative_gap_product_count=0,
+            truck_negative_gap_product_count=0,
+            confirmed_stopped_truck_count=0,
+            possible_stopped_truck_count=0,
+            conflicting_truck_state_count=0,
+        )
+
+        html = render_to_string(
+            "dashboard/partials/executive_overview.html",
+            {
+                "summary": summary,
+                "data_quality": SimpleNamespace(
+                    total_issue_and_warning_count=0,
+                    attribution_issue_count=0,
+                    warning_count=0,
+                ),
+                "coverage": SimpleNamespace(
+                    period_excluded_row_count=0,
+                ),
+                "filter_form": SimpleNamespace(
+                    cleaned_data={
+                        "period_start": None,
+                        "period_end": None,
+                        "brand": None,
+                    },
+                ),
+                "top_sales_workers": (),
+                "sales_timeline": None,
+                "brand_sales_chart": (),
+            },
+        )
+        normalized_html = " ".join(html.split())
+
+        self.assertIn(
+            "توجد ملاحظات",
+            normalized_html,
+        )
+        self.assertIn(
+            "4 حسب الشاحنات خلال الفترة",
+            normalized_html,
+        )
+        self.assertNotIn(
+            "الوضع مستقر",
+            normalized_html,
+        )
+        self.assertNotIn(
+            "لا توجد نقاط بارزة للمراجعة",
+            normalized_html,
+        )
+
 
 class ManagerDashboardTemplateStructureTests(TestCase):
     @classmethod
@@ -1097,6 +1164,27 @@ class ManagerDashboardCoverageAndQualityViewTests(
         )
         self.assertContains(
             response,
+            "الصفوف المؤهلة للتحليل",
+        )
+        self.assertContains(
+            response,
+            "توجد استبعادات زمنية",
+        )
+        no_exclusions_html = render_to_string(
+            "dashboard/partials/coverage_summary.html",
+            {
+                "coverage": SimpleNamespace(
+                    period_excluded_row_count=0,
+                    has_partial_period_exclusions=False,
+                ),
+            },
+        )
+        self.assertIn(
+            "لا توجد استبعادات زمنية",
+            no_exclusions_html,
+        )
+        self.assertContains(
+            response,
             "جودة البيانات والتحذيرات",
         )
         self.assertContains(
@@ -1426,7 +1514,7 @@ class ManagerDashboardWorkerRankingViewTests(
         )
         self.assertContains(
             response,
-            "أقل البائعين مبيعًا ضمن المقاس أداؤهم",
+            "أقل البائعين مبيعًا ممن لديهم بيانات مبيعات قابلة للقياس",
         )
         self.assertContains(
             response,
@@ -1993,6 +2081,59 @@ class ManagerDashboardWorkerCardViewTests(TestCase):
         self.assertTemplateNotUsed(
             response,
             "dashboard/partials/worker_cards.html",
+        )
+
+    def test_product_metrics_show_unavailable_without_measurement(
+        self,
+    ):
+        from dataclasses import replace
+
+        from apps.dashboard.presenters import (
+            present_worker_dashboard_card,
+        )
+
+        kpi = replace(
+            self.build_kpi(),
+            brand_product_count=0,
+            sold_product_count=0,
+            not_sold_product_count=0,
+        )
+
+        card = WorkerDashboardCard(
+            kpi=kpi,
+            not_sold_products=(),
+            least_sold_products=(),
+            negative_gap_products=(),
+            sold_without_supply_context_products=(),
+        )
+
+        presentation = present_worker_dashboard_card(
+            card,
+            {
+                7: SimpleNamespace(
+                    first_name="Ahmed",
+                    last_name="Benali",
+                    employee_code="EMP-007",
+                )
+            },
+            {},
+        )
+
+        html = render_to_string(
+            "dashboard/partials/worker_cards.html",
+            {"worker_cards": (presentation,)},
+        )
+        normalized_html = " ".join(html.split())
+
+        self.assertEqual(
+            normalized_html.count(
+                "بيانات المنتجات غير متاحة"
+            ),
+            2,
+        )
+        self.assertNotIn(
+            "0 من 0 منتجًا مقاسًا",
+            normalized_html,
         )
 
 
