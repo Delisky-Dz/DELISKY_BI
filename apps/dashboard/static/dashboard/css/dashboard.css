@@ -5392,6 +5392,27 @@ html[data-theme="dark"]
         brightness(104%)
         contrast(96%);
 }
+/* DELISKY LIGHT EMPTY STATES CONTRAST FIX V1 */
+html[data-theme="light"] .executive-empty-state p,
+html[data-theme="light"] .brand-sales-chart__empty p,
+html[data-theme="light"] .sales-timeline__empty p {
+    color: #475467;
+}
+
+html[data-theme="light"] .brand-sales-chart__empty strong,
+html[data-theme="light"] .sales-timeline__empty strong {
+    color: #182230;
+}
+
+html[data-theme="light"] .executive-empty-state {
+    border-color: #d8e0ea;
+    background: #f8fafc;
+}
+
+html[data-theme="light"] .executive-empty-state > span {
+    background: #e8f4f7;
+    color: #087f8c;
+}
 
 
 /* Automatic mode uses the resolved data-theme value */
@@ -5399,4 +5420,36 @@ html[data-theme="dark"]
 .filter-field input[type="date"]:hover
 ::-webkit-calendar-picker-indicator {
     opacity: 1;
+}
+
+
+/* DELISKY DARK SECTION NOTE CONTRAST FIX V1 */
+html[data-theme=dark] .section-note--neutral {
+    border-color: #35506a;
+    background: #162a3b;
+    color: #d7e1e9;
+}
+
+html[data-theme=dark] .section-note--neutral p {
+    color: #d7e1e9 !important;
+}
+
+html[data-theme=dark] .section-note--neutral > span {
+    background: #5f7690;
+    color: #ffffff;
+}
+
+html[data-theme=dark] .section-note--warning {
+    border-color: #6a531f;
+    background: #2a2518;
+    color: #f6d98b;
+}
+
+html[data-theme=dark] .section-note--warning p {
+    color: #f6d98b !important;
+}
+
+html[data-theme=dark] .section-note--warning > span {
+    background: #c98200;
+    color: #ffffff;
 }
