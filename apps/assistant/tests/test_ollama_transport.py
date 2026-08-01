@@ -106,6 +106,11 @@ class OllamaTransportTests(SimpleTestCase):
                 "system": "System rules",
                 "prompt": "Analyze results",
                 "stream": False,
+                "keep_alive": "5m",
+                "options": {
+                    "temperature": 0.2,
+                    "num_predict": 96,
+                },
             },
         )
 

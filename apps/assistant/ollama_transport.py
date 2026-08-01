@@ -9,6 +9,11 @@ from urllib.request import (
 )
 
 
+OLLAMA_KEEP_ALIVE = "5m"
+OLLAMA_TEMPERATURE = 0.2
+OLLAMA_NUM_PREDICT = 96
+
+
 class OllamaTransportError(RuntimeError):
     """Normalized failure from the local Ollama transport."""
 
@@ -150,6 +155,11 @@ class OllamaTransport:
             "system": system_prompt,
             "prompt": user_prompt,
             "stream": False,
+            "keep_alive": OLLAMA_KEEP_ALIVE,
+            "options": {
+                "temperature": OLLAMA_TEMPERATURE,
+                "num_predict": OLLAMA_NUM_PREDICT,
+            },
         }
 
         request = Request(
