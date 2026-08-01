@@ -12,6 +12,10 @@ from apps.analytics.services.manager_insights import (
     InsightLimitation,
     InsightSeverity,
     ManagerInsight,
+    detect_data_quality_insights,
+)
+from apps.analytics.services.worker_performance import (
+    PerformanceDataQualitySummary,
 )
 
 
@@ -166,3 +170,209 @@ class ManagerInsightContractTests(SimpleTestCase):
                 entity_type=InsightEntityType.CLIENT,
                 entity_id=" ",
             )
+
+
+class DataQualityInsightDetectorTests(SimpleTestCase):
+    def make_data_quality(
+        self,
+        *,
+        sales=0,
+        pos=0,
+        items=0,
+        opening=0,
+        chargement=0,
+        operational=0,
+        numeric=0,
+        duplicates=0,
+    ):
+        return PerformanceDataQualitySummary(
+            sales_attribution_issue_count=sales,
+            pos_attribution_issue_count=pos,
+            items_attribution_issue_count=items,
+            opening_stock_attribution_issue_count=opening,
+            chargement_attribution_issue_count=chargement,
+            operational_attribution_issue_count=operational,
+            pos_numeric_message_warning_count=numeric,
+            pos_duplicate_same_day_warning_count=duplicates,
+        )
+
+    def test_invalid_period_is_rejected_even_with_clean_data(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "period_end cannot be before period_start",
+        ):
+            detect_data_quality_insights(
+                data_quality=self.make_data_quality(),
+                period_start=date(2026, 7, 10),
+                period_end=date(2026, 7, 1),
+            )
+
+    def test_clean_data_returns_no_insights(self):
+        insights = detect_data_quality_insights(
+            data_quality=self.make_data_quality(),
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+        )
+
+        self.assertEqual(insights, ())
+
+    def test_attribution_issues_create_grounded_warning(self):
+        insights = detect_data_quality_insights(
+            data_quality=self.make_data_quality(
+                sales=3,
+                pos=2,
+            ),
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+        )
+
+        self.assertEqual(len(insights), 1)
+
+        insight = insights[0]
+
+        self.assertEqual(
+            insight.code,
+            "DATA_ATTRIBUTION_ISSUES",
+        )
+        self.assertEqual(
+            insight.severity,
+            InsightSeverity.WARNING,
+        )
+        self.assertEqual(
+            insight.confidence,
+            InsightConfidence.HIGH,
+        )
+
+        evidence = {
+            item.key: item.value
+            for item in insight.evidence
+        }
+
+        self.assertEqual(
+            evidence,
+            {
+                "sales_attribution_issues": 3,
+                "pos_attribution_issues": 2,
+            },
+        )
+
+        self.assertEqual(
+            insight.limitations[0].code,
+            "ATTRIBUTION_NOT_PERFORMANCE_FAILURE",
+        )
+
+    def test_all_attribution_sources_are_preserved(self):
+        insights = detect_data_quality_insights(
+            data_quality=self.make_data_quality(
+                sales=1,
+                pos=2,
+                items=3,
+                opening=4,
+                chargement=5,
+                operational=6,
+            ),
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+        )
+
+        self.assertEqual(len(insights), 1)
+
+        evidence = {
+            item.key: item.value
+            for item in insights[0].evidence
+        }
+
+        self.assertEqual(
+            evidence,
+            {
+                "sales_attribution_issues": 1,
+                "pos_attribution_issues": 2,
+                "items_attribution_issues": 3,
+                "opening_stock_attribution_issues": 4,
+                "chargement_attribution_issues": 5,
+                "operational_attribution_issues": 6,
+            },
+        )
+
+    def test_pos_warnings_are_not_reclassified_as_failures(self):
+        insights = detect_data_quality_insights(
+            data_quality=self.make_data_quality(
+                numeric=4,
+                duplicates=2,
+            ),
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+        )
+
+        self.assertEqual(len(insights), 1)
+
+        insight = insights[0]
+
+        self.assertEqual(
+            insight.code,
+            "POS_DATA_WARNINGS",
+        )
+        self.assertEqual(
+            insight.severity,
+            InsightSeverity.ATTENTION,
+        )
+        self.assertEqual(
+            insight.confidence,
+            InsightConfidence.HIGH,
+        )
+
+        evidence = {
+            item.key: item.value
+            for item in insight.evidence
+        }
+
+        self.assertEqual(
+            evidence,
+            {
+                "pos_numeric_message_warnings": 4,
+                "pos_duplicate_same_day_warnings": 2,
+            },
+        )
+
+        self.assertEqual(
+            insight.limitations[0].code,
+            "POS_WARNING_NOT_AUTOMATIC_EXCLUSION",
+        )
+
+    def test_attribution_and_pos_warnings_keep_stable_order(self):
+        insights = detect_data_quality_insights(
+            data_quality=self.make_data_quality(
+                items=1,
+                duplicates=1,
+            ),
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+        )
+
+        self.assertEqual(
+            tuple(item.code for item in insights),
+            (
+                "DATA_ATTRIBUTION_ISSUES",
+                "POS_DATA_WARNINGS",
+            ),
+        )
+
+        for insight in insights:
+            self.assertEqual(
+                insight.period_start,
+                date(2026, 7, 1),
+            )
+            self.assertEqual(
+                insight.period_end,
+                date(2026, 7, 7),
+            )
+
+            for evidence in insight.evidence:
+                self.assertEqual(
+                    evidence.period_start,
+                    date(2026, 7, 1),
+                )
+                self.assertEqual(
+                    evidence.period_end,
+                    date(2026, 7, 7),
+                )
