@@ -86,6 +86,15 @@ class BrandTruckWorkerSalesTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class DailyBrandTruckWorkerSalesTotal:
+    sale_date: date
+    brand_id: int
+    truck_id: int
+    worker_id: int
+    metrics: SalesMetrics
+
+
+@dataclass(frozen=True, slots=True)
 class SalesAttributionIssue:
     stage: SalesAttributionStage
     code: str
@@ -117,6 +126,10 @@ class SalesAggregationResult:
     ]
     attribution_issues: tuple[SalesAttributionIssue, ...]
     by_date: tuple[DailySalesTotal, ...] = ()
+    by_date_brand_truck_worker: tuple[
+        DailyBrandTruckWorkerSalesTotal,
+        ...,
+    ] = ()
 
     @property
     def has_attribution_issues(self) -> bool:
@@ -223,6 +236,10 @@ def aggregate_sales(
     ] = {}
     brand_truck_worker_buckets: dict[
         tuple[int, int, int],
+        _SalesAccumulator,
+    ] = {}
+    date_brand_truck_worker_buckets: dict[
+        tuple[date, int, int, int],
         _SalesAccumulator,
     ] = {}
 
@@ -350,6 +367,16 @@ def aggregate_sales(
             ),
         ).add(sale.total)
 
+        _get_accumulator(
+            date_brand_truck_worker_buckets,
+            (
+                sale_date,
+                sale.brand_id,
+                truck_id,
+                worker_id,
+            ),
+        ).add(sale.total)
+
     return SalesAggregationResult(
         requested_period_start=period_start,
         requested_period_end=period_end,
@@ -425,6 +452,18 @@ def aggregate_sales(
             )
             for key, value in sorted(
                 date_buckets.items()
+            )
+        ),
+        by_date_brand_truck_worker=tuple(
+            DailyBrandTruckWorkerSalesTotal(
+                sale_date=key[0],
+                brand_id=key[1],
+                truck_id=key[2],
+                worker_id=key[3],
+                metrics=value.freeze(),
+            )
+            for key, value in sorted(
+                date_brand_truck_worker_buckets.items()
             )
         ),
     )

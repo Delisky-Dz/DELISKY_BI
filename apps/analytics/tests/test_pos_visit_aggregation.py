@@ -625,3 +625,129 @@ class PosVisitAggregationTests(TestCase):
                 period_start=date(2026, 7, 10),
                 period_end=date(2026, 7, 1),
             )
+
+    def test_daily_brand_truck_worker_preserves_visit_dates(
+        self,
+    ):
+        truck = self.create_truck(
+            90,
+            "POS-MOBILITY-090",
+        )
+        first_worker = self.create_worker(90)
+        second_worker = self.create_worker(91)
+
+        self.create_assignment(
+            truck=truck,
+            worker=first_worker,
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 3),
+        )
+        self.create_assignment(
+            truck=truck,
+            worker=second_worker,
+            start_date=date(2026, 7, 4),
+            end_date=date(2026, 7, 7),
+        )
+
+        batch = self.create_batch(
+            90,
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+            accepted_rows=2,
+        )
+
+        self.create_pos_row(
+            batch,
+            900,
+            van="POS-MOBILITY-090",
+            client="Before Change",
+            client_normalized="before change",
+            visit_date="2026-07-03",
+            excel_row_number=2,
+        )
+        self.create_pos_row(
+            batch,
+            901,
+            van="POS-MOBILITY-090",
+            client="After Change",
+            client_normalized="after change",
+            visit_date="2026-07-04",
+            ignoration_cause="Client absent",
+            excel_row_number=3,
+        )
+
+        result = aggregate_pos_visits()
+
+        self.assertEqual(
+            len(result.by_date_brand_truck_worker),
+            2,
+        )
+
+        before_change = (
+            result.by_date_brand_truck_worker[0]
+        )
+        after_change = (
+            result.by_date_brand_truck_worker[1]
+        )
+
+        self.assertEqual(
+            before_change.visit_date,
+            date(2026, 7, 3),
+        )
+        self.assertEqual(
+            before_change.brand_id,
+            self.brand.pk,
+        )
+        self.assertEqual(
+            before_change.truck_id,
+            truck.pk,
+        )
+        self.assertEqual(
+            before_change.worker_id,
+            first_worker.pk,
+        )
+        self.assertEqual(
+            before_change.metrics.total_record_count,
+            1,
+        )
+        self.assertEqual(
+            before_change.metrics.visited_record_count,
+            1,
+        )
+        self.assertEqual(
+            before_change.metrics.not_visited_record_count,
+            0,
+        )
+
+        self.assertEqual(
+            after_change.visit_date,
+            date(2026, 7, 4),
+        )
+        self.assertEqual(
+            after_change.brand_id,
+            self.brand.pk,
+        )
+        self.assertEqual(
+            after_change.truck_id,
+            truck.pk,
+        )
+        self.assertEqual(
+            after_change.worker_id,
+            second_worker.pk,
+        )
+        self.assertEqual(
+            after_change.metrics.total_record_count,
+            1,
+        )
+        self.assertEqual(
+            after_change.metrics.visited_record_count,
+            0,
+        )
+        self.assertEqual(
+            after_change.metrics.not_visited_record_count,
+            1,
+        )
+
+        self.assertFalse(
+            result.has_attribution_issues
+        )

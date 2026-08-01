@@ -70,6 +70,15 @@ class BrandTruckWorkerVisitTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class DailyBrandTruckWorkerVisitTotal:
+    visit_date: date
+    brand_id: int
+    truck_id: int
+    worker_id: int
+    metrics: VisitMetrics
+
+
+@dataclass(frozen=True, slots=True)
 class BrandClientVisitTotal:
     brand_id: int
     client: str
@@ -143,6 +152,11 @@ class PosVisitAggregationResult:
         PosAttributionIssue,
         ...,
     ]
+
+    by_date_brand_truck_worker: tuple[
+        DailyBrandTruckWorkerVisitTotal,
+        ...,
+    ] = ()
 
     @property
     def has_attribution_issues(self) -> bool:
@@ -415,6 +429,11 @@ def aggregate_pos_visits(
         _VisitAccumulator,
     ] = {}
 
+    date_brand_truck_worker_buckets: dict[
+        tuple[date, int, int, int],
+        _VisitAccumulator,
+    ] = {}
+
     brand_client_buckets: dict[
         tuple[int, str],
         _NamedVisitAccumulator,
@@ -611,6 +630,16 @@ def aggregate_pos_visits(
             ),
         ).add(**add_arguments)
 
+        _get_accumulator(
+            date_brand_truck_worker_buckets,
+            (
+                visit.visit_date,
+                visit.brand_id,
+                truck_id,
+                worker_id,
+            ),
+        ).add(**add_arguments)
+
         worker_client = _get_named_accumulator(
             brand_worker_client_buckets,
             (
@@ -713,6 +742,18 @@ def aggregate_pos_visits(
             )
             for key, value in sorted(
                 brand_worker_client_buckets.items()
+            )
+        ),
+        by_date_brand_truck_worker=tuple(
+            DailyBrandTruckWorkerVisitTotal(
+                visit_date=key[0],
+                brand_id=key[1],
+                truck_id=key[2],
+                worker_id=key[3],
+                metrics=value.freeze(),
+            )
+            for key, value in sorted(
+                date_brand_truck_worker_buckets.items()
             )
         ),
         attribution_issues=tuple(

@@ -622,3 +622,129 @@ class SalesAggregationTests(TestCase):
                 period_start=date(2026, 7, 10),
                 period_end=date(2026, 7, 1),
             )
+
+    def test_daily_brand_truck_worker_preserves_worker_mobility(
+        self,
+    ):
+        first_truck = self.create_truck(
+            80,
+            "SALES-MOBILITY-080",
+        )
+        second_truck = self.create_truck(
+            81,
+            "SALES-MOBILITY-081",
+        )
+        worker = self.create_worker(80)
+
+        self.create_assignment(
+            truck=first_truck,
+            worker=worker,
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 3),
+        )
+        self.create_assignment(
+            truck=second_truck,
+            worker=worker,
+            start_date=date(2026, 7, 4),
+            end_date=date(2026, 7, 7),
+        )
+
+        batch = self.create_batch(
+            80,
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+            accepted_rows=2,
+        )
+
+        self.create_sales_row(
+            batch,
+            800,
+            van="SALES-MOBILITY-080",
+            sale_datetime="2026-07-03T10:00:00",
+            total="100",
+            excel_row_number=2,
+        )
+        self.create_sales_row(
+            batch,
+            801,
+            van="SALES-MOBILITY-081",
+            sale_datetime="2026-07-04T10:00:00",
+            total="200",
+            excel_row_number=3,
+        )
+
+        result = aggregate_sales()
+
+        self.assertEqual(
+            len(result.by_date_brand_truck_worker),
+            2,
+        )
+
+        before_move = (
+            result.by_date_brand_truck_worker[0]
+        )
+        after_move = (
+            result.by_date_brand_truck_worker[1]
+        )
+
+        self.assertEqual(
+            before_move.sale_date,
+            date(2026, 7, 3),
+        )
+        self.assertEqual(
+            before_move.brand_id,
+            self.first_brand.pk,
+        )
+        self.assertEqual(
+            before_move.truck_id,
+            first_truck.pk,
+        )
+        self.assertEqual(
+            before_move.worker_id,
+            worker.pk,
+        )
+        self.assertEqual(
+            before_move.metrics.total_sales,
+            Decimal("100"),
+        )
+        self.assertEqual(
+            before_move.metrics.sale_record_count,
+            1,
+        )
+        self.assertEqual(
+            before_move.metrics.positive_sale_record_count,
+            1,
+        )
+
+        self.assertEqual(
+            after_move.sale_date,
+            date(2026, 7, 4),
+        )
+        self.assertEqual(
+            after_move.brand_id,
+            self.first_brand.pk,
+        )
+        self.assertEqual(
+            after_move.truck_id,
+            second_truck.pk,
+        )
+        self.assertEqual(
+            after_move.worker_id,
+            worker.pk,
+        )
+        self.assertEqual(
+            after_move.metrics.total_sales,
+            Decimal("200"),
+        )
+        self.assertEqual(
+            after_move.metrics.sale_record_count,
+            1,
+        )
+        self.assertEqual(
+            after_move.metrics.positive_sale_record_count,
+            1,
+        )
+
+        self.assertFalse(
+            result.has_attribution_issues
+        )
