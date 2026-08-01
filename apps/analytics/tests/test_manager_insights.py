@@ -13,6 +13,12 @@ from apps.analytics.services.manager_insights import (
     InsightSeverity,
     ManagerInsight,
     detect_data_quality_insights,
+    detect_operational_insights,
+)
+from apps.analytics.services.truck_operational_status import (
+    BrandTruckOperationalState,
+    TruckOperationalStatus,
+    TruckOperationalStatusResult,
 )
 from apps.analytics.services.worker_performance import (
     PerformanceDataQualitySummary,
@@ -376,3 +382,176 @@ class DataQualityInsightDetectorTests(SimpleTestCase):
                     evidence.period_end,
                     date(2026, 7, 7),
                 )
+
+
+class OperationalInsightDetectorTests(SimpleTestCase):
+    def make_result(self, *states):
+        return TruckOperationalStatusResult(
+            requested_period_start=date(2026, 7, 1),
+            requested_period_end=date(2026, 7, 7),
+            source_row_count=0,
+            included_evidence_row_count=0,
+            ignored_accepted_non_sales_count=0,
+            outside_requested_period_count=0,
+            partial_overlap_excluded_count=0,
+            states=tuple(states),
+            attribution_issues=(),
+        )
+
+    def make_state(
+        self,
+        *,
+        truck_id,
+        status,
+        sales_activity=0,
+        sales_total=Decimal("0"),
+        authoritative=0,
+        possible=0,
+    ):
+        return BrandTruckOperationalState(
+            brand_id=1,
+            truck_id=truck_id,
+            status=status,
+            sales_activity_count=sales_activity,
+            sales_total=sales_total,
+            authoritative_stopped_count=authoritative,
+            possible_stopped_count=possible,
+            activity_row_ids=(),
+            authoritative_stopped_row_ids=(),
+            possible_stopped_row_ids=(),
+        )
+
+    def test_active_truck_produces_no_attention_insight(self):
+        result = self.make_result(
+            self.make_state(
+                truck_id=1,
+                status=TruckOperationalStatus.ACTIVE,
+                sales_activity=2,
+                sales_total=Decimal("50000"),
+            )
+        )
+
+        self.assertEqual(
+            detect_operational_insights(
+                operational_result=result
+            ),
+            (),
+        )
+
+    def test_confirmed_stopped_truck_is_high_confidence(self):
+        result = self.make_result(
+            self.make_state(
+                truck_id=2,
+                status=(
+                    TruckOperationalStatus.CONFIRMED_STOPPED
+                ),
+                authoritative=1,
+            )
+        )
+
+        insight = detect_operational_insights(
+            operational_result=result
+        )[0]
+
+        self.assertEqual(
+            insight.code,
+            "TRUCK_CONFIRMED_STOPPED",
+        )
+        self.assertEqual(
+            insight.confidence,
+            InsightConfidence.HIGH,
+        )
+        self.assertEqual(
+            insight.entities[1].entity_id,
+            2,
+        )
+
+    def test_possible_stop_is_not_presented_as_confirmed(self):
+        result = self.make_result(
+            self.make_state(
+                truck_id=3,
+                status=(
+                    TruckOperationalStatus.POSSIBLE_STOPPED
+                ),
+                possible=2,
+            )
+        )
+
+        insight = detect_operational_insights(
+            operational_result=result
+        )[0]
+
+        self.assertEqual(
+            insight.code,
+            "TRUCK_POSSIBLE_STOPPED",
+        )
+        self.assertEqual(
+            insight.severity,
+            InsightSeverity.ATTENTION,
+        )
+        self.assertEqual(
+            insight.confidence,
+            InsightConfidence.MEDIUM,
+        )
+
+    def test_conflicting_evidence_is_preserved(self):
+        result = self.make_result(
+            self.make_state(
+                truck_id=4,
+                status=(
+                    TruckOperationalStatus.CONFLICTING_EVIDENCE
+                ),
+                sales_activity=1,
+                sales_total=Decimal("25000"),
+                authoritative=1,
+            )
+        )
+
+        insight = detect_operational_insights(
+            operational_result=result
+        )[0]
+
+        self.assertEqual(
+            insight.code,
+            "TRUCK_OPERATIONAL_CONFLICT",
+        )
+
+        limitation_codes = {
+            item.code
+            for item in insight.limitations
+        }
+
+        self.assertEqual(
+            limitation_codes,
+            {
+                "TRUCK_STATUS_NOT_WORKER_FAILURE",
+                "CONFLICTING_OPERATIONAL_EVIDENCE",
+            },
+        )
+
+    def test_non_active_states_keep_stable_order(self):
+        result = self.make_result(
+            self.make_state(
+                truck_id=5,
+                status=(
+                    TruckOperationalStatus.POSSIBLE_STOPPED
+                ),
+                possible=1,
+            ),
+            self.make_state(
+                truck_id=6,
+                status=(
+                    TruckOperationalStatus.CONFIRMED_STOPPED
+                ),
+                authoritative=1,
+            ),
+        )
+
+        insights = detect_operational_insights(
+            operational_result=result
+        )
+
+        self.assertEqual(
+            tuple(item.entities[1].entity_id for item in insights),
+            (5, 6),
+        )

@@ -3,6 +3,10 @@ from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
+from .truck_operational_status import (
+    TruckOperationalStatus,
+    TruckOperationalStatusResult,
+)
 from .worker_performance import (
     PerformanceDataQualitySummary,
 )
@@ -352,5 +356,183 @@ def detect_data_quality_insights(
                 ),
             )
         )
+
+    return tuple(insights)
+
+
+def detect_operational_insights(
+    *,
+    operational_result: TruckOperationalStatusResult,
+) -> tuple[ManagerInsight, ...]:
+    """
+    Build deterministic truck operational insights.
+
+    ACTIVE trucks produce no attention insight. Non-active states
+    are reported from their existing analytical evidence without
+    inventing a performance score or arbitrary threshold.
+    """
+    insights: list[ManagerInsight] = []
+
+    period_start = operational_result.requested_period_start
+    period_end = operational_result.requested_period_end
+
+    for state in operational_result.states:
+        if state.status == TruckOperationalStatus.ACTIVE:
+            continue
+
+        entities = (
+            InsightEntityRef(
+                entity_type=InsightEntityType.BRAND,
+                entity_id=state.brand_id,
+            ),
+            InsightEntityRef(
+                entity_type=InsightEntityType.TRUCK,
+                entity_id=state.truck_id,
+            ),
+        )
+
+        evidence = (
+            InsightEvidence(
+                key="sales_activity_count",
+                label="عدد أدلة نشاط المبيعات",
+                value=state.sales_activity_count,
+                source=(
+                    "truck_operational_status.states."
+                    "sales_activity_count"
+                ),
+                unit="records",
+                period_start=period_start,
+                period_end=period_end,
+            ),
+            InsightEvidence(
+                key="sales_total",
+                label="إجمالي المبيعات المرتبطة بالنشاط",
+                value=state.sales_total,
+                source=(
+                    "truck_operational_status.states."
+                    "sales_total"
+                ),
+                unit="DZD",
+                period_start=period_start,
+                period_end=period_end,
+            ),
+            InsightEvidence(
+                key="authoritative_stopped_count",
+                label="عدد أدلة التوقف المؤكدة",
+                value=state.authoritative_stopped_count,
+                source=(
+                    "truck_operational_status.states."
+                    "authoritative_stopped_count"
+                ),
+                unit="records",
+                period_start=period_start,
+                period_end=period_end,
+            ),
+            InsightEvidence(
+                key="possible_stopped_count",
+                label="عدد إشارات التوقف المحتملة",
+                value=state.possible_stopped_count,
+                source=(
+                    "truck_operational_status.states."
+                    "possible_stopped_count"
+                ),
+                unit="records",
+                period_start=period_start,
+                period_end=period_end,
+            ),
+        )
+
+        limitation = (
+            InsightLimitation(
+                code="TRUCK_STATUS_NOT_WORKER_FAILURE",
+                message=(
+                    "حالة الشاحنة التشغيلية لا تعني "
+                    "فشل البائع ولا يجب استخدامها "
+                    "وحدها للحكم على أدائه."
+                ),
+            ),
+        )
+
+        if (
+            state.status
+            == TruckOperationalStatus.CONFIRMED_STOPPED
+        ):
+            insights.append(
+                ManagerInsight(
+                    code="TRUCK_CONFIRMED_STOPPED",
+                    category=InsightCategory.OPERATIONS,
+                    severity=InsightSeverity.WARNING,
+                    confidence=InsightConfidence.HIGH,
+                    title="توقف مؤكد لشاحنة توزيع",
+                    summary=(
+                        "توجد أدلة معتمدة تؤكد توقف "
+                        "الشاحنة خلال الفترة التحليلية."
+                    ),
+                    period_start=period_start,
+                    period_end=period_end,
+                    evidence=evidence,
+                    entities=entities,
+                    limitations=limitation,
+                )
+            )
+            continue
+
+        if (
+            state.status
+            == TruckOperationalStatus.POSSIBLE_STOPPED
+        ):
+            insights.append(
+                ManagerInsight(
+                    code="TRUCK_POSSIBLE_STOPPED",
+                    category=InsightCategory.OPERATIONS,
+                    severity=InsightSeverity.ATTENTION,
+                    confidence=InsightConfidence.MEDIUM,
+                    title="توقف محتمل لشاحنة توزيع",
+                    summary=(
+                        "توجد إشارة إلى توقف الشاحنة، "
+                        "لكن الدليل الحالي غير كافٍ "
+                        "لاعتباره توقفًا مؤكدًا."
+                    ),
+                    period_start=period_start,
+                    period_end=period_end,
+                    evidence=evidence,
+                    entities=entities,
+                    limitations=limitation,
+                )
+            )
+            continue
+
+        if (
+            state.status
+            == TruckOperationalStatus.CONFLICTING_EVIDENCE
+        ):
+            insights.append(
+                ManagerInsight(
+                    code="TRUCK_OPERATIONAL_CONFLICT",
+                    category=InsightCategory.OPERATIONS,
+                    severity=InsightSeverity.WARNING,
+                    confidence=InsightConfidence.HIGH,
+                    title="تعارض في أدلة حالة الشاحنة",
+                    summary=(
+                        "توجد أدلة نشاط مبيعات وأدلة "
+                        "توقف مؤكدة للشاحنة في نفس "
+                        "الفترة التحليلية."
+                    ),
+                    period_start=period_start,
+                    period_end=period_end,
+                    evidence=evidence,
+                    entities=entities,
+                    limitations=(
+                        *limitation,
+                        InsightLimitation(
+                            code="CONFLICTING_OPERATIONAL_EVIDENCE",
+                            message=(
+                                "يجب مراجعة الأدلة المتعارضة "
+                                "قبل استخلاص حكم تشغيلي نهائي."
+                            ),
+                        ),
+                    ),
+                )
+            )
 
     return tuple(insights)
