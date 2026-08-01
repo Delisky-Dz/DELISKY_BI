@@ -7,6 +7,11 @@ from .truck_operational_status import (
     TruckOperationalStatus,
     TruckOperationalStatusResult,
 )
+from .worker_truck_mobility import (
+    MobilityTransitionType,
+    WorkerTruckMobilityComparison,
+    WorkerTruckMobilityResult,
+)
 from .worker_performance import (
     PerformanceDataQualitySummary,
     WorkerPerformanceResult,
@@ -16,6 +21,7 @@ from .worker_performance import (
 InsightValue = Decimal | int | str | bool
 
 
+
 class InsightSeverity(StrEnum):
     INFO = "INFO"
     ATTENTION = "ATTENTION"
@@ -23,10 +29,12 @@ class InsightSeverity(StrEnum):
     CRITICAL = "CRITICAL"
 
 
+
 class InsightConfidence(StrEnum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
     LOW = "LOW"
+
 
 
 class InsightCategory(StrEnum):
@@ -38,6 +46,7 @@ class InsightCategory(StrEnum):
     WORKERS = "WORKERS"
     MOBILITY = "MOBILITY"
     DATA_QUALITY = "DATA_QUALITY"
+
 
 
 class InsightEntityType(StrEnum):
@@ -539,7 +548,6 @@ def detect_operational_insights(
     return tuple(insights)
 
 
-
 def detect_worker_visit_insights(
     *,
     performance_result: WorkerPerformanceResult,
@@ -789,3 +797,592 @@ def detect_worker_visit_insights(
             ),
         ),
     )
+
+
+def _mobility_has_coverage_imbalance(
+    comparison: WorkerTruckMobilityComparison,
+) -> bool:
+    sales_imbalance = (
+        comparison.has_comparable_sales
+        and (
+            comparison.before.sales_measurement_day_count
+            != comparison.after.sales_measurement_day_count
+        )
+    )
+    visit_imbalance = (
+        comparison.has_comparable_visits
+        and (
+            comparison.before.visit_measurement_day_count
+            != comparison.after.visit_measurement_day_count
+        )
+    )
+
+    return bool(
+        sales_imbalance
+        or visit_imbalance
+    )
+
+
+def _mobility_has_incomplete_coverage(
+    comparison: WorkerTruckMobilityComparison,
+) -> bool:
+    sales_incomplete = (
+        comparison.has_comparable_sales
+        and (
+            comparison.before.sales_measurement_day_count
+            < comparison.before.working_day_count
+            or comparison.after.sales_measurement_day_count
+            < comparison.after.working_day_count
+        )
+    )
+    visits_incomplete = (
+        comparison.has_comparable_visits
+        and (
+            comparison.before.visit_measurement_day_count
+            < comparison.before.working_day_count
+            or comparison.after.visit_measurement_day_count
+            < comparison.after.working_day_count
+        )
+    )
+
+    return bool(
+        sales_incomplete
+        or visits_incomplete
+    )
+
+
+
+def _mobility_confidence(
+    comparison: WorkerTruckMobilityComparison,
+) -> InsightConfidence:
+    has_gap = (
+        comparison.gap_working_day_count > 0
+    )
+    has_incomplete_coverage = (
+        _mobility_has_incomplete_coverage(
+            comparison
+        )
+    )
+
+    if has_gap and has_incomplete_coverage:
+        return InsightConfidence.LOW
+
+    if has_gap or has_incomplete_coverage:
+        return InsightConfidence.MEDIUM
+
+    return InsightConfidence.HIGH
+
+
+
+def _mobility_entities(
+    comparison: WorkerTruckMobilityComparison,
+) -> tuple[InsightEntityRef, ...]:
+    brand = InsightEntityRef(
+        entity_type=InsightEntityType.BRAND,
+        entity_id=comparison.brand_id,
+    )
+
+    if (
+        comparison.transition_type
+        == MobilityTransitionType.WORKER_CHANGED_TRUCK
+    ):
+        return (
+            brand,
+            InsightEntityRef(
+                entity_type=InsightEntityType.WORKER,
+                entity_id=comparison.before.worker_id,
+            ),
+            InsightEntityRef(
+                entity_type=InsightEntityType.TRUCK,
+                entity_id=comparison.before.truck_id,
+            ),
+            InsightEntityRef(
+                entity_type=InsightEntityType.TRUCK,
+                entity_id=comparison.after.truck_id,
+            ),
+        )
+
+    return (
+        brand,
+        InsightEntityRef(
+            entity_type=InsightEntityType.TRUCK,
+            entity_id=comparison.before.truck_id,
+        ),
+        InsightEntityRef(
+            entity_type=InsightEntityType.WORKER,
+            entity_id=comparison.before.worker_id,
+        ),
+        InsightEntityRef(
+            entity_type=InsightEntityType.WORKER,
+            entity_id=comparison.after.worker_id,
+        ),
+    )
+
+
+def _mobility_limitations(
+    comparison: WorkerTruckMobilityComparison,
+) -> tuple[InsightLimitation, ...]:
+    limitations: list[InsightLimitation] = [
+        InsightLimitation(
+            code="MOBILITY_ASSOCIATION_NOT_CAUSATION",
+            message=(
+                "هذه مقارنة "
+                "ارتباطية "
+                "قبل/بعد ولا "
+                "تثبت أن تغيير "
+                "الشاحنة أو "
+                "البائع هو سبب "
+                "تغير النتائج."
+            ),
+        ),
+        InsightLimitation(
+            code="MOBILITY_CONTEXT_NOT_CONTROLLED",
+            message=(
+                "لا تتحكم "
+                "المقارنة "
+                "وحدها في "
+                "اختلاف المسار "
+                "والزبائن "
+                "والطلب "
+                "والتزويد "
+                "وبقية السياق "
+                "التشغيلي."
+            ),
+        ),
+    ]
+
+    if comparison.gap_working_day_count > 0:
+        limitations.append(
+            InsightLimitation(
+                code="MOBILITY_WORKING_GAP_PRESENT",
+                message=(
+                    "توجد أيام "
+                    "عمل فاصلة "
+                    "بين التعيينين؛ "
+                    "لذلك خُفِّضت "
+                    "الثقة في "
+                    "ربط التغير "
+                    "بالتبديل "
+                    "مباشرة."
+                ),
+            )
+        )
+
+    if _mobility_has_incomplete_coverage(
+        comparison
+    ):
+        limitations.append(
+            InsightLimitation(
+                code=(
+                    "MOBILITY_INCOMPLETE_"
+                    "MEASUREMENT_COVERAGE"
+                ),
+                message=(
+                    "البيانات "
+                    "المقاسة "
+                    "لا تغطي "
+                    "كل أيام "
+                    "العمل في "
+                    "نافذة "
+                    "المقارنة؛ "
+                    "لذلك خُفِّضت "
+                    "درجة "
+                    "الثقة."
+                ),
+            )
+        )
+
+    if _mobility_has_coverage_imbalance(
+        comparison
+    ):
+        limitations.append(
+            InsightLimitation(
+                code=(
+                    "MOBILITY_MEASUREMENT_"
+                    "COVERAGE_IMBALANCE"
+                ),
+                message=(
+                    "عدد الأيام "
+                    "التي ظهرت "
+                    "فيها سجلات "
+                    "القياس غير "
+                    "متساوٍ بين "
+                    "النافذتين؛ "
+                    "وقد يعكس ذلك "
+                    "اختلاف "
+                    "النشاط أو "
+                    "تغطية البيانات."
+                ),
+            )
+        )
+
+    return tuple(limitations)
+
+
+def detect_mobility_insights(
+    *,
+    mobility_result: WorkerTruckMobilityResult,
+) -> tuple[ManagerInsight, ...]:
+    """
+    Build deterministic before/after mobility signals.
+
+    The detector reports measurable changes associated with a
+    primary-seller assignment transition. It does not claim that
+    the transition caused the result change and introduces no
+    arbitrary performance threshold.
+    """
+    insights: list[ManagerInsight] = []
+
+    for comparison in mobility_result.comparisons:
+        sales_delta = (
+            comparison.sales_total_delta
+        )
+        visit_rate_delta = (
+            comparison.visit_success_rate_delta
+        )
+
+        has_sales_change = (
+            sales_delta is not None
+            and sales_delta != 0
+        )
+        has_visit_change = (
+            visit_rate_delta is not None
+            and visit_rate_delta != 0
+        )
+
+        if not (
+            has_sales_change
+            or has_visit_change
+        ):
+            continue
+
+        evidence: list[InsightEvidence] = [
+            InsightEvidence(
+                key="change_date",
+                label="تاريخ التغيير",
+                value=comparison.change_date.isoformat(),
+                source=(
+                    "worker_truck_mobility."
+                    "comparisons.change_date"
+                ),
+            ),
+            InsightEvidence(
+                key="gap_working_day_count",
+                label="أيام العمل الفاصلة",
+                value=(
+                    comparison.gap_working_day_count
+                ),
+                source=(
+                    "worker_truck_mobility.comparisons."
+                    "gap_working_day_count"
+                ),
+                unit="working_days",
+            ),
+            InsightEvidence(
+                key="before_working_day_count",
+                label="أيام العمل قبل التغيير",
+                value=comparison.before.working_day_count,
+                source=(
+                    "worker_truck_mobility.comparisons."
+                    "before.working_day_count"
+                ),
+                unit="working_days",
+                period_start=comparison.before.period_start,
+                period_end=comparison.before.period_end,
+            ),
+            InsightEvidence(
+                key="after_working_day_count",
+                label="أيام العمل بعد التغيير",
+                value=comparison.after.working_day_count,
+                source=(
+                    "worker_truck_mobility.comparisons."
+                    "after.working_day_count"
+                ),
+                unit="working_days",
+                period_start=comparison.after.period_start,
+                period_end=comparison.after.period_end,
+            ),
+        ]
+
+        if comparison.has_comparable_sales:
+            evidence.extend(
+                (
+                    InsightEvidence(
+                        key="before_sales_total",
+                        label="إجمالي المبيعات قبل التغيير",
+                        value=comparison.before.sales_total,
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.before.sales_total"
+                        ),
+                        unit="DZD",
+                        period_start=(
+                            comparison.before.period_start
+                        ),
+                        period_end=(
+                            comparison.before.period_end
+                        ),
+                    ),
+                    InsightEvidence(
+                        key="after_sales_total",
+                        label="إجمالي المبيعات بعد التغيير",
+                        value=comparison.after.sales_total,
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.after.sales_total"
+                        ),
+                        unit="DZD",
+                        period_start=(
+                            comparison.after.period_start
+                        ),
+                        period_end=(
+                            comparison.after.period_end
+                        ),
+                    ),
+                    InsightEvidence(
+                        key="sales_total_delta",
+                        label="فرق إجمالي المبيعات",
+                        value=sales_delta,
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.sales_total_delta"
+                        ),
+                        unit="DZD",
+                        period_start=(
+                            comparison.before.period_start
+                        ),
+                        period_end=(
+                            comparison.after.period_end
+                        ),
+                    ),
+                    InsightEvidence(
+                        key=(
+                            "before_sales_"
+                            "measurement_day_count"
+                        ),
+                        label="أيام قياس المبيعات قبل التغيير",
+                        value=(
+                            comparison.before
+                            .sales_measurement_day_count
+                        ),
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.before."
+                            "sales_measurement_day_count"
+                        ),
+                        unit="days",
+                    ),
+                    InsightEvidence(
+                        key=(
+                            "after_sales_"
+                            "measurement_day_count"
+                        ),
+                        label="أيام قياس المبيعات بعد التغيير",
+                        value=(
+                            comparison.after
+                            .sales_measurement_day_count
+                        ),
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.after."
+                            "sales_measurement_day_count"
+                        ),
+                        unit="days",
+                    ),
+                )
+            )
+
+        if comparison.has_comparable_visits:
+            evidence.extend(
+                (
+                    InsightEvidence(
+                        key="before_pos_record_count",
+                        label="سجلات PoS قبل التغيير",
+                        value=(
+                            comparison.before
+                            .pos_record_count
+                        ),
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.before."
+                            "pos_record_count"
+                        ),
+                        unit="records",
+                        period_start=(
+                            comparison.before.period_start
+                        ),
+                        period_end=(
+                            comparison.before.period_end
+                        ),
+                    ),
+                    InsightEvidence(
+                        key="after_pos_record_count",
+                        label="سجلات PoS بعد التغيير",
+                        value=(
+                            comparison.after
+                            .pos_record_count
+                        ),
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.after."
+                            "pos_record_count"
+                        ),
+                        unit="records",
+                        period_start=(
+                            comparison.after.period_start
+                        ),
+                        period_end=(
+                            comparison.after.period_end
+                        ),
+                    ),
+                    InsightEvidence(
+                        key=(
+                            "before_visit_"
+                            "measurement_day_count"
+                        ),
+                        label="أيام قياس الزيارات قبل التغيير",
+                        value=(
+                            comparison.before
+                            .visit_measurement_day_count
+                        ),
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.before."
+                            "visit_measurement_day_count"
+                        ),
+                        unit="days",
+                    ),
+                    InsightEvidence(
+                        key=(
+                            "after_visit_"
+                            "measurement_day_count"
+                        ),
+                        label="أيام قياس الزيارات بعد التغيير",
+                        value=(
+                            comparison.after
+                            .visit_measurement_day_count
+                        ),
+                        source=(
+                            "worker_truck_mobility."
+                            "comparisons.after."
+                            "visit_measurement_day_count"
+                        ),
+                        unit="days",
+                    ),
+                )
+            )
+
+            before_rate = (
+                comparison.before.visit_success_rate
+            )
+            after_rate = (
+                comparison.after.visit_success_rate
+            )
+
+            if (
+                before_rate is not None
+                and after_rate is not None
+            ):
+                evidence.extend(
+                    (
+                        InsightEvidence(
+                            key=(
+                                "before_visit_success_rate"
+                            ),
+                            label="معدل نجاح الزيارة قبل التغيير",
+                            value=before_rate,
+                            source=(
+                                "worker_truck_mobility."
+                                "comparisons.before."
+                                "visit_success_rate"
+                            ),
+                            unit="ratio",
+                        ),
+                        InsightEvidence(
+                            key=(
+                                "after_visit_success_rate"
+                            ),
+                            label="معدل نجاح الزيارة بعد التغيير",
+                            value=after_rate,
+                            source=(
+                                "worker_truck_mobility."
+                                "comparisons.after."
+                                "visit_success_rate"
+                            ),
+                            unit="ratio",
+                        ),
+                        InsightEvidence(
+                            key=(
+                                "visit_success_rate_delta"
+                            ),
+                            label="فرق معدل نجاح الزيارة",
+                            value=visit_rate_delta,
+                            source=(
+                                "worker_truck_mobility."
+                                "comparisons."
+                                "visit_success_rate_delta"
+                            ),
+                            unit="ratio",
+                        ),
+                    )
+                )
+
+        if (
+            comparison.transition_type
+            == MobilityTransitionType.WORKER_CHANGED_TRUCK
+        ):
+            code = "WORKER_TRUCK_MOBILITY_SIGNAL"
+            title = "انتقال بائع بين شاحنتين"
+            summary = (
+                "ارتبط انتقال "
+                "البائع بين "
+                "شاحنتين بتغير "
+                "قابل للقياس "
+                "في النتائج "
+                "المتاحة قبل "
+                "الانتقال "
+                "وبعده."
+            )
+        else:
+            code = "TRUCK_SELLER_MOBILITY_SIGNAL"
+            title = "تغيير البائع الرئيسي للشاحنة"
+            summary = (
+                "ارتبط تغيير "
+                "البائع "
+                "الرئيسي "
+                "على الشاحنة "
+                "بتغير قابل "
+                "للقياس في "
+                "النتائج "
+                "المتاحة قبل "
+                "التغيير "
+                "وبعده."
+            )
+
+        insights.append(
+            ManagerInsight(
+                code=code,
+                category=InsightCategory.MOBILITY,
+                severity=InsightSeverity.ATTENTION,
+                confidence=_mobility_confidence(
+                    comparison
+                ),
+                title=title,
+                summary=summary,
+                period_start=(
+                    comparison.before.period_start
+                ),
+                period_end=(
+                    comparison.after.period_end
+                ),
+                evidence=tuple(evidence),
+                entities=_mobility_entities(
+                    comparison
+                ),
+                limitations=_mobility_limitations(
+                    comparison
+                ),
+            )
+        )
+
+    return tuple(insights)
