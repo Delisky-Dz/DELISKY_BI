@@ -14,6 +14,7 @@ from apps.analytics.services.manager_insights import (
     ManagerInsight,
     detect_data_quality_insights,
     detect_operational_insights,
+    detect_worker_visit_insights,
 )
 from apps.analytics.services.truck_operational_status import (
     BrandTruckOperationalState,
@@ -22,6 +23,8 @@ from apps.analytics.services.truck_operational_status import (
 )
 from apps.analytics.services.worker_performance import (
     PerformanceDataQualitySummary,
+    WorkerPerformanceKpi,
+    WorkerPerformanceResult,
 )
 
 
@@ -555,3 +558,242 @@ class OperationalInsightDetectorTests(SimpleTestCase):
             tuple(item.entities[1].entity_id for item in insights),
             (5, 6),
         )
+
+
+
+class WorkerVisitInsightDetectorTests(SimpleTestCase):
+    def make_worker(
+        self,
+        worker_id,
+        *,
+        pos=0,
+        visited=0,
+        not_visited=0,
+    ):
+        return WorkerPerformanceKpi(
+            worker_id=worker_id,
+            total_sales=Decimal("0"),
+            sale_record_count=0,
+            positive_sale_record_count=0,
+            zero_total_record_count=0,
+            pos_record_count=pos,
+            visited_record_count=visited,
+            not_visited_record_count=not_visited,
+            unique_client_day_count=pos,
+            distinct_brand_client_count=0,
+            brand_product_count=0,
+            sold_product_count=0,
+            not_sold_product_count=0,
+            negative_gap_product_count=0,
+            sold_without_supply_context_count=0,
+        )
+
+    def make_result(self, *workers):
+        return WorkerPerformanceResult(
+            requested_period_start=date(2026, 7, 1),
+            requested_period_end=date(2026, 7, 7),
+            brand_id=1,
+            workers=tuple(workers),
+            operational_states=(),
+            data_quality=PerformanceDataQualitySummary(
+                sales_attribution_issue_count=0,
+                pos_attribution_issue_count=0,
+                items_attribution_issue_count=0,
+                opening_stock_attribution_issue_count=0,
+                chargement_attribution_issue_count=0,
+                operational_attribution_issue_count=0,
+                pos_numeric_message_warning_count=0,
+                pos_duplicate_same_day_warning_count=0,
+            ),
+        )
+
+    def test_relative_signal_requires_two_measured_workers(self):
+        result = self.make_result(
+            self.make_worker(
+                1,
+                pos=10,
+                visited=2,
+                not_visited=8,
+            )
+        )
+
+        self.assertEqual(
+            detect_worker_visit_insights(
+                performance_result=result
+            ),
+            (),
+        )
+
+    def test_worker_above_weighted_team_rate_is_detected(self):
+        result = self.make_result(
+            self.make_worker(
+                1,
+                pos=10,
+                visited=2,
+                not_visited=8,
+            ),
+            self.make_worker(
+                2,
+                pos=10,
+                visited=8,
+                not_visited=2,
+            ),
+        )
+
+        insight = detect_worker_visit_insights(
+            performance_result=result
+        )[0]
+
+        self.assertEqual(
+            insight.code,
+            "WORKER_NON_VISIT_RATE_ABOVE_TEAM",
+        )
+        self.assertEqual(
+            insight.category,
+            InsightCategory.VISITS,
+        )
+        self.assertEqual(
+            insight.confidence,
+            InsightConfidence.HIGH,
+        )
+
+        evidence = {
+            item.key: item.value
+            for item in insight.evidence
+        }
+
+        self.assertEqual(
+            evidence["team_non_visit_rate"],
+            Decimal("0.5"),
+        )
+        self.assertEqual(
+            evidence["worker_1_non_visit_rate"],
+            Decimal("0.8"),
+        )
+
+        worker_entities = tuple(
+            entity.entity_id
+            for entity in insight.entities
+            if (
+                entity.entity_type
+                == InsightEntityType.WORKER
+            )
+        )
+
+        self.assertEqual(worker_entities, (1,))
+
+    def test_team_rate_is_weighted_by_pos_volume(self):
+        result = self.make_result(
+            self.make_worker(
+                1,
+                pos=2,
+                visited=0,
+                not_visited=2,
+            ),
+            self.make_worker(
+                2,
+                pos=18,
+                visited=18,
+                not_visited=0,
+            ),
+        )
+
+        insight = detect_worker_visit_insights(
+            performance_result=result
+        )[0]
+
+        evidence = {
+            item.key: item.value
+            for item in insight.evidence
+        }
+
+        self.assertEqual(
+            evidence["team_pos_record_count"],
+            20,
+        )
+        self.assertEqual(
+            evidence["team_not_visited_record_count"],
+            2,
+        )
+        self.assertEqual(
+            evidence["team_non_visit_rate"],
+            Decimal("0.1"),
+        )
+
+    def test_equal_team_rates_create_no_attention_signal(self):
+        result = self.make_result(
+            self.make_worker(
+                1,
+                pos=10,
+                visited=5,
+                not_visited=5,
+            ),
+            self.make_worker(
+                2,
+                pos=10,
+                visited=5,
+                not_visited=5,
+            ),
+        )
+
+        self.assertEqual(
+            detect_worker_visit_insights(
+                performance_result=result
+            ),
+            (),
+        )
+
+    def test_worker_without_visit_measurement_is_not_failure(self):
+        result = self.make_result(
+            self.make_worker(1),
+            self.make_worker(
+                2,
+                pos=10,
+                visited=5,
+                not_visited=5,
+            ),
+        )
+
+        self.assertEqual(
+            detect_worker_visit_insights(
+                performance_result=result
+            ),
+            (),
+        )
+
+    def test_multiple_workers_above_team_keep_stable_order(self):
+        result = self.make_result(
+            self.make_worker(
+                1,
+                pos=10,
+                visited=2,
+                not_visited=8,
+            ),
+            self.make_worker(
+                2,
+                pos=10,
+                visited=4,
+                not_visited=6,
+            ),
+            self.make_worker(
+                3,
+                pos=10,
+                visited=9,
+                not_visited=1,
+            ),
+        )
+
+        insight = detect_worker_visit_insights(
+            performance_result=result
+        )[0]
+
+        worker_entities = tuple(
+            entity.entity_id
+            for entity in insight.entities
+            if (
+                entity.entity_type
+                == InsightEntityType.WORKER
+            )
+        )
+
+        self.assertEqual(worker_entities, (1, 2))

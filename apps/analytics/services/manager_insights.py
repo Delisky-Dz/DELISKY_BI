@@ -9,6 +9,7 @@ from .truck_operational_status import (
 )
 from .worker_performance import (
     PerformanceDataQualitySummary,
+    WorkerPerformanceResult,
 )
 
 
@@ -536,3 +537,255 @@ def detect_operational_insights(
             )
 
     return tuple(insights)
+
+
+
+def detect_worker_visit_insights(
+    *,
+    performance_result: WorkerPerformanceResult,
+) -> tuple[ManagerInsight, ...]:
+    """
+    Compare measured workers against the weighted team
+    non-visit rate for the same analytical period.
+
+    This is a relative deterministic signal, not an arbitrary
+    performance threshold and not proof of worker failure.
+    """
+    measured_workers = tuple(
+        worker
+        for worker in performance_result.workers
+        if worker.has_visit_measurement
+    )
+
+    # A relative team comparison needs at least two measured
+    # workers. Workers without visit measurement are not failures.
+    if len(measured_workers) < 2:
+        return ()
+
+    team_pos_record_count = sum(
+        worker.pos_record_count
+        for worker in measured_workers
+    )
+    team_not_visited_record_count = sum(
+        worker.not_visited_record_count
+        for worker in measured_workers
+    )
+
+    if team_pos_record_count == 0:
+        return ()
+
+    team_non_visit_rate = (
+        Decimal(team_not_visited_record_count)
+        / Decimal(team_pos_record_count)
+    )
+
+    workers_above_team = tuple(
+        sorted(
+            (
+                worker
+                for worker in measured_workers
+                if (
+                    worker.non_visit_rate is not None
+                    and worker.non_visit_rate
+                    > team_non_visit_rate
+                )
+            ),
+            key=lambda worker: (
+                -worker.non_visit_rate,
+                -worker.pos_record_count,
+                worker.worker_id,
+            ),
+        )
+    )
+
+    if not workers_above_team:
+        return ()
+
+    evidence: list[InsightEvidence] = [
+        InsightEvidence(
+            key="team_pos_record_count",
+            label="إجمالي سجلات PoS للفريق",
+            value=team_pos_record_count,
+            source="worker_performance.workers",
+            unit="records",
+            period_start=(
+                performance_result.requested_period_start
+            ),
+            period_end=(
+                performance_result.requested_period_end
+            ),
+        ),
+        InsightEvidence(
+            key="team_not_visited_record_count",
+            label="إجمالي حالات عدم الزيارة للفريق",
+            value=team_not_visited_record_count,
+            source="worker_performance.workers",
+            unit="records",
+            period_start=(
+                performance_result.requested_period_start
+            ),
+            period_end=(
+                performance_result.requested_period_end
+            ),
+        ),
+        InsightEvidence(
+            key="team_non_visit_rate",
+            label="معدل عدم الزيارة المجمع للفريق",
+            value=team_non_visit_rate,
+            source=(
+                "manager_insights."
+                "weighted_team_non_visit_rate"
+            ),
+            unit="ratio",
+            period_start=(
+                performance_result.requested_period_start
+            ),
+            period_end=(
+                performance_result.requested_period_end
+            ),
+        ),
+    ]
+
+    for worker in workers_above_team:
+        evidence.extend(
+            (
+                InsightEvidence(
+                    key=(
+                        f"worker_{worker.worker_id}_"
+                        "pos_record_count"
+                    ),
+                    label=(
+                        "عدد سجلات PoS "
+                        f"للبائع {worker.worker_id}"
+                    ),
+                    value=worker.pos_record_count,
+                    source="worker_performance.workers",
+                    unit="records",
+                    period_start=(
+                        performance_result
+                        .requested_period_start
+                    ),
+                    period_end=(
+                        performance_result
+                        .requested_period_end
+                    ),
+                ),
+                InsightEvidence(
+                    key=(
+                        f"worker_{worker.worker_id}_"
+                        "not_visited_record_count"
+                    ),
+                    label=(
+                        "حالات عدم الزيارة "
+                        f"للبائع {worker.worker_id}"
+                    ),
+                    value=(
+                        worker.not_visited_record_count
+                    ),
+                    source="worker_performance.workers",
+                    unit="records",
+                    period_start=(
+                        performance_result
+                        .requested_period_start
+                    ),
+                    period_end=(
+                        performance_result
+                        .requested_period_end
+                    ),
+                ),
+                InsightEvidence(
+                    key=(
+                        f"worker_{worker.worker_id}_"
+                        "non_visit_rate"
+                    ),
+                    label=(
+                        "معدل عدم الزيارة "
+                        f"للبائع {worker.worker_id}"
+                    ),
+                    value=worker.non_visit_rate,
+                    source=(
+                        "worker_performance."
+                        "non_visit_rate"
+                    ),
+                    unit="ratio",
+                    period_start=(
+                        performance_result
+                        .requested_period_start
+                    ),
+                    period_end=(
+                        performance_result
+                        .requested_period_end
+                    ),
+                ),
+            )
+        )
+
+    entities: list[InsightEntityRef] = []
+
+    if performance_result.brand_id is not None:
+        entities.append(
+            InsightEntityRef(
+                entity_type=InsightEntityType.BRAND,
+                entity_id=performance_result.brand_id,
+            )
+        )
+
+    entities.extend(
+        InsightEntityRef(
+            entity_type=InsightEntityType.WORKER,
+            entity_id=worker.worker_id,
+        )
+        for worker in workers_above_team
+    )
+
+    return (
+        ManagerInsight(
+            code="WORKER_NON_VISIT_RATE_ABOVE_TEAM",
+            category=InsightCategory.VISITS,
+            severity=InsightSeverity.ATTENTION,
+            confidence=InsightConfidence.HIGH,
+            title="بائعون أعلى من معدل الفريق في عدم الزيارة",
+            summary=(
+                "توجد نتائج لبائعين "
+                "لديهم معدل عدم زيارة "
+                "أعلى من المعدل المجمع "
+                "للفريق في نفس الفترة."
+            ),
+            period_start=(
+                performance_result.requested_period_start
+            ),
+            period_end=(
+                performance_result.requested_period_end
+            ),
+            evidence=tuple(evidence),
+            entities=tuple(entities),
+            limitations=(
+                InsightLimitation(
+                    code="RELATIVE_VISIT_SIGNAL_NOT_FAILURE",
+                    message=(
+                        "تجاوز معدل الفريق "
+                        "إشارة نسبية للمتابعة "
+                        "ولا يعني فشل البائع."
+                    ),
+                ),
+                InsightLimitation(
+                    code="VISIT_RATE_VOLUME_CONTEXT_REQUIRED",
+                    message=(
+                        "يجب قراءة نسبة عدم "
+                        "الزيارة مع عدد سجلات "
+                        "PoS المتاحة."
+                    ),
+                ),
+                InsightLimitation(
+                    code="VISIT_SIGNAL_NOT_CAUSAL",
+                    message=(
+                        "المقارنة لا تثبت "
+                        "أن البائع هو سبب "
+                        "عدم الزيارة دون "
+                        "دراسة سياق الشاحنة "
+                        "والمسار والزبائن."
+                    ),
+                ),
+            ),
+        ),
+    )
