@@ -142,6 +142,7 @@ class WorkerPerformanceTests(SimpleTestCase):
             by_brand=(),
             by_truck=(),
             by_worker=tuple(workers),
+            by_brand_truck_worker=(),
             by_brand_client=(),
             by_brand_truck_client=(),
             by_brand_worker_client=tuple(

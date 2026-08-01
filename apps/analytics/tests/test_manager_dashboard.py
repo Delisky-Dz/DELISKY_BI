@@ -307,6 +307,7 @@ class ManagerDashboardTests(SimpleTestCase):
             by_brand=(),
             by_truck=(),
             by_worker=(),
+            by_brand_truck_worker=(),
             by_brand_client=tuple(clients),
             by_brand_truck_client=(),
             by_brand_worker_client=(),

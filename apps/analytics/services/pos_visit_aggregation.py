@@ -62,6 +62,14 @@ class WorkerVisitTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class BrandTruckWorkerVisitTotal:
+    brand_id: int
+    truck_id: int
+    worker_id: int
+    metrics: VisitMetrics
+
+
+@dataclass(frozen=True, slots=True)
 class BrandClientVisitTotal:
     brand_id: int
     client: str
@@ -115,6 +123,10 @@ class PosVisitAggregationResult:
     by_brand: tuple[BrandVisitTotal, ...]
     by_truck: tuple[TruckVisitTotal, ...]
     by_worker: tuple[WorkerVisitTotal, ...]
+    by_brand_truck_worker: tuple[
+        BrandTruckWorkerVisitTotal,
+        ...,
+    ]
     by_brand_client: tuple[
         BrandClientVisitTotal,
         ...,
@@ -398,6 +410,11 @@ def aggregate_pos_visits(
         _VisitAccumulator,
     ] = {}
 
+    brand_truck_worker_buckets: dict[
+        tuple[int, int, int],
+        _VisitAccumulator,
+    ] = {}
+
     brand_client_buckets: dict[
         tuple[int, str],
         _NamedVisitAccumulator,
@@ -585,6 +602,15 @@ def aggregate_pos_visits(
             worker_id,
         ).add(**add_arguments)
 
+        _get_accumulator(
+            brand_truck_worker_buckets,
+            (
+                visit.brand_id,
+                truck_id,
+                worker_id,
+            ),
+        ).add(**add_arguments)
+
         worker_client = _get_named_accumulator(
             brand_worker_client_buckets,
             (
@@ -641,6 +667,17 @@ def aggregate_pos_visits(
             )
             for key, value in sorted(
                 worker_buckets.items()
+            )
+        ),
+        by_brand_truck_worker=tuple(
+            BrandTruckWorkerVisitTotal(
+                brand_id=key[0],
+                truck_id=key[1],
+                worker_id=key[2],
+                metrics=value.freeze(),
+            )
+            for key, value in sorted(
+                brand_truck_worker_buckets.items()
             )
         ),
         by_brand_client=tuple(

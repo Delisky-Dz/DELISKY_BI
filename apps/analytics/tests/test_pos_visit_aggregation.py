@@ -482,6 +482,31 @@ class PosVisitAggregationTests(TestCase):
             },
         )
 
+        totals_by_brand_truck_worker = {
+            (
+                item.brand_id,
+                item.truck_id,
+                item.worker_id,
+            ): item.metrics.total_record_count
+            for item in result.by_brand_truck_worker
+        }
+
+        self.assertEqual(
+            totals_by_brand_truck_worker,
+            {
+                (
+                    self.brand.pk,
+                    truck.pk,
+                    first_worker.pk,
+                ): 1,
+                (
+                    self.brand.pk,
+                    truck.pk,
+                    second_worker.pk,
+                ): 1,
+            },
+        )
+
     def test_unknown_truck_keeps_brand_and_client_totals(self):
         batch = self.create_batch(8)
 
