@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'apps.fleet.apps.FleetConfig',
     'apps.imports.apps.ImportsConfig',
     'apps.analytics.apps.AnalyticsConfig',
+    'apps.assistant.apps.AssistantConfig',
     'apps.dashboard.apps.DashboardConfig',
 ]
 

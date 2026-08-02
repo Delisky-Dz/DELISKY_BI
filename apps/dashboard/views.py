@@ -1,3 +1,5 @@
+from time import perf_counter
+
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
@@ -5,12 +7,23 @@ from django.views.decorators.http import require_POST
 from apps.analytics.services.manager_dashboard import (
     build_manager_dashboard,
 )
+from apps.assistant.audit import (
+    AskDeliskyAuditRecord,
+    record_ask_delisky_audit_event,
+)
+from apps.assistant.models import (
+    AskDeliskyAuditOutcome,
+)
 from apps.assistant.ollama_transport import (
     OllamaTransportError,
 )
 from apps.assistant.provider_factory import (
     AskDeliskyProviderConfigurationError,
     AskDeliskyProviderDisabledError,
+)
+from apps.assistant.rate_limit import (
+    AskDeliskyRateLimitConfigurationError,
+    check_ask_delisky_rate_limit,
 )
 from apps.assistant.runtime import (
     ask_manager_delisky,
@@ -540,21 +553,57 @@ def _ask_delisky_error_response(
 @manager_required
 @require_POST
 def ask_delisky_api(request):
+    started_at = perf_counter()
+
+    def record_audit(
+        *,
+        outcome,
+        http_status,
+        period_start=None,
+        period_end=None,
+        brand_id=None,
+    ):
+        duration_ms = max(
+            0,
+            round(
+                (
+                    perf_counter()
+                    - started_at
+                )
+                * 1000
+            ),
+        )
+
+        record_ask_delisky_audit_event(
+            user=request.user,
+            record=AskDeliskyAuditRecord(
+                outcome=outcome,
+                http_status=http_status,
+                duration_ms=duration_ms,
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+            ),
+        )
+
     form = AskDeliskyForm(
         data=request.POST,
     )
 
     if not form.is_valid():
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome.INVALID_REQUEST
+            ),
+            http_status=400,
+        )
+
         return _ask_delisky_error_response(
             code="INVALID_REQUEST",
             message=(
-                "\u062a\u062d\u0642\u0642 "
-                "\u0645\u0646 "
-                "\u0627\u0644\u0633\u0624\u0627\u0644 "
-                "\u0648\u0627\u0644\u0641\u0644\u0627\u062a\u0631 "
-                "\u062b\u0645 "
-                "\u0623\u0639\u062f "
-                "\u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629."
+                "\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0633\u0624\u0627\u0644 "
+                "\u0648\u0627\u0644\u0641\u0644\u0627\u062a\u0631 \u062b\u0645 "
+                "\u0623\u0639\u062f \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629."
             ),
             status=400,
             errors=form.errors.get_json_data(
@@ -564,55 +613,144 @@ def ask_delisky_api(request):
 
     selected_brand = form.cleaned_data["brand"]
 
+    period_start = form.cleaned_data[
+        "period_start"
+    ]
+    period_end = form.cleaned_data[
+        "period_end"
+    ]
+    brand_id = (
+        selected_brand.pk
+        if selected_brand is not None
+        else None
+    )
+
+    try:
+        rate_limit = check_ask_delisky_rate_limit(
+            user=request.user,
+        )
+    except AskDeliskyRateLimitConfigurationError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome
+                .RATE_LIMIT_CONFIGURATION_ERROR
+            ),
+            http_status=503,
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
+        )
+
+        return _ask_delisky_error_response(
+            code="RATE_LIMIT_CONFIGURATION_ERROR",
+            message=(
+                "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
+                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u062d\u0645\u0627\u064a\u0629 "
+                "\u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0640 Ask DELISKY."
+            ),
+            status=503,
+        )
+
+    if not rate_limit.allowed:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome.RATE_LIMITED
+            ),
+            http_status=429,
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
+        )
+
+        response = _ask_delisky_error_response(
+            code="RATE_LIMITED",
+            message=(
+                "\u062a\u0645 \u0628\u0644\u0648\u063a \u0627\u0644\u062d\u062f \u0627\u0644\u0645\u0624\u0642\u062a "
+                "\u0644\u0637\u0644\u0628\u0627\u062a Ask DELISKY. "
+                "\u0623\u0639\u062f \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 \u0628\u0639\u062f \u0642\u0644\u064a\u0644."
+            ),
+            status=429,
+        )
+        response["Retry-After"] = str(
+            rate_limit.retry_after_seconds
+        )
+        return response
+
     try:
         response = ask_manager_delisky(
             question=form.cleaned_data["question"],
-            period_start=(
-                form.cleaned_data["period_start"]
-            ),
-            period_end=(
-                form.cleaned_data["period_end"]
-            ),
-            brand_id=(
-                selected_brand.pk
-                if selected_brand is not None
-                else None
-            ),
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
         )
     except AskDeliskyProviderConfigurationError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome
+                .PROVIDER_CONFIGURATION_ERROR
+            ),
+            http_status=503,
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
+        )
+
         return _ask_delisky_error_response(
             code="PROVIDER_CONFIGURATION_ERROR",
             message=(
-                "\u062a\u0639\u0630\u0631 "
-                "\u062a\u062d\u0645\u064a\u0644 "
-                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a "
-                "Ask DELISKY."
+                "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
+                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a Ask DELISKY."
             ),
             status=503,
         )
     except AskDeliskyProviderDisabledError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome.PROVIDER_DISABLED
+            ),
+            http_status=503,
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
+        )
+
         return _ask_delisky_error_response(
             code="PROVIDER_DISABLED",
             message=(
                 "Ask DELISKY "
-                "\u063a\u064a\u0631 "
-                "\u0645\u0641\u0639\u0644 "
-                "\u062d\u0627\u0644\u064a\u0627."
+                "\u063a\u064a\u0631 \u0645\u0641\u0639\u0644 \u062d\u0627\u0644\u064a\u0627."
             ),
             status=503,
         )
     except OllamaTransportError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome
+                .PROVIDER_UNAVAILABLE
+            ),
+            http_status=503,
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
+        )
+
         return _ask_delisky_error_response(
             code="PROVIDER_UNAVAILABLE",
             message=(
-                "\u062a\u0639\u0630\u0631 "
-                "\u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
-                "\u0628\u0645\u0633\u0627\u0639\u062f "
-                "Ask DELISKY "
+                "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                "\u0628\u0645\u0633\u0627\u0639\u062f Ask DELISKY "
                 "\u062d\u0627\u0644\u064a\u0627."
             ),
             status=503,
         )
+
+    record_audit(
+        outcome=AskDeliskyAuditOutcome.SUCCESS,
+        http_status=200,
+        period_start=period_start,
+        period_end=period_end,
+        brand_id=brand_id,
+    )
 
     return JsonResponse(
         {
