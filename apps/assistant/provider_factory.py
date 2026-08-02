@@ -16,6 +16,10 @@ class AskDeliskyProviderDisabledError(RuntimeError):
     """Ask DELISKY provider execution is disabled."""
 
 
+class AskDeliskyProviderConfigurationError(RuntimeError):
+    """Ask DELISKY provider configuration is invalid."""
+
+
 def build_ask_delisky_provider(
     *,
     environ: Mapping[str, str] | None = None,
@@ -28,9 +32,14 @@ def build_ask_delisky_provider(
     explicit mapping is supplied. Network access does not occur
     while building the provider.
     """
-    config = load_ask_delisky_provider_config(
-        environ=environ
-    )
+    try:
+        config = load_ask_delisky_provider_config(
+            environ=environ
+        )
+    except ValueError as exc:
+        raise AskDeliskyProviderConfigurationError(
+            "Ask DELISKY provider configuration is invalid."
+        ) from exc
 
     if config.mode == AskDeliskyProviderMode.DISABLED:
         raise AskDeliskyProviderDisabledError(

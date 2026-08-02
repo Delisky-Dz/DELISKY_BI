@@ -9,6 +9,7 @@ from apps.assistant.local_provider import (
     LocalAskDeliskyProvider,
 )
 from apps.assistant.provider_factory import (
+    AskDeliskyProviderConfigurationError,
     AskDeliskyProviderDisabledError,
     build_ask_delisky_provider,
 )
@@ -104,9 +105,8 @@ class AskDeliskyProviderFactoryTests(SimpleTestCase):
         )
 
     def test_invalid_provider_configuration_is_rejected(self):
-        with self.assertRaisesRegex(
-            ValueError,
-            "must be 'disabled' or 'local'",
+        with self.assertRaises(
+            AskDeliskyProviderConfigurationError
         ):
             build_ask_delisky_provider(
                 environ={

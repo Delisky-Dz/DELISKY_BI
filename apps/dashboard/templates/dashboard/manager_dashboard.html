@@ -11,6 +11,10 @@
 
     {% include "dashboard/partials/filter_form.html" %}
 
+    {% if not filter_form.errors %}
+        {% include "dashboard/partials/ask_delisky.html" %}
+    {% endif %}
+
     {% if dashboard_result %}
         {% if summary %}
             {% include "dashboard/partials/sales_summary.html" %}

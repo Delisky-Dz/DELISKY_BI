@@ -1,0 +1,120 @@
+<section
+    class="dashboard-section ask-delisky"
+    aria-labelledby="ask-delisky-title"
+    data-ask-delisky
+>
+    <header class="ask-delisky__header">
+        <div>
+            <p class="section-eyebrow">
+                مساعد DELISKY الذكي
+            </p>
+
+            <h2 id="ask-delisky-title">
+                Ask DELISKY
+            </h2>
+
+            <p class="ask-delisky__description">
+                اسأل عن النتائج
+                والمؤشرات الظاهرة
+                حسب الفترة
+                والعلامة المحددة.
+            </p>
+        </div>
+
+        <span
+            class="ask-delisky__icon"
+            aria-hidden="true"
+        >
+            AI
+        </span>
+    </header>
+
+    <form
+        method="post"
+        action="{% url 'dashboard:ask_delisky' %}"
+        class="ask-delisky__form"
+        data-ask-delisky-form
+        novalidate
+    >
+        {% csrf_token %}
+
+        <input
+            type="hidden"
+            name="period_start"
+            value="{% if filter_form.cleaned_data.period_start %}{{ filter_form.cleaned_data.period_start|date:'Y-m-d' }}{% endif %}"
+        >
+
+        <input
+            type="hidden"
+            name="period_end"
+            value="{% if filter_form.cleaned_data.period_end %}{{ filter_form.cleaned_data.period_end|date:'Y-m-d' }}{% endif %}"
+        >
+
+        <input
+            type="hidden"
+            name="brand"
+            value="{% if filter_form.cleaned_data.brand %}{{ filter_form.cleaned_data.brand.pk }}{% endif %}"
+        >
+
+        <div class="ask-delisky__field">
+            <label for="ask-delisky-question">
+                ماذا تريد أن تعرف؟
+            </label>
+
+            <textarea
+                id="ask-delisky-question"
+                name="question"
+                rows="3"
+                maxlength="1000"
+                required
+                autocomplete="off"
+                placeholder="مثال: ما أهم الملاحظات التي تحتاج تدخلي؟"
+                data-ask-delisky-question
+            ></textarea>
+
+            <small>
+                الإجابة تعتمد
+                فقط على التحليلات
+                المعتمدة المتاحة.
+            </small>
+        </div>
+
+        <div class="ask-delisky__actions">
+            <button
+                class="button button--primary"
+                type="submit"
+                data-ask-delisky-submit
+            >
+                اسأل Ask DELISKY
+            </button>
+
+            <span class="ask-delisky__scope">
+                يستعمل الفلتر
+                الحالي تلقائياً
+            </span>
+        </div>
+    </form>
+
+    <div
+        class="ask-delisky__status"
+        data-ask-delisky-status
+        role="status"
+        aria-live="polite"
+        hidden
+    ></div>
+
+    <article
+        class="ask-delisky__answer"
+        data-ask-delisky-answer
+        hidden
+    >
+        <p class="section-eyebrow">
+            إجابة Ask DELISKY
+        </p>
+
+        <p
+            class="ask-delisky__answer-text"
+            data-ask-delisky-answer-text
+        ></p>
+    </article>
+</section>

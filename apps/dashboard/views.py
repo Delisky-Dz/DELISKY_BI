@@ -1,13 +1,28 @@
+from django.http import JsonResponse
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
 
 from apps.analytics.services.manager_dashboard import (
     build_manager_dashboard,
+)
+from apps.assistant.ollama_transport import (
+    OllamaTransportError,
+)
+from apps.assistant.provider_factory import (
+    AskDeliskyProviderConfigurationError,
+    AskDeliskyProviderDisabledError,
+)
+from apps.assistant.runtime import (
+    ask_manager_delisky,
 )
 from apps.imports.models import DistributionBrand
 from apps.workforce.models import Worker
 
 from .access import manager_required
-from .forms import ManagerDashboardFilterForm
+from .forms import (
+    AskDeliskyForm,
+    ManagerDashboardFilterForm,
+)
 from .presenters import (
     present_analytical_coverage,
     present_brand_sales_chart,
@@ -494,4 +509,119 @@ def manager_dashboard(request):
         DASHBOARD_TEMPLATE_NAME,
         context,
         status=response_status,
+    )
+
+
+
+def _ask_delisky_error_response(
+    *,
+    code: str,
+    message: str,
+    status: int,
+    errors=None,
+):
+    payload = {
+        "ok": False,
+        "error": {
+            "code": code,
+            "message": message,
+        },
+    }
+
+    if errors is not None:
+        payload["error"]["fields"] = errors
+
+    return JsonResponse(
+        payload,
+        status=status,
+    )
+
+
+@manager_required
+@require_POST
+def ask_delisky_api(request):
+    form = AskDeliskyForm(
+        data=request.POST,
+    )
+
+    if not form.is_valid():
+        return _ask_delisky_error_response(
+            code="INVALID_REQUEST",
+            message=(
+                "\u062a\u062d\u0642\u0642 "
+                "\u0645\u0646 "
+                "\u0627\u0644\u0633\u0624\u0627\u0644 "
+                "\u0648\u0627\u0644\u0641\u0644\u0627\u062a\u0631 "
+                "\u062b\u0645 "
+                "\u0623\u0639\u062f "
+                "\u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629."
+            ),
+            status=400,
+            errors=form.errors.get_json_data(
+                escape_html=True
+            ),
+        )
+
+    selected_brand = form.cleaned_data["brand"]
+
+    try:
+        response = ask_manager_delisky(
+            question=form.cleaned_data["question"],
+            period_start=(
+                form.cleaned_data["period_start"]
+            ),
+            period_end=(
+                form.cleaned_data["period_end"]
+            ),
+            brand_id=(
+                selected_brand.pk
+                if selected_brand is not None
+                else None
+            ),
+        )
+    except AskDeliskyProviderConfigurationError:
+        return _ask_delisky_error_response(
+            code="PROVIDER_CONFIGURATION_ERROR",
+            message=(
+                "\u062a\u0639\u0630\u0631 "
+                "\u062a\u062d\u0645\u064a\u0644 "
+                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a "
+                "Ask DELISKY."
+            ),
+            status=503,
+        )
+    except AskDeliskyProviderDisabledError:
+        return _ask_delisky_error_response(
+            code="PROVIDER_DISABLED",
+            message=(
+                "Ask DELISKY "
+                "\u063a\u064a\u0631 "
+                "\u0645\u0641\u0639\u0644 "
+                "\u062d\u0627\u0644\u064a\u0627."
+            ),
+            status=503,
+        )
+    except OllamaTransportError:
+        return _ask_delisky_error_response(
+            code="PROVIDER_UNAVAILABLE",
+            message=(
+                "\u062a\u0639\u0630\u0631 "
+                "\u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                "\u0628\u0645\u0633\u0627\u0639\u062f "
+                "Ask DELISKY "
+                "\u062d\u0627\u0644\u064a\u0627."
+            ),
+            status=503,
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "answer": response.answer,
+            "provider": response.provider_name,
+            "model": response.model_name,
+            "context_schema_version": (
+                response.context_schema_version
+            ),
+        }
     )

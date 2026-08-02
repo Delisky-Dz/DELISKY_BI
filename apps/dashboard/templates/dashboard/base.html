@@ -75,7 +75,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'dashboard/css/dashboard.css' %}?v=20260721-theme-6"
+        href="{% static 'dashboard/css/dashboard.css' %}?v=20260802-ask-delisky-1"
     >
 
     {% block extra_head %}{% endblock %}
@@ -211,6 +211,22 @@
                         </a>
                     </li>
 
+                    <li>
+                        <a
+                            class="sidebar__link"
+                            href="#ask-delisky-title"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                06
+                            </span>
+
+                            <span>Ask DELISKY</span>
+                        </a>
+                    </li>
+
                     {% if request.user.is_superuser %}
                         <li>
                             <a
@@ -221,7 +237,7 @@
                                     class="sidebar__icon"
                                     aria-hidden="true"
                                 >
-                                    06
+                                    07
                                 </span>
 
                                 <span>لوحة الإدارة</span>
@@ -378,7 +394,7 @@
     </div>
 
     <script
-        src="{% static 'dashboard/js/dashboard.js' %}?v=20260721-theme-2"
+        src="{% static 'dashboard/js/dashboard.js' %}?v=20260802-ask-delisky-1"
         defer
     ></script>
 

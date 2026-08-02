@@ -57,3 +57,20 @@ class ManagerDashboardFilterForm(forms.Form):
             )
 
         return cleaned_data
+
+
+
+class AskDeliskyForm(ManagerDashboardFilterForm):
+    question = forms.CharField(
+        required=True,
+        max_length=1000,
+        strip=True,
+        label="Ask DELISKY",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "maxlength": 1000,
+                "autocomplete": "off",
+            }
+        ),
+    )

@@ -377,3 +377,191 @@
         readPreference()
     );
 })();
+
+
+
+/* ASK DELISKY V1 */
+
+(function () {
+    "use strict";
+
+    const assistants = Array.from(
+        document.querySelectorAll(
+            "[data-ask-delisky]"
+        )
+    );
+
+    assistants.forEach(function (assistant) {
+        const form = assistant.querySelector(
+            "[data-ask-delisky-form]"
+        );
+        const submitButton = assistant.querySelector(
+            "[data-ask-delisky-submit]"
+        );
+        const status = assistant.querySelector(
+            "[data-ask-delisky-status]"
+        );
+        const answer = assistant.querySelector(
+            "[data-ask-delisky-answer]"
+        );
+        const answerText = assistant.querySelector(
+            "[data-ask-delisky-answer-text]"
+        );
+        const question = assistant.querySelector(
+            "[data-ask-delisky-question]"
+        );
+
+        if (
+            !form ||
+            !submitButton ||
+            !status ||
+            !answer ||
+            !answerText ||
+            !question
+        ) {
+            return;
+        }
+
+        let submitting = false;
+
+        function setBusy(isBusy) {
+            submitting = isBusy;
+            submitButton.disabled = isBusy;
+            question.readOnly = isBusy;
+
+            form.setAttribute(
+                "aria-busy",
+                String(isBusy)
+            );
+        }
+
+        function showStatus(message, kind) {
+            status.hidden = false;
+            status.textContent = message;
+
+            status.classList.toggle(
+                "ask-delisky__status--error",
+                kind === "error"
+            );
+
+            status.classList.toggle(
+                "ask-delisky__status--success",
+                kind === "success"
+            );
+        }
+
+        function hideAnswer() {
+            answer.hidden = true;
+            answerText.textContent = "";
+        }
+
+        form.addEventListener(
+            "submit",
+            async function (event) {
+                event.preventDefault();
+
+                if (submitting) {
+                    return;
+                }
+
+                if (!form.reportValidity()) {
+                    return;
+                }
+
+                hideAnswer();
+                setBusy(true);
+
+                showStatus(
+                    "\u062c\u0627\u0631\u064a \u062a\u062d\u0644\u064a\u0644 "
+                    + "\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a... "
+                    + "\u0642\u062f \u064a\u0633\u062a\u063a\u0631\u0642 "
+                    + "\u0630\u0644\u0643 \u0628\u0636\u0639 \u062b\u0648\u0627\u0646\u064d.",
+                    "loading"
+                );
+
+                try {
+                    const response = await fetch(
+                        form.action,
+                        {
+                            method: "POST",
+                            body: new FormData(form),
+                            credentials: "same-origin",
+                            headers: {
+                                "X-Requested-With":
+                                    "XMLHttpRequest",
+                            },
+                        }
+                    );
+
+                    let payload = null;
+
+                    try {
+                        payload = await response.json();
+                    } catch (error) {
+                        throw new Error(
+                            "\u062a\u0639\u0630\u0631 \u0642\u0631\u0627\u0621\u0629 "
+                            + "\u0631\u062f Ask DELISKY."
+                        );
+                    }
+
+                    if (
+                        !response.ok ||
+                        !payload ||
+                        payload.ok !== true
+                    ) {
+                        const message = (
+                            payload &&
+                            payload.error &&
+                            payload.error.message
+                        )
+                            ? payload.error.message
+                            : (
+                                "\u062a\u0639\u0630\u0631 \u062a\u0646\u0641\u064a\u0630 "
+                                + "\u0627\u0644\u0633\u0624\u0627\u0644 "
+                                + "\u062d\u0627\u0644\u064a\u0627\u064b."
+                            );
+
+                        throw new Error(message);
+                    }
+
+                    if (
+                        typeof payload.answer !== "string" ||
+                        payload.answer.trim() === ""
+                    ) {
+                        throw new Error(
+                            "\u0644\u0645 \u064a\u0635\u0644 \u0631\u062f "
+                            + "\u0642\u0627\u0628\u0644 \u0644\u0644\u0639\u0631\u0636."
+                        );
+                    }
+
+                    answerText.textContent = (
+                        payload.answer
+                    );
+                    answer.hidden = false;
+
+                    showStatus(
+                        "\u0627\u0643\u062a\u0645\u0644 \u0627\u0644\u062a\u062d\u0644\u064a\u0644.",
+                        "success"
+                    );
+                } catch (error) {
+                    const message = (
+                        error instanceof Error &&
+                        error.message
+                    )
+                        ? error.message
+                        : (
+                            "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                            + "\u0628\u0640 Ask DELISKY."
+                        );
+
+                    showStatus(
+                        message,
+                        "error"
+                    );
+                } finally {
+                    setBusy(false);
+                }
+            }
+        );
+    });
+})();
