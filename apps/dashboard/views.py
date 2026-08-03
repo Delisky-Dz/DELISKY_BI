@@ -40,7 +40,11 @@ from apps.assistant.runtime import (
 from apps.imports.models import DistributionBrand
 from apps.workforce.models import Worker
 
-from .access import manager_required
+from .access import (
+    ai_assistant_required,
+    can_use_ai_assistants,
+    manager_required,
+)
 from .forms import (
     AskDeliskyForm,
     ManagerDashboardFilterForm,
@@ -524,6 +528,9 @@ def manager_dashboard(request):
         "summary": summary_presentation,
         "coverage": coverage_presentation,
         "data_quality": data_quality_presentation,
+        "can_use_ai_assistants": can_use_ai_assistants(
+            request.user
+        ),
         **worker_presentations,
     }
 
@@ -560,7 +567,7 @@ def _assistant_error_response(
     )
 
 
-@manager_required
+@ai_assistant_required
 @require_POST
 def ask_delisky_api(request):
     started_at = perf_counter()
@@ -776,7 +783,7 @@ def ask_delisky_api(request):
 
 
 
-@manager_required
+@ai_assistant_required
 @require_POST
 def marketing_helper_api(request):
     started_at = perf_counter()

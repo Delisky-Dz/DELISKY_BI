@@ -90,6 +90,37 @@ class MarketingHelperApiTests(TestCase):
             Group.objects.get(name="Accountant")
         )
 
+        cls.accountant_manager = User.objects.create_user(
+            username="marketing_helper_accountant_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.accountant_manager.groups.add(
+            Group.objects.get(name="Accountant"),
+            Group.objects.get(name="Manager"),
+        )
+
+        cls.superuser_manager = User.objects.create_user(
+            username="marketing_helper_superuser_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        cls.superuser_manager.groups.add(
+            Group.objects.get(name="Manager")
+        )
+
+        cls.super_admin_manager = User.objects.create_user(
+            username="marketing_helper_super_admin_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.super_admin_manager.groups.add(
+            Group.objects.get(name="Super Admin"),
+            Group.objects.get(name="Manager"),
+        )
+
     def api_url(self):
         return reverse(
             "dashboard:marketing_helper"
@@ -150,6 +181,55 @@ class MarketingHelperApiTests(TestCase):
             2,
         )
 
+    def test_super_admin_dashboards_hide_ai_assistants(
+        self
+    ):
+        for user in (
+            self.accountant_manager,
+            self.superuser_manager,
+            self.super_admin_manager,
+        ):
+            with self.subTest(
+                username=user.username
+            ):
+                self.client.force_login(
+                    user
+                )
+
+                response = self.client.get(
+                    reverse(
+                        "dashboard:manager_dashboard"
+                    )
+                )
+
+                self.assertEqual(
+                    response.status_code,
+                    200,
+                )
+
+                html = response.content.decode(
+                    "utf-8"
+                )
+
+                self.assertNotIn(
+                    "data-ask-delisky",
+                    html,
+                )
+                self.assertNotIn(
+                    "data-marketing-helper",
+                    html,
+                )
+                self.assertNotIn(
+                    'href="#ask-delisky-title"',
+                    html,
+                )
+                self.assertNotIn(
+                    'href="#marketing-helper-title"',
+                    html,
+                )
+
+                self.client.logout()
+
     def test_anonymous_user_is_redirected(self):
         response = self.client.post(
             self.api_url(),
@@ -166,6 +246,63 @@ class MarketingHelperApiTests(TestCase):
     def test_accountant_cannot_use_helper(self):
         self.client.force_login(
             self.accountant
+        )
+
+        response = self.client.post(
+            self.api_url(),
+            {
+                "question": "Give advice",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_accountant_role_cannot_use_helper_even_in_manager_group(
+        self
+    ):
+        self.client.force_login(
+            self.accountant_manager
+        )
+
+        response = self.client.post(
+            self.api_url(),
+            {
+                "question": "Give advice",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_superuser_cannot_use_helper_even_in_manager_group(
+        self
+    ):
+        self.client.force_login(
+            self.superuser_manager
+        )
+
+        response = self.client.post(
+            self.api_url(),
+            {
+                "question": "Give advice",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_super_admin_role_cannot_use_helper_even_in_manager_group(
+        self
+    ):
+        self.client.force_login(
+            self.super_admin_manager
         )
 
         response = self.client.post(

@@ -11,11 +11,13 @@
 
     {% include "dashboard/partials/filter_form.html" %}
 
-    {% if not filter_form.errors %}
-        {% include "dashboard/partials/ask_delisky.html" %}
-    {% endif %}
+    {% if can_use_ai_assistants %}
+        {% if not filter_form.errors %}
+            {% include "dashboard/partials/ask_delisky.html" %}
+        {% endif %}
 
-    {% include "dashboard/partials/marketing_helper.html" %}
+        {% include "dashboard/partials/marketing_helper.html" %}
+    {% endif %}
 
     {% if dashboard_result %}
         {% if summary %}

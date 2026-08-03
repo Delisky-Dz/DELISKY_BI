@@ -89,6 +89,37 @@ class AskDeliskyApiTests(TestCase):
             Group.objects.get(name="Accountant")
         )
 
+        cls.accountant_manager = User.objects.create_user(
+            username="ask_delisky_accountant_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.accountant_manager.groups.add(
+            Group.objects.get(name="Accountant"),
+            Group.objects.get(name="Manager"),
+        )
+
+        cls.superuser_manager = User.objects.create_user(
+            username="ask_delisky_superuser_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+            is_staff=True,
+            is_superuser=True,
+        )
+        cls.superuser_manager.groups.add(
+            Group.objects.get(name="Manager")
+        )
+
+        cls.super_admin_manager = User.objects.create_user(
+            username="ask_delisky_super_admin_manager",
+            password="Temporary-Test-Password-2026",
+            is_active=True,
+        )
+        cls.super_admin_manager.groups.add(
+            Group.objects.get(name="Super Admin"),
+            Group.objects.get(name="Manager"),
+        )
+
         cls.brand = DistributionBrand.objects.create(
             code="ASKTEST",
             name="Ask DELISKY Test",
@@ -116,6 +147,63 @@ class AskDeliskyApiTests(TestCase):
     def test_accountant_cannot_use_assistant(self):
         self.client.force_login(
             self.accountant
+        )
+
+        response = self.client.post(
+            self.api_url(),
+            {
+                "question": "Analyze",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_accountant_role_cannot_use_assistant_even_in_manager_group(
+        self
+    ):
+        self.client.force_login(
+            self.accountant_manager
+        )
+
+        response = self.client.post(
+            self.api_url(),
+            {
+                "question": "Analyze",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_superuser_cannot_use_assistant_even_in_manager_group(
+        self
+    ):
+        self.client.force_login(
+            self.superuser_manager
+        )
+
+        response = self.client.post(
+            self.api_url(),
+            {
+                "question": "Analyze",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+    def test_super_admin_role_cannot_use_assistant_even_in_manager_group(
+        self
+    ):
+        self.client.force_login(
+            self.super_admin_manager
         )
 
         response = self.client.post(

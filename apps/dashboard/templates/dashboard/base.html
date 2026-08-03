@@ -211,6 +211,7 @@
                         </a>
                     </li>
 
+                    {% if can_use_ai_assistants %}
                     <li>
                         <a
                             class="sidebar__link"
@@ -246,6 +247,8 @@
                         </a>
                     </li>
 
+                    {% endif %}
+
                     {% if request.user.is_superuser %}
                         <li>
                             <a
@@ -256,7 +259,7 @@
                                     class="sidebar__icon"
                                     aria-hidden="true"
                                 >
-                                    08
+                                    06
                                 </span>
 
                                 <span>لوحة الإدارة</span>
