@@ -176,3 +176,70 @@ class LocalAskDeliskyProviderTests(SimpleTestCase):
             provider.generate(
                 self.make_request()
             )
+
+
+from django.test import SimpleTestCase
+
+from apps.assistant.local_provider import (
+    ASK_DELISKY_SYSTEM_PROMPT,
+)
+
+
+class AskDeliskyAnalyticalBoundaryTests(
+    SimpleTestCase
+):
+    def test_system_prompt_forbids_generic_advice_when_context_is_insufficient(
+        self,
+    ):
+        self.assertIn(
+            "say so clearly and stop",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Do not replace missing evidence with general advice",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "DELISKY AI Marketing Helper",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "do not provide suggestions",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "requests for additional data",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Reply briefly",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "does not use DELISKY analytical data",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Never claim or imply that Marketing Helper has access to",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Never answer beyond what the supplied analytical context supports",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+
+
+class AskDeliskyPlainTextOutputTests(
+    SimpleTestCase
+):
+    def test_system_prompt_requires_plain_text(
+        self,
+    ):
+        self.assertIn(
+            "Return plain text only",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Do not use Markdown formatting",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )

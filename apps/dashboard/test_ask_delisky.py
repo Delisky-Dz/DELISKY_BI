@@ -979,7 +979,7 @@ class AskDeliskyJavascriptSafetyTests(TestCase):
         )
 
         assistant_javascript = javascript.split(
-            "/* ASK DELISKY V1 */",
+            "/* DELISKY AI ASSISTANTS V2 */",
             maxsplit=1,
         )[1]
 

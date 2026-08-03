@@ -74,3 +74,20 @@ class AskDeliskyForm(ManagerDashboardFilterForm):
             }
         ),
     )
+
+
+
+class MarketingHelperForm(forms.Form):
+    question = forms.CharField(
+        required=True,
+        max_length=1000,
+        strip=True,
+        label="DELISKY AI Marketing Helper",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "maxlength": 1000,
+                "autocomplete": "off",
+            }
+        ),
+    )

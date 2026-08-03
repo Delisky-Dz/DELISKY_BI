@@ -1,19 +1,61 @@
 <section
-    class="dashboard-section ask-delisky"
+    class="dashboard-section ask-delisky ai-assistant"
     aria-labelledby="ask-delisky-title"
     data-ask-delisky
+    data-ai-assistant
+    data-assistant-kind="analytics"
 >
-    <header class="ask-delisky__header">
+    <header class="ask-delisky__header ai-assistant__header">
+        <span
+            class="ai-assistant__icon"
+            aria-hidden="true"
+            data-robot-icon
+        >
+            <svg
+                class="ai-assistant__robot-svg"
+                viewBox="0 0 24 24"
+                focusable="false"
+            >
+                <path d="M12 4V2.8"></path>
+                <circle
+                    cx="12"
+                    cy="2.2"
+                    r="1"
+                ></circle>
+                <rect
+                    x="4.5"
+                    y="6"
+                    width="15"
+                    height="12"
+                    rx="3"
+                ></rect>
+                <circle
+                    cx="9"
+                    cy="11.5"
+                    r="0.8"
+                    class="ai-assistant__robot-eye"
+                ></circle>
+                <circle
+                    cx="15"
+                    cy="11.5"
+                    r="0.8"
+                    class="ai-assistant__robot-eye"
+                ></circle>
+                <path d="M8.5 15h7"></path>
+                <path d="M2.5 10v4"></path>
+                <path d="M21.5 10v4"></path>
+            </svg>
+        </span>
         <div>
             <p class="section-eyebrow">
-                مساعد DELISKY الذكي
+                مساعد تحليل بيانات DELISKY
             </p>
 
             <h2 id="ask-delisky-title">
                 Ask DELISKY
             </h2>
 
-            <p class="ask-delisky__description">
+            <p class="ask-delisky__description ai-assistant__description">
                 اسأل عن النتائج
                 والمؤشرات الظاهرة
                 حسب الفترة
@@ -21,19 +63,14 @@
             </p>
         </div>
 
-        <span
-            class="ask-delisky__icon"
-            aria-hidden="true"
-        >
-            AI
-        </span>
     </header>
 
     <form
         method="post"
         action="{% url 'dashboard:ask_delisky' %}"
-        class="ask-delisky__form"
+        class="ask-delisky__form ai-assistant__form"
         data-ask-delisky-form
+        data-ai-form
         novalidate
     >
         {% csrf_token %}
@@ -56,7 +93,7 @@
             value="{% if filter_form.cleaned_data.brand %}{{ filter_form.cleaned_data.brand.pk }}{% endif %}"
         >
 
-        <div class="ask-delisky__field">
+        <div class="ask-delisky__field ai-assistant__field">
             <label for="ask-delisky-question">
                 ماذا تريد أن تعرف؟
             </label>
@@ -70,6 +107,7 @@
                 autocomplete="off"
                 placeholder="مثال: ما أهم الملاحظات التي تحتاج تدخلي؟"
                 data-ask-delisky-question
+                data-ai-question
             ></textarea>
 
             <small>
@@ -79,11 +117,12 @@
             </small>
         </div>
 
-        <div class="ask-delisky__actions">
+        <div class="ask-delisky__actions ai-assistant__actions">
             <button
                 class="button button--primary"
                 type="submit"
                 data-ask-delisky-submit
+                data-ai-submit
             >
                 اسأل Ask DELISKY
             </button>
@@ -96,16 +135,18 @@
     </form>
 
     <div
-        class="ask-delisky__status"
+        class="ask-delisky__status ai-assistant__status"
         data-ask-delisky-status
+        data-ai-status
         role="status"
         aria-live="polite"
         hidden
     ></div>
 
     <article
-        class="ask-delisky__answer"
+        class="ask-delisky__answer ai-assistant__answer"
         data-ask-delisky-answer
+        data-ai-answer
         hidden
     >
         <p class="section-eyebrow">
@@ -113,8 +154,9 @@
         </p>
 
         <p
-            class="ask-delisky__answer-text"
+            class="ask-delisky__answer-text ai-assistant__answer-text"
             data-ask-delisky-answer-text
+            data-ai-answer-text
         ></p>
     </article>
 </section>

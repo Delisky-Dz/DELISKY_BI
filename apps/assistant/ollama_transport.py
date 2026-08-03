@@ -12,6 +12,7 @@ from urllib.request import (
 OLLAMA_KEEP_ALIVE = "5m"
 OLLAMA_TEMPERATURE = 0.2
 OLLAMA_NUM_PREDICT = 96
+OLLAMA_MAX_NUM_PREDICT = 512
 
 
 class OllamaTransportError(RuntimeError):
@@ -126,6 +127,25 @@ class OllamaTransport:
     proxies are disabled, and HTTP redirects are rejected.
     """
 
+    def __init__(
+        self,
+        *,
+        num_predict: int = OLLAMA_NUM_PREDICT,
+    ) -> None:
+        if (
+            isinstance(num_predict, bool)
+            or not isinstance(num_predict, int)
+            or num_predict < 1
+            or num_predict > OLLAMA_MAX_NUM_PREDICT
+        ):
+            raise ValueError(
+                "Ollama num_predict must be an integer "
+                "between 1 and "
+                f"{OLLAMA_MAX_NUM_PREDICT}."
+            )
+
+        self._num_predict = num_predict
+
     def generate(
         self,
         *,
@@ -158,7 +178,7 @@ class OllamaTransport:
             "keep_alive": OLLAMA_KEEP_ALIVE,
             "options": {
                 "temperature": OLLAMA_TEMPERATURE,
-                "num_predict": OLLAMA_NUM_PREDICT,
+                "num_predict": self._num_predict,
             },
         }
 

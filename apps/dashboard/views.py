@@ -13,6 +13,14 @@ from apps.assistant.audit import (
 )
 from apps.assistant.models import (
     AskDeliskyAuditOutcome,
+    AskDeliskyAuditScope,
+)
+from apps.assistant.marketing_provider_factory import (
+    MarketingHelperProviderConfigurationError,
+    MarketingHelperProviderDisabledError,
+)
+from apps.assistant.marketing_runtime import (
+    ask_marketing_helper,
 )
 from apps.assistant.ollama_transport import (
     OllamaTransportError,
@@ -22,6 +30,7 @@ from apps.assistant.provider_factory import (
     AskDeliskyProviderDisabledError,
 )
 from apps.assistant.rate_limit import (
+    MARKETING_HELPER_SCOPE,
     AskDeliskyRateLimitConfigurationError,
     check_ask_delisky_rate_limit,
 )
@@ -35,6 +44,7 @@ from .access import manager_required
 from .forms import (
     AskDeliskyForm,
     ManagerDashboardFilterForm,
+    MarketingHelperForm,
 )
 from .presenters import (
     present_analytical_coverage,
@@ -526,7 +536,7 @@ def manager_dashboard(request):
 
 
 
-def _ask_delisky_error_response(
+def _assistant_error_response(
     *,
     code: str,
     message: str,
@@ -598,7 +608,7 @@ def ask_delisky_api(request):
             http_status=400,
         )
 
-        return _ask_delisky_error_response(
+        return _assistant_error_response(
             code="INVALID_REQUEST",
             message=(
                 "\u062a\u062d\u0642\u0642 \u0645\u0646 \u0627\u0644\u0633\u0624\u0627\u0644 "
@@ -641,7 +651,7 @@ def ask_delisky_api(request):
             brand_id=brand_id,
         )
 
-        return _ask_delisky_error_response(
+        return _assistant_error_response(
             code="RATE_LIMIT_CONFIGURATION_ERROR",
             message=(
                 "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
@@ -662,7 +672,7 @@ def ask_delisky_api(request):
             brand_id=brand_id,
         )
 
-        response = _ask_delisky_error_response(
+        response = _assistant_error_response(
             code="RATE_LIMITED",
             message=(
                 "\u062a\u0645 \u0628\u0644\u0648\u063a \u0627\u0644\u062d\u062f \u0627\u0644\u0645\u0624\u0642\u062a "
@@ -695,7 +705,7 @@ def ask_delisky_api(request):
             brand_id=brand_id,
         )
 
-        return _ask_delisky_error_response(
+        return _assistant_error_response(
             code="PROVIDER_CONFIGURATION_ERROR",
             message=(
                 "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
@@ -714,7 +724,7 @@ def ask_delisky_api(request):
             brand_id=brand_id,
         )
 
-        return _ask_delisky_error_response(
+        return _assistant_error_response(
             code="PROVIDER_DISABLED",
             message=(
                 "Ask DELISKY "
@@ -734,7 +744,7 @@ def ask_delisky_api(request):
             brand_id=brand_id,
         )
 
-        return _ask_delisky_error_response(
+        return _assistant_error_response(
             code="PROVIDER_UNAVAILABLE",
             message=(
                 "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
@@ -761,5 +771,193 @@ def ask_delisky_api(request):
             "context_schema_version": (
                 response.context_schema_version
             ),
+        }
+    )
+
+
+
+@manager_required
+@require_POST
+def marketing_helper_api(request):
+    started_at = perf_counter()
+
+    def record_audit(
+        *,
+        outcome,
+        http_status,
+    ):
+        duration_ms = max(
+            0,
+            round(
+                (
+                    perf_counter()
+                    - started_at
+                )
+                * 1000
+            ),
+        )
+
+        record_ask_delisky_audit_event(
+            user=request.user,
+            record=AskDeliskyAuditRecord(
+                outcome=outcome,
+                http_status=http_status,
+                scope=(
+                    AskDeliskyAuditScope
+                    .MARKETING_HELPER
+                ),
+                duration_ms=duration_ms,
+            ),
+        )
+
+    form = MarketingHelperForm(
+        data=request.POST,
+    )
+
+    if not form.is_valid():
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome.INVALID_REQUEST
+            ),
+            http_status=400,
+        )
+
+        return _assistant_error_response(
+            code="INVALID_REQUEST",
+            message=(
+                "\u062a\u062d\u0642\u0642 \u0645\u0646 "
+                "\u0627\u0644\u0633\u0624\u0627\u0644 \u062b\u0645 "
+                "\u0623\u0639\u062f \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629."
+            ),
+            status=400,
+            errors=form.errors.get_json_data(
+                escape_html=True
+            ),
+        )
+
+    try:
+        rate_limit = check_ask_delisky_rate_limit(
+            user=request.user,
+            scope=MARKETING_HELPER_SCOPE,
+        )
+    except AskDeliskyRateLimitConfigurationError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome
+                .RATE_LIMIT_CONFIGURATION_ERROR
+            ),
+            http_status=503,
+        )
+
+        return _assistant_error_response(
+            code="RATE_LIMIT_CONFIGURATION_ERROR",
+            message=(
+                "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
+                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a "
+                "\u0627\u0644\u062d\u0645\u0627\u064a\u0629 "
+                "\u0644\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                "\u0627\u0644\u062a\u062c\u0627\u0631\u064a."
+            ),
+            status=503,
+        )
+
+    if not rate_limit.allowed:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome.RATE_LIMITED
+            ),
+            http_status=429,
+        )
+
+        response = _assistant_error_response(
+            code="RATE_LIMITED",
+            message=(
+                "\u062a\u0645 \u0628\u0644\u0648\u063a "
+                "\u0627\u0644\u062d\u062f \u0627\u0644\u0645\u0624\u0642\u062a "
+                "\u0644\u0637\u0644\u0628\u0627\u062a "
+                "\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631. "
+                "\u0623\u0639\u062f \u0627\u0644\u0645\u062d\u0627\u0648\u0644\u0629 "
+                "\u0628\u0639\u062f \u0642\u0644\u064a\u0644."
+            ),
+            status=429,
+        )
+
+        response["Retry-After"] = str(
+            rate_limit.retry_after_seconds
+        )
+        return response
+
+    try:
+        result = ask_marketing_helper(
+            question=form.cleaned_data["question"],
+        )
+    except MarketingHelperProviderConfigurationError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome
+                .PROVIDER_CONFIGURATION_ERROR
+            ),
+            http_status=503,
+        )
+
+        return _assistant_error_response(
+            code="PROVIDER_CONFIGURATION_ERROR",
+            message=(
+                "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
+                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a "
+                "\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                "\u0627\u0644\u062a\u062c\u0627\u0631\u064a."
+            ),
+            status=503,
+        )
+    except MarketingHelperProviderDisabledError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome.PROVIDER_DISABLED
+            ),
+            http_status=503,
+        )
+
+        return _assistant_error_response(
+            code="PROVIDER_DISABLED",
+            message=(
+                "\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                "\u0627\u0644\u062a\u062c\u0627\u0631\u064a "
+                "\u063a\u064a\u0631 \u0645\u0641\u0639\u0644 "
+                "\u062d\u0627\u0644\u064a\u0627."
+            ),
+            status=503,
+        )
+    except OllamaTransportError:
+        record_audit(
+            outcome=(
+                AskDeliskyAuditOutcome
+                .PROVIDER_UNAVAILABLE
+            ),
+            http_status=503,
+        )
+
+        return _assistant_error_response(
+            code="PROVIDER_UNAVAILABLE",
+            message=(
+                "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                "\u0628\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                "\u0627\u0644\u062a\u062c\u0627\u0631\u064a "
+                "\u062d\u0627\u0644\u064a\u0627."
+            ),
+            status=503,
+        )
+
+    record_audit(
+        outcome=AskDeliskyAuditOutcome.SUCCESS,
+        http_status=200,
+    )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "answer": result.answer,
+            "provider": result.provider_name,
+            "model": result.model_name,
         }
     )

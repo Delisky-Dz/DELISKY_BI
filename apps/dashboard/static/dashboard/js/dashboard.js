@@ -380,35 +380,79 @@
 
 
 
-/* ASK DELISKY V1 */
+/* DELISKY AI ASSISTANTS V2 */
 
 (function () {
     "use strict";
 
     const assistants = Array.from(
         document.querySelectorAll(
-            "[data-ask-delisky]"
+            "[data-ai-assistant]"
         )
     );
 
+    function getMessages(kind) {
+        if (kind === "marketing") {
+            return {
+                loading:
+                    "\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                    + "\u064a\u062d\u0636\u0651\u0631 "
+                    + "\u0627\u0644\u0625\u062c\u0627\u0628\u0629... "
+                    + "\u0642\u062f \u062a\u0633\u062a\u063a\u0631\u0642 "
+                    + "\u0627\u0644\u0639\u0645\u0644\u064a\u0629 "
+                    + "\u0639\u062f\u0629 \u0639\u0634\u0631\u0627\u062a "
+                    + "\u0645\u0646 \u0627\u0644\u062b\u0648\u0627\u0646\u064a.",
+                success:
+                    "\u0627\u0643\u062a\u0645\u0644\u062a "
+                    + "\u0625\u062c\u0627\u0628\u0629 "
+                    + "\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631.",
+                readError:
+                    "\u062a\u0639\u0630\u0631 \u0642\u0631\u0627\u0621\u0629 "
+                    + "\u0631\u062f \u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                    + "\u0627\u0644\u062a\u062c\u0627\u0631\u064a.",
+                fallbackError:
+                    "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                    + "\u0628\u0627\u0644\u0645\u0633\u062a\u0634\u0627\u0631 "
+                    + "\u0627\u0644\u062a\u062c\u0627\u0631\u064a.",
+            };
+        }
+
+        return {
+            loading:
+                "\u062c\u0627\u0631\u064a \u062a\u062d\u0644\u064a\u0644 "
+                + "\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a... "
+                + "\u0642\u062f \u064a\u0633\u062a\u063a\u0631\u0642 "
+                + "\u0630\u0644\u0643 \u0628\u0636\u0639 \u062b\u0648\u0627\u0646\u064d.",
+            success:
+                "\u0627\u0643\u062a\u0645\u0644 "
+                + "\u0627\u0644\u062a\u062d\u0644\u064a\u0644.",
+            readError:
+                "\u062a\u0639\u0630\u0631 \u0642\u0631\u0627\u0621\u0629 "
+                + "\u0631\u062f Ask DELISKY.",
+            fallbackError:
+                "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                + "\u0628\u0640 Ask DELISKY.",
+        };
+    }
+
     assistants.forEach(function (assistant) {
         const form = assistant.querySelector(
-            "[data-ask-delisky-form]"
+            "[data-ai-form]"
         );
         const submitButton = assistant.querySelector(
-            "[data-ask-delisky-submit]"
+            "[data-ai-submit]"
         );
         const status = assistant.querySelector(
-            "[data-ask-delisky-status]"
+            "[data-ai-status]"
         );
         const answer = assistant.querySelector(
-            "[data-ask-delisky-answer]"
+            "[data-ai-answer]"
         );
         const answerText = assistant.querySelector(
-            "[data-ask-delisky-answer-text]"
+            "[data-ai-answer-text]"
         );
         const question = assistant.querySelector(
-            "[data-ask-delisky-question]"
+            "[data-ai-question]"
         );
 
         if (
@@ -421,6 +465,10 @@
         ) {
             return;
         }
+
+        const messages = getMessages(
+            assistant.dataset.assistantKind
+        );
 
         let submitting = false;
 
@@ -440,12 +488,12 @@
             status.textContent = message;
 
             status.classList.toggle(
-                "ask-delisky__status--error",
+                "ai-assistant__status--error",
                 kind === "error"
             );
 
             status.classList.toggle(
-                "ask-delisky__status--success",
+                "ai-assistant__status--success",
                 kind === "success"
             );
         }
@@ -472,10 +520,7 @@
                 setBusy(true);
 
                 showStatus(
-                    "\u062c\u0627\u0631\u064a \u062a\u062d\u0644\u064a\u0644 "
-                    + "\u0627\u0644\u0645\u0624\u0634\u0631\u0627\u062a... "
-                    + "\u0642\u062f \u064a\u0633\u062a\u063a\u0631\u0642 "
-                    + "\u0630\u0644\u0643 \u0628\u0636\u0639 \u062b\u0648\u0627\u0646\u064d.",
+                    messages.loading,
                     "loading"
                 );
 
@@ -499,8 +544,7 @@
                         payload = await response.json();
                     } catch (error) {
                         throw new Error(
-                            "\u062a\u0639\u0630\u0631 \u0642\u0631\u0627\u0621\u0629 "
-                            + "\u0631\u062f Ask DELISKY."
+                            messages.readError
                         );
                     }
 
@@ -516,7 +560,8 @@
                         )
                             ? payload.error.message
                             : (
-                                "\u062a\u0639\u0630\u0631 \u062a\u0646\u0641\u064a\u0630 "
+                                "\u062a\u0639\u0630\u0631 "
+                                + "\u062a\u0646\u0641\u064a\u0630 "
                                 + "\u0627\u0644\u0633\u0624\u0627\u0644 "
                                 + "\u062d\u0627\u0644\u064a\u0627\u064b."
                             );
@@ -529,8 +574,9 @@
                         payload.answer.trim() === ""
                     ) {
                         throw new Error(
-                            "\u0644\u0645 \u064a\u0635\u0644 \u0631\u062f "
-                            + "\u0642\u0627\u0628\u0644 \u0644\u0644\u0639\u0631\u0636."
+                            "\u0644\u0645 \u064a\u0635\u0644 "
+                            + "\u0631\u062f \u0642\u0627\u0628\u0644 "
+                            + "\u0644\u0644\u0639\u0631\u0636."
                         );
                     }
 
@@ -540,7 +586,7 @@
                     answer.hidden = false;
 
                     showStatus(
-                        "\u0627\u0643\u062a\u0645\u0644 \u0627\u0644\u062a\u062d\u0644\u064a\u0644.",
+                        messages.success,
                         "success"
                     );
                 } catch (error) {
@@ -549,10 +595,7 @@
                         error.message
                     )
                         ? error.message
-                        : (
-                            "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
-                            + "\u0628\u0640 Ask DELISKY."
-                        );
+                        : messages.fallbackError;
 
                     showStatus(
                         message,

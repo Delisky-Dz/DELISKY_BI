@@ -75,7 +75,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'dashboard/css/dashboard.css' %}?v=20260802-ask-delisky-1"
+        href="{% static 'dashboard/css/dashboard.css' %}?v=20260802-ai-assistants-2"
     >
 
     {% block extra_head %}{% endblock %}
@@ -227,6 +227,25 @@
                         </a>
                     </li>
 
+                    <li>
+                        <a
+                            class="sidebar__link"
+                            href="#marketing-helper-title"
+                        >
+                            <span
+                                class="sidebar__icon"
+                                aria-hidden="true"
+                            >
+                                07
+                            </span>
+
+                            <span>
+                                المستشار
+                                التجاري
+                            </span>
+                        </a>
+                    </li>
+
                     {% if request.user.is_superuser %}
                         <li>
                             <a
@@ -237,7 +256,7 @@
                                     class="sidebar__icon"
                                     aria-hidden="true"
                                 >
-                                    07
+                                    08
                                 </span>
 
                                 <span>لوحة الإدارة</span>
@@ -394,7 +413,7 @@
     </div>
 
     <script
-        src="{% static 'dashboard/js/dashboard.js' %}?v=20260802-ask-delisky-1"
+        src="{% static 'dashboard/js/dashboard.js' %}?v=20260802-ai-assistants-2"
         defer
     ></script>
 

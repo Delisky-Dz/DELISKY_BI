@@ -114,6 +114,59 @@ class OllamaTransportTests(SimpleTestCase):
             },
         )
 
+    def test_custom_num_predict_is_used(self):
+        opener = FakeOpener(
+            response=FakeResponse(
+                b'{"response":"result","done":true}'
+            )
+        )
+
+        transport = OllamaTransport(
+            num_predict=192
+        )
+
+        with patch(
+            "apps.assistant.ollama_transport.build_opener",
+            return_value=opener,
+        ):
+            answer = transport.generate(
+                base_url="http://127.0.0.1:11434",
+                model_name="test-model",
+                timeout_seconds=30,
+                system_prompt="System rules",
+                user_prompt="Give commercial advice",
+            )
+
+        self.assertEqual(
+            answer,
+            "result",
+        )
+
+        payload = json.loads(
+            opener.request.data.decode("utf-8")
+        )
+
+        self.assertEqual(
+            payload["options"]["num_predict"],
+            192,
+        )
+
+    def test_invalid_num_predict_is_rejected(self):
+        invalid_values = (
+            0,
+            -1,
+            513,
+            True,
+            "192",
+        )
+
+        for value in invalid_values:
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    OllamaTransport(
+                        num_predict=value
+                    )
+
     def test_proxy_is_disabled_and_redirects_are_blocked(
         self,
     ):

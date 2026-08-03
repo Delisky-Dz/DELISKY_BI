@@ -1,0 +1,154 @@
+<section
+    class="dashboard-section marketing-helper ai-assistant"
+    aria-labelledby="marketing-helper-title"
+    data-marketing-helper
+    data-ai-assistant
+    data-assistant-kind="marketing"
+>
+    <header class="ai-assistant__header">
+        <span
+            class="ai-assistant__icon marketing-helper__icon"
+            aria-hidden="true"
+            data-robot-icon
+        >
+            <svg
+                class="ai-assistant__robot-svg"
+                viewBox="0 0 24 24"
+                focusable="false"
+            >
+                <path d="M12 4V2.8"></path>
+                <circle
+                    cx="12"
+                    cy="2.2"
+                    r="1"
+                ></circle>
+                <rect
+                    x="4.5"
+                    y="6"
+                    width="15"
+                    height="12"
+                    rx="3"
+                ></rect>
+                <circle
+                    cx="9"
+                    cy="11.5"
+                    r="0.8"
+                    class="ai-assistant__robot-eye"
+                ></circle>
+                <circle
+                    cx="15"
+                    cy="11.5"
+                    r="0.8"
+                    class="ai-assistant__robot-eye"
+                ></circle>
+                <path d="M8.5 15h7"></path>
+                <path d="M2.5 10v4"></path>
+                <path d="M21.5 10v4"></path>
+            </svg>
+        </span>
+
+        <div>
+            <p class="section-eyebrow">
+                DELISKY AI Marketing Helper
+            </p>
+
+            <h2 id="marketing-helper-title">
+                المستشار
+                التجاري
+                والتسويقي
+                الذكي
+            </h2>
+
+            <p class="ai-assistant__description">
+                اسأل عن
+                التسويق،
+                المبيعات،
+                التوزيع،
+                العروض
+                التجارية
+                وتنشيط
+                نقاط البيع.
+            </p>
+        </div>
+    </header>
+
+    <form
+        method="post"
+        action="{% url 'dashboard:marketing_helper' %}"
+        class="ai-assistant__form"
+        data-ai-form
+        novalidate
+    >
+        {% csrf_token %}
+
+        <div class="ai-assistant__field">
+            <label for="marketing-helper-question">
+                ماذا تريد
+                أن تسأل
+                المستشار؟
+            </label>
+
+            <textarea
+                id="marketing-helper-question"
+                name="question"
+                rows="4"
+                maxlength="1000"
+                required
+                autocomplete="off"
+                placeholder="مثال: اقترح لي خطة لرفع مبيعات منتج ضعيف في نقاط البيع."
+                data-ai-question
+            ></textarea>
+
+            <small>
+                هذا المساعد
+                يقدم استشارات
+                عامة.
+                لتحليل
+                بيانات DELISKY
+                الفعلية
+                استعمل Ask DELISKY.
+            </small>
+        </div>
+
+        <div class="ai-assistant__actions">
+            <button
+                class="button button--primary"
+                type="submit"
+                data-ai-submit
+            >
+                اسأل
+                المستشار
+            </button>
+
+            <span class="ai-assistant__scope">
+                معرفة عامة
+                في التجارة
+                والتسويق
+            </span>
+        </div>
+    </form>
+
+    <div
+        class="ai-assistant__status"
+        data-ai-status
+        role="status"
+        aria-live="polite"
+        hidden
+    ></div>
+
+    <article
+        class="ai-assistant__answer"
+        data-ai-answer
+        hidden
+    >
+        <p class="section-eyebrow">
+            إجابة
+            المستشار
+        </p>
+
+        <p
+            class="ai-assistant__answer-text"
+            data-ai-answer-text
+        ></p>
+    </article>
+</section>

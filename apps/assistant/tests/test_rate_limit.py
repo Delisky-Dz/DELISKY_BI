@@ -198,6 +198,46 @@ class AskDeliskyRateLimitTests(TestCase):
             reset.allowed
         )
 
+    def test_same_user_has_independent_scopes(
+        self
+    ):
+        now = timezone.now()
+
+        environ = {
+            "ASK_DELISKY_RATE_LIMIT_REQUESTS":
+                "1",
+            "ASK_DELISKY_RATE_LIMIT_WINDOW_SECONDS":
+                "60",
+        }
+
+        manager_result = check_ask_delisky_rate_limit(
+            user=self.user,
+            scope="manager_ask",
+            now=now,
+            environ=environ,
+        )
+
+        marketing_result = check_ask_delisky_rate_limit(
+            user=self.user,
+            scope="marketing_helper",
+            now=now,
+            environ=environ,
+        )
+
+        self.assertTrue(
+            manager_result.allowed
+        )
+        self.assertTrue(
+            marketing_result.allowed
+        )
+
+        self.assertEqual(
+            AskDeliskyRateLimit.objects.filter(
+                user=self.user
+            ).count(),
+            2,
+        )
+
     def test_users_have_independent_buckets(
         self
     ):

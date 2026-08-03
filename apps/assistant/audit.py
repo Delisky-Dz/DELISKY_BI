@@ -3,7 +3,7 @@ from datetime import date
 
 from apps.assistant.models import (
     AskDeliskyAuditEvent,
-    AskDeliskyAuditOutcome,
+    AskDeliskyAuditScope,
 )
 
 
@@ -11,6 +11,7 @@ from apps.assistant.models import (
 class AskDeliskyAuditRecord:
     outcome: str
     http_status: int
+    scope: str = AskDeliskyAuditScope.MANAGER_ASK
     duration_ms: int | None = None
     period_start: date | None = None
     period_end: date | None = None
@@ -23,6 +24,7 @@ def record_ask_delisky_audit_event(
     record: AskDeliskyAuditRecord,
 ) -> AskDeliskyAuditEvent:
     return AskDeliskyAuditEvent.objects.create(
+        scope=record.scope,
         user=user,
         period_start=record.period_start,
         period_end=record.period_end,

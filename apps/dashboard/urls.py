@@ -16,4 +16,9 @@ urlpatterns = [
         views.ask_delisky_api,
         name="ask_delisky",
     ),
+    path(
+        "marketing-helper/",
+        views.marketing_helper_api,
+        name="marketing_helper",
+    ),
 ]

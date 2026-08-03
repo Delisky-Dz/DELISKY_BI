@@ -41,6 +41,14 @@ class AskDeliskyRateLimit(models.Model):
 
 
 
+class AskDeliskyAuditScope(models.TextChoices):
+    MANAGER_ASK = "manager_ask", "Ask DELISKY"
+    MARKETING_HELPER = (
+        "marketing_helper",
+        "Marketing helper",
+    )
+
+
 class AskDeliskyAuditOutcome(models.TextChoices):
     SUCCESS = "SUCCESS", "Success"
     INVALID_REQUEST = "INVALID_REQUEST", "Invalid request"
@@ -64,6 +72,12 @@ class AskDeliskyAuditOutcome(models.TextChoices):
 
 
 class AskDeliskyAuditEvent(models.Model):
+    scope = models.CharField(
+        max_length=32,
+        choices=AskDeliskyAuditScope.choices,
+        default=AskDeliskyAuditScope.MANAGER_ASK,
+        db_index=True,
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

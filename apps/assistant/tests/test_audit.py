@@ -10,6 +10,7 @@ from apps.assistant.audit import (
 from apps.assistant.models import (
     AskDeliskyAuditEvent,
     AskDeliskyAuditOutcome,
+    AskDeliskyAuditScope,
 )
 
 
@@ -100,6 +101,38 @@ class AskDeliskyAuditTests(TestCase):
             forbidden.isdisjoint(
                 field_names
             )
+        )
+
+    def test_default_scope_is_manager_ask(self):
+        event = record_ask_delisky_audit_event(
+            user=self.user,
+            record=AskDeliskyAuditRecord(
+                outcome=AskDeliskyAuditOutcome.SUCCESS,
+                http_status=200,
+            ),
+        )
+
+        self.assertEqual(
+            event.scope,
+            AskDeliskyAuditScope.MANAGER_ASK,
+        )
+
+    def test_marketing_helper_scope_is_supported(self):
+        event = record_ask_delisky_audit_event(
+            user=self.user,
+            record=AskDeliskyAuditRecord(
+                outcome=AskDeliskyAuditOutcome.SUCCESS,
+                http_status=200,
+                scope=(
+                    AskDeliskyAuditScope
+                    .MARKETING_HELPER
+                ),
+            ),
+        )
+
+        self.assertEqual(
+            event.scope,
+            AskDeliskyAuditScope.MARKETING_HELPER,
         )
 
     def test_minimal_failure_event_is_supported(self):

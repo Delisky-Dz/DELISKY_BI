@@ -11,6 +11,7 @@ from .models import AskDeliskyRateLimit
 
 
 ASK_DELISKY_MANAGER_SCOPE = "manager_ask"
+MARKETING_HELPER_SCOPE = "marketing_helper"
 
 
 class AskDeliskyRateLimitConfigurationError(
