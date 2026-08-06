@@ -263,6 +263,43 @@ try {
     }
 
     # ---------------------------------------------------------------
+    # Retention policy
+    # ---------------------------------------------------------------
+
+    $retentionHelper = Join-Path `
+        $projectRoot `
+        "scripts\backup_retention.py"
+
+    if (-not (Test-Path -LiteralPath $retentionHelper)) {
+        throw "Retention helper not found: $retentionHelper"
+    }
+
+    $retentionOutput = @(
+        & $python $retentionHelper `
+            --backup-root $backupRoot `
+            --keep-all-days 30 `
+            --keep-weekly-weeks 12 `
+            --keep-monthly-months 12 `
+            --minimum-protected-days 14 `
+            --emergency-free-gb 50 `
+            --emergency-target-gb 75 `
+            --apply 2>&1
+    )
+
+    $retentionExitCode = $LASTEXITCODE
+
+    foreach ($line in $retentionOutput) {
+        Write-BackupLog "Retention: $line"
+    }
+
+    if ($retentionExitCode -ne 0) {
+        throw "Retention policy failed with exit code $retentionExitCode."
+    }
+
+    if (-not ($retentionOutput -contains "RETENTION_RESULT=PASS")) {
+        throw "Retention policy did not report PASS."
+    }
+    # ---------------------------------------------------------------
     # Capacity
     # ---------------------------------------------------------------
 
