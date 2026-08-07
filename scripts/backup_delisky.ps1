@@ -263,6 +263,117 @@ try {
     }
 
     # ---------------------------------------------------------------
+    # Encrypted secrets backup
+    # ---------------------------------------------------------------
+
+    $envSource = Join-Path $projectRoot ".env"
+    $recipientFile = Join-Path `
+        $projectRoot `
+        "config\backup_age_recipient.txt"
+
+    if (-not (Test-Path -LiteralPath $envSource)) {
+        throw "Required .env file was not found."
+    }
+
+    if (-not (Test-Path -LiteralPath $recipientFile)) {
+        throw "Age recipient file was not found."
+    }
+
+    $recipient = (
+        Get-Content `
+            -LiteralPath $recipientFile `
+            -Raw
+    ).Trim()
+
+    if ($recipient -notmatch '^age1[0-9a-z]+$') {
+        throw "Age recipient file contains an invalid recipient."
+    }
+
+    $ageCommand = Get-Command `
+        age.exe `
+        -ErrorAction SilentlyContinue
+
+    if ($null -ne $ageCommand) {
+        $ageExe = $ageCommand.Source
+    }
+    else {
+        $ageExe = Get-ChildItem `
+            -Path "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" `
+            -Filter "age.exe" `
+            -File `
+            -Recurse `
+            -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.FullName -match 'FiloSottile\.age'
+            } |
+            Select-Object -First 1 -ExpandProperty FullName
+    }
+
+    if (-not $ageExe -or -not (Test-Path -LiteralPath $ageExe)) {
+        throw "age.exe was not found."
+    }
+
+    $secretsDate = Get-Date -Format "yyyy-MM-dd"
+
+    $secretsDayDir = Join-Path `
+        (Join-Path $backupRoot "Secrets") `
+        $secretsDate
+
+    New-Item `
+        -ItemType Directory `
+        -Path $secretsDayDir `
+        -Force |
+        Out-Null
+
+    $encryptedEnv = Join-Path `
+        $secretsDayDir `
+        "DELISKY_env_$timestamp.age"
+
+    $encryptedEnvPartial = "$encryptedEnv.partial"
+
+    Remove-Item `
+        -LiteralPath $encryptedEnvPartial `
+        -Force `
+        -ErrorAction SilentlyContinue
+
+    & $ageExe `
+        -r $recipient `
+        -o $encryptedEnvPartial `
+        $envSource
+
+    if ($LASTEXITCODE -ne 0) {
+        Remove-Item `
+            -LiteralPath $encryptedEnvPartial `
+            -Force `
+            -ErrorAction SilentlyContinue
+
+        throw "Encrypted .env backup failed."
+    }
+
+    if (
+        -not (Test-Path -LiteralPath $encryptedEnvPartial) -or
+        (Get-Item -LiteralPath $encryptedEnvPartial).Length -le 0
+    ) {
+        throw "Encrypted .env backup was not created correctly."
+    }
+
+    Move-Item `
+        -LiteralPath $encryptedEnvPartial `
+        -Destination $encryptedEnv `
+        -Force
+
+    $encryptedEnvHash = Get-FileHash `
+        -LiteralPath $encryptedEnv `
+        -Algorithm SHA256
+
+    "$($encryptedEnvHash.Hash) *$([System.IO.Path]::GetFileName($encryptedEnv))" |
+        Set-Content `
+            -LiteralPath "$encryptedEnv.sha256" `
+            -Encoding ASCII
+
+    Write-BackupLog "Encrypted .env backup created: $encryptedEnv"
+    Write-BackupLog "Encrypted .env SHA-256: $($encryptedEnvHash.Hash)"
+    # ---------------------------------------------------------------
     # Retention policy
     # ---------------------------------------------------------------
 

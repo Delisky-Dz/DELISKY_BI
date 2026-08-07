@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
 
-CATEGORIES = ("PostgreSQL", "Project", "Media")
+CATEGORIES = ("PostgreSQL", "Project", "Media", "Secrets")
 DATE_FORMAT = "%Y-%m-%d"
 
 
