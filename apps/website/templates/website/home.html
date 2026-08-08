@@ -1,0 +1,92 @@
+{% extends 'website/base.html' %}
+
+{% block content %}
+
+<section class="hero" id="home">
+
+    <div class="hero-glow hero-glow-one"></div>
+    <div class="hero-glow hero-glow-two"></div>
+
+    <div class="container hero-layout">
+
+        <div class="hero-copy">
+
+            <div class="eyebrow">
+                <span></span>
+                {{ content.demo }}
+            </div>
+
+            <h1>
+                {{ content.title }}
+            </h1>
+
+            <p>
+                {{ content.subtitle }}
+            </p>
+
+            <div class="hero-actions">
+                <a href="#activity" class="button button-primary">
+                    {{ content.discover }}
+                </a>
+
+                <a href="#about" class="button button-secondary">
+                    {{ content.learn }}
+                </a>
+            </div>
+
+        </div>
+
+        <div class="hero-visual">
+
+            <div class="visual-frame">
+
+                <div class="visual-topline">
+                    <span>DELISKY</span>
+                    <span>Distribution Network</span>
+                </div>
+
+                <div class="visual-center">
+                    <div class="visual-icon">D</div>
+                    <p>{{ content.visual }}</p>
+                </div>
+
+                <div class="visual-grid"></div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="container stats-strip">
+
+        <div class="stat">
+            <strong>00+</strong>
+            <span>{{ content.stat_1 }}</span>
+        </div>
+
+        <div class="stat">
+            <strong>00+</strong>
+            <span>{{ content.stat_2 }}</span>
+        </div>
+
+        <div class="stat">
+            <strong>00+</strong>
+            <span>{{ content.stat_3 }}</span>
+        </div>
+
+        <div class="stat">
+            <strong>00+</strong>
+            <span>{{ content.stat_4 }}</span>
+        </div>
+
+    </div>
+
+</section>
+
+<section id="about" class="preview-section"></section>
+<section id="activity" class="preview-section"></section>
+<section id="brands" class="preview-section"></section>
+<section id="contact" class="preview-section"></section>
+
+{% endblock %}

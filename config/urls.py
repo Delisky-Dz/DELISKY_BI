@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.conf.urls.i18n import i18n_patterns
 from django.urls import include, path
 
 
@@ -25,3 +26,8 @@ urlpatterns = [
         include("apps.accounts.urls"),
     ),
 ]
+
+urlpatterns += i18n_patterns(
+    path("", include("apps.website.urls")),
+)
+

@@ -1,0 +1,81 @@
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}" dir="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>DELISKY</title>
+
+    <link rel="stylesheet" href="{% static 'website/css/site.css' %}">
+</head>
+
+<body class="{% if LANGUAGE_CODE == 'ar' %}rtl{% else %}ltr{% endif %}">
+
+<header class="site-header">
+    <div class="container header-inner">
+
+        <a class="brand" href="{% url 'website:home' %}">
+            <span class="brand-mark">D</span>
+            <span class="brand-name">DELISKY</span>
+        </a>
+
+        <button
+            class="menu-toggle"
+            type="button"
+            aria-label="Toggle navigation"
+            aria-expanded="false"
+        >
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <nav class="main-nav">
+            <a href="#home">{{ content.nav_home }}</a>
+            <a href="#about">{{ content.nav_about }}</a>
+            <a href="#activity">{{ content.nav_activity }}</a>
+            <a href="#brands">{{ content.nav_brands }}</a>
+            <a href="#contact">{{ content.nav_contact }}</a>
+        </nav>
+
+        <div class="header-actions">
+
+            <div class="language-switcher">
+                {% language 'ar' %}
+                    <a
+                        href="{% url 'website:home' %}"
+                        class="{% if LANGUAGE_CODE == 'ar' %}active{% endif %}"
+                    >AR</a>
+                {% endlanguage %}
+
+                <span></span>
+
+                {% language 'en' %}
+                    <a
+                        href="{% url 'website:home' %}"
+                        class="{% if LANGUAGE_CODE == 'en' %}active{% endif %}"
+                    >EN</a>
+                {% endlanguage %}
+            </div>
+
+            <a
+                class="platform-button"
+                href="https://app.delisky-dz.com"
+            >
+                {{ content.platform }}
+            </a>
+
+        </div>
+    </div>
+</header>
+
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<script src="{% static 'website/js/site.js' %}"></script>
+
+</body>
+</html>
