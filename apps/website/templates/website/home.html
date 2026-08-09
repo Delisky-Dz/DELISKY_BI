@@ -1,92 +1,1225 @@
-{% extends 'website/base.html' %}
+{% extends "website/base.html" %}
+{% load static i18n %}
+{% get_current_language as LANGUAGE_CODE %}
 
 {% block content %}
 
-<section class="hero" id="home">
 
-    <div class="hero-glow hero-glow-one"></div>
-    <div class="hero-glow hero-glow-two"></div>
+<!-- ======================================================
+     PREMIUM HERO
+======================================================= -->
 
-    <div class="container hero-layout">
+<section class="premium-hero" id="home">
+
+    <div class="container hero-grid">
 
         <div class="hero-copy">
 
-            <div class="eyebrow">
-                <span></span>
-                {{ content.demo }}
+            <div class="hero-kicker">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1608;&#1586;&#1610;&#1593; &#1571;&#1584;&#1603;&#1609;. &#1578;&#1594;&#1591;&#1610;&#1577; &#1571;&#1602;&#1608;&#1609;. &#1585;&#1572;&#1610;&#1577; &#1571;&#1608;&#1590;&#1581;.
+                {% else %}
+                    SMARTER DISTRIBUTION. STRONGER COVERAGE.
+                {% endif %}
             </div>
 
-            <h1>
-                {{ content.title }}
-            </h1>
 
-            <p>
-                {{ content.subtitle }}
-            </p>
+            {% if LANGUAGE_CODE == 'ar' %}
+
+                <h1>
+                    &#1578;&#1608;&#1586;&#1610;&#1593; &#1605;&#1608;&#1579;&#1608;&#1602;
+                    <br>
+                    <span>
+                        &#1576;&#1605;&#1593;&#1575;&#1610;&#1610;&#1585; &#1571;&#1593;&#1604;&#1609;
+                    </span>
+                </h1>
+
+                <p>
+                    DELISKY &#1578;&#1580;&#1605;&#1593; &#1576;&#1610;&#1606; &#1602;&#1608;&#1577; &#1575;&#1604;&#1578;&#1608;&#1586;&#1610;&#1593;&#1548;
+                    &#1601;&#1585;&#1602; &#1575;&#1604;&#1593;&#1605;&#1604;&#1548;
+                    &#1578;&#1594;&#1591;&#1610;&#1577; &#1575;&#1604;&#1587;&#1608;&#1602;
+                    &#1608;&#1575;&#1604;&#1605;&#1578;&#1575;&#1576;&#1593;&#1577; &#1575;&#1604;&#1605;&#1587;&#1578;&#1605;&#1585;&#1577;
+                    &#1604;&#1576;&#1606;&#1575;&#1569; &#1588;&#1576;&#1603;&#1577; &#1578;&#1580;&#1575;&#1585;&#1610;&#1577;
+                    &#1571;&#1603;&#1579;&#1585; &#1601;&#1593;&#1575;&#1604;&#1610;&#1577; &#1608;&#1575;&#1587;&#1578;&#1602;&#1585;&#1575;&#1585;&#1611;&#1575;.
+                </p>
+
+            {% else %}
+
+                <h1>
+                    DISTRIBUTION
+                    <br>
+                    <span>PURE LIKE SKY</span>
+                </h1>
+
+                <p>
+                    DELISKY combines commercial distribution,
+                    market coverage and operational excellence
+                    to build a stronger and more reliable network.
+                </p>
+
+            {% endif %}
+
 
             <div class="hero-actions">
-                <a href="#activity" class="button button-primary">
-                    {{ content.discover }}
+
+                <a
+                    class="button button-red"
+                    href="#activity"
+                >
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1575;&#1603;&#1578;&#1588;&#1601; &#1606;&#1588;&#1575;&#1591;&#1606;&#1575;
+                    {% else %}
+                        Explore DELISKY
+                    {% endif %}
+
+                    <b>&rarr;</b>
                 </a>
 
-                <a href="#about" class="button button-secondary">
-                    {{ content.learn }}
+
+                <a
+                    class="button button-outline"
+                    href="#about"
+                >
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1578;&#1593;&#1585;&#1601; &#1593;&#1604;&#1610;&#1606;&#1575;
+                    {% else %}
+                        About Us
+                    {% endif %}
                 </a>
+
+            </div>
+
+
+            <div class="hero-stats">
+
+                <article>
+                    <div class="stat-icon">&#9678;</div>
+
+                    <div>
+                        <strong>00+</strong>
+
+                        <span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1605;&#1606;&#1575;&#1591;&#1602; &#1575;&#1604;&#1578;&#1594;&#1591;&#1610;&#1577;
+                            {% else %}
+                                Coverage Areas
+                            {% endif %}
+                        </span>
+                    </div>
+                </article>
+
+
+                <article>
+                    <div class="stat-icon">&#9671;</div>
+
+                    <div>
+                        <strong>00+</strong>
+
+                        <span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1605;&#1585;&#1603;&#1576;&#1575;&#1578; &#1575;&#1604;&#1578;&#1608;&#1586;&#1610;&#1593;
+                            {% else %}
+                                Distribution Vehicles
+                            {% endif %}
+                        </span>
+                    </div>
+                </article>
+
+
+                <article>
+                    <div class="stat-icon">&#9719;</div>
+
+                    <div>
+                        <strong>00+</strong>
+
+                        <span>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1605;&#1572;&#1588;&#1585;&#1575;&#1578; &#1575;&#1604;&#1571;&#1583;&#1575;&#1569;
+                            {% else %}
+                                Performance Indicators
+                            {% endif %}
+                        </span>
+                    </div>
+                </article>
+
             </div>
 
         </div>
+
 
         <div class="hero-visual">
 
-            <div class="visual-frame">
+            <img
+                src="{% static 'website/images/delisky-hero-premium.webp' %}"
+                alt="DELISKY distribution network"
+            >
 
-                <div class="visual-topline">
-                    <span>DELISKY</span>
-                    <span>Distribution Network</span>
-                </div>
-
-                <div class="visual-center">
-                    <div class="visual-icon">D</div>
-                    <p>{{ content.visual }}</p>
-                </div>
-
-                <div class="visual-grid"></div>
-
-            </div>
-
-        </div>
-
-    </div>
-
-    <div class="container stats-strip">
-
-        <div class="stat">
-            <strong>00+</strong>
-            <span>{{ content.stat_1 }}</span>
-        </div>
-
-        <div class="stat">
-            <strong>00+</strong>
-            <span>{{ content.stat_2 }}</span>
-        </div>
-
-        <div class="stat">
-            <strong>00+</strong>
-            <span>{{ content.stat_3 }}</span>
-        </div>
-
-        <div class="stat">
-            <strong>00+</strong>
-            <span>{{ content.stat_4 }}</span>
         </div>
 
     </div>
 
 </section>
 
-<section id="about" class="preview-section"></section>
-<section id="activity" class="preview-section"></section>
-<section id="brands" class="preview-section"></section>
-<section id="contact" class="preview-section"></section>
+
+
+<!-- ======================================================
+     ABOUT
+======================================================= -->
+
+<section class="about-premium" id="about">
+
+    <div class="container about-grid">
+
+        <div class="about-image-wrap">
+
+            <img
+                src="{% static 'website/images/delisky-about-premium.webp' %}"
+                alt="DELISKY corporate vision"
+            >
+
+            <div class="about-floating-card">
+
+                <span class="mini-icon">&#9671;</span>
+
+                <div>
+                    <strong>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                    نبني الثقة
+                {% else %}
+                            Built on trust.
+                        {% endif %}
+                    </strong>
+
+                    <small>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                    ونطوّر الأداء باستمرار.
+                {% else %}
+                            Driven by performance.
+                        {% endif %}
+                    </small>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="about-copy">
+
+            <div class="section-kicker">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    عن DELISKY
+                {% else %}
+                    ABOUT DELISKY
+                {% endif %}
+            </div>
+
+
+            {% if LANGUAGE_CODE == 'ar' %}
+                <h2>
+                    توزيع أكثر ذكاءً
+                    <br>
+                    <span>ورؤية أوضح للسوق.</span>
+                </h2>
+
+                <p>
+                    نعمل على ربط العلامات التجارية بالسوق
+                    من خلال شبكة توزيع منظمة، فرق ميدانية،
+                    متابعة الأداء وتحليل النتائج.
+                </p>
+                {% else %}
+
+                <h2>
+                    Redefining Distribution
+                    <br>
+                    <span>Through Performance.</span>
+                </h2>
+
+                <p>
+                    DELISKY connects brands with the market
+                    through structured distribution, field teams,
+                    operational monitoring and performance analysis.
+                </p>
+
+            {% endif %}
+
+
+            <div class="about-features">
+
+                <article>
+                    <span>&#8764;</span>
+                    <strong>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                    متابعة الأداء
+                {% else %}
+                            Performance
+                        {% endif %}
+                    </strong>
+                </article>
+
+                <article>
+                    <span>&#9671;</span>
+                    <strong>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                    توزيع موثوق
+                {% else %}
+                            Reliable
+                        {% endif %}
+                    </strong>
+                </article>
+
+                <article>
+                    <span>&#9678;</span>
+                    <strong>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                    تغطية السوق
+                {% else %}
+                            Coverage
+                        {% endif %}
+                    </strong>
+                </article>
+
+                <article>
+                    <span>&#9673;</span>
+                    <strong>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                    الشريك أولاً
+                {% else %}
+                            Partner First
+                        {% endif %}
+                    </strong>
+                </article>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- ======================================================
+     HOW WE WORK
+======================================================= -->
+
+<section class="process-section" id="activity">
+
+    <div class="container">
+
+        <div class="section-heading centered">
+
+            <div class="section-kicker">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    كيف نعمل
+                {% else %}
+                    HOW WE WORK
+                {% endif %}
+            </div>
+
+            <h2>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    عملية منظمة.
+                    <span>توزيع أكثر فعالية.</span>
+                {% else %}
+                    Simple Process.
+                    <span>Superior Distribution.</span>
+                {% endif %}
+            </h2>
+
+        </div>
+
+
+        <div class="business-grid">
+
+            <article class="process-card">
+
+                <div class="process-icon cyan">&#9635;</div>
+
+                <div class="process-number">01</div>
+
+                <h3>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    التخطيط
+                {% else %}
+                        Plan
+                    {% endif %}
+                </h3>
+
+                <p>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    تنظيم مناطق العمل وتحديد الأولويات.
+                {% else %}
+                        Organize territories and priorities.
+                    {% endif %}
+                </p>
+
+            </article>
+
+
+            <article class="process-card">
+
+                <div class="process-icon blue">&#9633;</div>
+
+                <div class="process-number">02</div>
+
+                <h3>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    التحضير
+                {% else %}
+                        Prepare
+                    {% endif %}
+                </h3>
+
+                <p>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    تجهيز عمليات التوزيع والانطلاق.
+                {% else %}
+                        Prepare distribution operations.
+                    {% endif %}
+                </p>
+
+            </article>
+
+
+            <article class="process-card">
+
+                <div class="process-icon aqua">&#8982;</div>
+
+                <div class="process-number">03</div>
+
+                <h3>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    التوزيع
+                {% else %}
+                        Distribute
+                    {% endif %}
+                </h3>
+
+                <p>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                    تغطية السوق ومتابعة النشاط الميداني.
+                {% else %}
+                        Cover the market and execute routes.
+                    {% endif %}
+                </p>
+
+            </article>
+
+
+            <article class="process-card">
+
+                <div class="process-icon red">&#10003;</div>
+
+                <div class="process-number">04</div>
+
+                <h3>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1575;&#1604;&#1578;&#1581;&#1604;&#1610;&#1604; &#1575;&#1604;&#1584;&#1603;&#1610;
+                        {% else %}
+                            Smart Analytics
+                        {% endif %}
+                    </h3>
+
+                <p>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1602;&#1610;&#1575;&#1587; &#1575;&#1604;&#1606;&#1578;&#1575;&#1574;&#1580; &#1608;&#1578;&#1581;&#1604;&#1610;&#1604; &#1575;&#1604;&#1576;&#1610;&#1575;&#1606;&#1575;&#1578; &#1608;&#1575;&#1587;&#1578;&#1582;&#1583;&#1575;&#1605; &#1575;&#1604;&#1584;&#1603;&#1575;&#1569; &#1575;&#1604;&#1575;&#1589;&#1591;&#1606;&#1575;&#1593;&#1610; &#1604;&#1583;&#1593;&#1605; &#1602;&#1585;&#1575;&#1585;&#1575;&#1578; &#1571;&#1601;&#1590;&#1604; &#1608;&#1578;&#1581;&#1587;&#1610;&#1606; &#1575;&#1604;&#1571;&#1583;&#1575;&#1569;.
+                        {% else %}
+                            Measuring results and using data and AI insights to support better decisions and improve performance.
+                        {% endif %}
+                    </p>
+
+            </article>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+<!-- ======================================================
+     BRANDS
+======================================================= -->
+
+
+<!-- DELISKY SMART INTELLIGENCE -->
+<section class="intelligence-section" id="intelligence">
+    <div class="container intelligence-grid">
+
+        <div class="intelligence-copy">
+
+            <div class="intelligence-kicker">
+                <span class="intelligence-pulse"></span>
+
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1575;&#1604;&#1578;&#1581;&#1604;&#1610;&#1604; &#1575;&#1604;&#1584;&#1603;&#1610;
+                {% else %}
+                    SMART INTELLIGENCE
+                {% endif %}
+            </div>
+
+            <h2>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1605;&#1606; &#1575;&#1604;&#1576;&#1610;&#1575;&#1606;&#1575;&#1578;
+                    <span>&#1573;&#1604;&#1609; &#1602;&#1585;&#1575;&#1585;&#1575;&#1578; &#1571;&#1601;&#1590;&#1604;.</span>
+                {% else %}
+                    From Data to
+                    <span>Smarter Decisions.</span>
+                {% endif %}
+            </h2>
+
+            <p class="intelligence-lead">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1587;&#1578;&#1582;&#1583;&#1605; DELISKY
+                    &#1575;&#1604;&#1578;&#1581;&#1604;&#1610;&#1604;&#1575;&#1578;
+                    &#1608;&#1575;&#1604;&#1584;&#1603;&#1575;&#1569;
+                    &#1575;&#1604;&#1575;&#1589;&#1591;&#1606;&#1575;&#1593;&#1610;
+                    &#1604;&#1578;&#1581;&#1608;&#1610;&#1604;
+                    &#1576;&#1610;&#1575;&#1606;&#1575;&#1578;
+                    &#1575;&#1604;&#1578;&#1608;&#1586;&#1610;&#1593;
+                    &#1608;&#1575;&#1604;&#1605;&#1576;&#1610;&#1593;&#1575;&#1578;
+                    &#1608;&#1575;&#1604;&#1586;&#1610;&#1575;&#1585;&#1575;&#1578;
+                    &#1573;&#1604;&#1609; &#1585;&#1572;&#1609;
+                    &#1578;&#1587;&#1575;&#1593;&#1583;
+                    &#1575;&#1604;&#1573;&#1583;&#1575;&#1585;&#1577;
+                    &#1593;&#1604;&#1609; &#1601;&#1607;&#1605;
+                    &#1575;&#1604;&#1571;&#1583;&#1575;&#1569;
+                    &#1608;&#1575;&#1578;&#1582;&#1575;&#1584;
+                    &#1602;&#1585;&#1575;&#1585;&#1575;&#1578;
+                    &#1571;&#1601;&#1590;&#1604;.
+                {% else %}
+                    DELISKY combines analytics and artificial intelligence
+                    to transform distribution, sales and field activity data
+                    into insights that help management understand performance
+                    and make better-informed decisions.
+                {% endif %}
+            </p>
+
+            <div class="intelligence-features">
+
+                <article>
+                    <span class="intelligence-feature-icon">01</span>
+                    <div>
+                        <strong>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1578;&#1581;&#1604;&#1610;&#1604; &#1575;&#1604;&#1571;&#1583;&#1575;&#1569;
+                            {% else %}
+                                Performance Analytics
+                            {% endif %}
+                        </strong>
+                        <small>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1575;&#1604;&#1605;&#1576;&#1610;&#1593;&#1575;&#1578; &#1608;&#1575;&#1604;&#1586;&#1610;&#1575;&#1585;&#1575;&#1578; &#1608;&#1575;&#1604;&#1578;&#1594;&#1591;&#1610;&#1577;.
+                            {% else %}
+                                Sales, visits and market coverage.
+                            {% endif %}
+                        </small>
+                    </div>
+                </article>
+
+                <article>
+                    <span class="intelligence-feature-icon">AI</span>
+                    <div>
+                        <strong>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1585;&#1572;&#1609; &#1605;&#1583;&#1593;&#1608;&#1605;&#1577; &#1576;&#1575;&#1604;&#1584;&#1603;&#1575;&#1569; &#1575;&#1604;&#1575;&#1589;&#1591;&#1606;&#1575;&#1593;&#1610;
+                            {% else %}
+                                AI-Powered Insights
+                            {% endif %}
+                        </strong>
+                        <small>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1575;&#1603;&#1578;&#1588;&#1575;&#1601; &#1575;&#1604;&#1571;&#1606;&#1605;&#1575;&#1591; &#1608;&#1575;&#1604;&#1601;&#1585;&#1589; &#1583;&#1575;&#1582;&#1604; &#1576;&#1610;&#1575;&#1606;&#1575;&#1578; &#1575;&#1604;&#1606;&#1588;&#1575;&#1591;.
+                            {% else %}
+                                Revealing patterns and opportunities in operational data.
+                            {% endif %}
+                        </small>
+                    </div>
+                </article>
+
+                <article>
+                    <span class="intelligence-feature-icon">03</span>
+                    <div>
+                        <strong>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1583;&#1593;&#1605; &#1575;&#1604;&#1602;&#1585;&#1575;&#1585;
+                            {% else %}
+                                Decision Support
+                            {% endif %}
+                        </strong>
+                        <small>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1589;&#1608;&#1585;&#1577; &#1571;&#1608;&#1590;&#1581; &#1604;&#1604;&#1573;&#1583;&#1575;&#1585;&#1577; &#1605;&#1576;&#1606;&#1610;&#1577; &#1593;&#1604;&#1609; &#1575;&#1604;&#1576;&#1610;&#1575;&#1606;&#1575;&#1578;.
+                            {% else %}
+                                A clearer data-driven view for management.
+                            {% endif %}
+                        </small>
+                    </div>
+                </article>
+
+            </div>
+        </div>
+
+
+        <div class="intelligence-visual" aria-hidden="true">
+
+            <div class="intel-dashboard">
+
+                <div class="intel-windowbar">
+                    <span>DELISKY Intelligence</span>
+                    <strong>AI</strong>
+                </div>
+
+                <div class="intel-dashboard-body">
+
+                    <div class="intel-chart-card">
+                        <small>PERFORMANCE ANALYTICS</small>
+
+                        <div class="intel-bars">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                        </div>
+                    </div>
+
+                    <div class="intel-insight-card">
+                        <span class="intel-ai-orb">AI</span>
+
+                        <div>
+                            <small>DELISKY AI</small>
+
+                            <strong>
+                                {% if LANGUAGE_CODE == 'ar' %}
+                                    &#1585;&#1572;&#1610;&#1577; &#1584;&#1603;&#1610;&#1577;
+                                {% else %}
+                                    Intelligent Insight
+                                {% endif %}
+                            </strong>
+
+                            <p>
+                                {% if LANGUAGE_CODE == 'ar' %}
+                                    &#1578;&#1581;&#1604;&#1610;&#1604; &#1575;&#1604;&#1571;&#1606;&#1605;&#1575;&#1591; &#1604;&#1583;&#1593;&#1605; &#1602;&#1585;&#1575;&#1585;&#1575;&#1578; &#1571;&#1601;&#1590;&#1604;
+                                {% else %}
+                                    Analysing patterns to support better decisions.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<section class="network-section fleet-showcase-section" id="fleet">
+
+    <div class="container fleet-showcase-container">
+
+
+        <div class="fleet-showcase-heading fleet-heading-v2">
+
+            <div class="section-kicker light">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1588;&#1576;&#1603;&#1577; &#1575;&#1604;&#1578;&#1608;&#1586;&#1610;&#1593;
+                {% else %}
+                    DISTRIBUTION NETWORK
+                {% endif %}
+            </div>
+
+
+            <h2>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1571;&#1587;&#1591;&#1608;&#1604; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;
+                    <span>&#1610;&#1578;&#1581;&#1585;&#1603; &#1605;&#1593; &#1575;&#1604;&#1587;&#1608;&#1602;.</span>
+                {% else %}
+                    A Field Fleet
+                    <span>Built to Move with the Market.</span>
+                {% endif %}
+            </h2>
+
+
+            <p>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1605;&#1585;&#1603;&#1576;&#1575;&#1578; &#1578;&#1608;&#1586;&#1610;&#1593;
+                    &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;&#1577; &#1578;&#1583;&#1593;&#1605;
+                    &#1575;&#1604;&#1593;&#1605;&#1604; &#1575;&#1604;&#1610;&#1608;&#1605;&#1610;
+                    &#1608;&#1578;&#1587;&#1575;&#1593;&#1583; &#1593;&#1604;&#1609;
+                    &#1578;&#1581;&#1602;&#1610;&#1602; &#1578;&#1594;&#1591;&#1610;&#1577;
+                    &#1571;&#1601;&#1590;&#1604; &#1608;&#1605;&#1578;&#1575;&#1576;&#1593;&#1577;
+                    &#1571;&#1602;&#1585;&#1576; &#1604;&#1604;&#1587;&#1608;&#1602;.
+                {% else %}
+                    Field distribution vehicles supporting daily operations,
+                    stronger market coverage and closer commercial follow-up.
+                {% endif %}
+            </p>
+
+        </div>
+
+
+        <div class="fleet-gallery-equal">
+
+            <figure class="fleet-photo-card">
+
+                <img
+                    src="{% static 'website/images/fleet-vw-fleet.webp' %}"
+                    alt="DELISKY Volkswagen distribution fleet"
+                    loading="lazy"
+                >
+
+            </figure>
+
+
+            <figure class="fleet-photo-card">
+
+                <img
+                    src="{% static 'website/images/fleet-vw-trio.webp' %}"
+                    alt="DELISKY Volkswagen distribution vehicles"
+                    loading="lazy"
+                >
+
+            </figure>
+
+
+            <figure class="fleet-photo-card">
+
+                <img
+                    src="{% static 'website/images/fleet-fiat-fleet.webp' %}"
+                    alt="DELISKY Fiat Ducato distribution fleet"
+                    loading="lazy"
+                >
+
+            </figure>
+
+        </div>
+
+
+        <div class="fleet-capabilities">
+
+            <div class="fleet-capability">
+
+
+
+                <strong>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1578;&#1608;&#1586;&#1610;&#1593; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;
+                    {% else %}
+                        Field Distribution
+                    {% endif %}
+                </strong>
+
+            </div>
+
+
+            <div class="fleet-capability">
+
+
+
+                <strong>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1605;&#1587;&#1575;&#1585;&#1575;&#1578; &#1593;&#1605;&#1604; &#1605;&#1606;&#1592;&#1605;&#1577;
+                    {% else %}
+                        Organized Routes
+                    {% endif %}
+                </strong>
+
+            </div>
+
+
+            <div class="fleet-capability">
+
+
+
+                <strong>
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1605;&#1578;&#1575;&#1576;&#1593;&#1577; &#1605;&#1587;&#1578;&#1605;&#1585;&#1577;
+                    {% else %}
+                        Continuous Follow-up
+                    {% endif %}
+                </strong>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</section>
+
+
+<!-- DELISKY COVERAGE NETWORK -->
+<section class="coverage-section" id="coverage">
+
+    <div class="container">
+
+        <div class="section-heading centered">
+
+            <div class="section-kicker">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1588;&#1576;&#1603;&#1577; &#1575;&#1604;&#1578;&#1594;&#1591;&#1610;&#1577;
+                {% else %}
+                    CURRENT COVERAGE
+                {% endif %}
+            </div>
+
+            <h2>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1581;&#1590;&#1608;&#1585; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;
+                    <span>&#1571;&#1602;&#1585;&#1576; &#1573;&#1604;&#1609; &#1575;&#1604;&#1587;&#1608;&#1602;.</span>
+                {% else %}
+                    Closer to the Market.
+                    <span>Built for Reliable Reach.</span>
+                {% endif %}
+            </h2>
+
+            <p>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1593;&#1605;&#1604; DELISKY &#1581;&#1575;&#1604;&#1610;&#1575;&#1611;
+                    &#1590;&#1605;&#1606; &#1608;&#1604;&#1575;&#1610;&#1578;&#1610;
+                    &#1605;&#1610;&#1604;&#1577; &#1608;&#1602;&#1587;&#1606;&#1591;&#1610;&#1606;&#1577;
+                    &#1605;&#1606; &#1582;&#1604;&#1575;&#1604; &#1588;&#1576;&#1603;&#1577;
+                    &#1578;&#1608;&#1586;&#1610;&#1593; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;&#1577;
+                    &#1605;&#1606;&#1592;&#1605;&#1577; &#1608;&#1605;&#1578;&#1575;&#1576;&#1593;&#1577;
+                    &#1605;&#1587;&#1578;&#1605;&#1585;&#1577; &#1604;&#1604;&#1571;&#1583;&#1575;&#1569;.
+                {% else %}
+                    DELISKY currently operates across Mila and Constantine
+                    through an organized field distribution network supported
+                    by continuous operational follow-up.
+                {% endif %}
+            </p>
+
+        </div>
+
+
+        <div class="coverage-grid">
+
+            <article class="coverage-card">
+
+                <div class="coverage-map-frame">
+                    <img
+                        src="{% static 'website/images/coverage-constantine.webp' %}"
+                        alt="Constantine coverage map"
+                        class="coverage-map"
+                    >
+                </div>
+
+                <div class="coverage-content">
+
+                    <div class="coverage-badge">
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1608;&#1604;&#1575;&#1610;&#1577; &#1602;&#1587;&#1606;&#1591;&#1610;&#1606;&#1577;
+                        {% else %}
+                            Constantine Province
+                        {% endif %}
+                    </div>
+
+                    <h3>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1578;&#1594;&#1591;&#1610;&#1577; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;&#1577; &#1605;&#1606;&#1592;&#1605;&#1577;
+                        {% else %}
+                            Structured Field Coverage
+                        {% endif %}
+                    </h3>
+
+                    <p>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1581;&#1590;&#1608;&#1585; &#1578;&#1580;&#1575;&#1585;&#1610;
+                            &#1608;&#1605;&#1578;&#1575;&#1576;&#1593;&#1577; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610;&#1577;
+                            &#1578;&#1583;&#1593;&#1605; &#1608;&#1589;&#1608;&#1604;&#1575;&#1611;
+                            &#1571;&#1601;&#1590;&#1604; &#1604;&#1604;&#1587;&#1608;&#1602;.
+                        {% else %}
+                            Commercial presence and field follow-up designed
+                            to strengthen market reach.
+                        {% endif %}
+                    </p>
+
+                    <ul class="coverage-points">
+                        <li>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1578;&#1608;&#1586;&#1610;&#1593; &#1605;&#1610;&#1583;&#1575;&#1606;&#1610; &#1601;&#1593;&#1575;&#1604;
+                            {% else %}
+                                Active field distribution
+                            {% endif %}
+                        </li>
+
+                        <li>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1605;&#1578;&#1575;&#1576;&#1593;&#1577; &#1606;&#1602;&#1575;&#1591; &#1575;&#1604;&#1576;&#1610;&#1593;
+                            {% else %}
+                                Point-of-sale follow-up
+                            {% endif %}
+                        </li>
+
+                        <li>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1578;&#1581;&#1604;&#1610;&#1604; &#1575;&#1604;&#1578;&#1594;&#1591;&#1610;&#1577; &#1608;&#1575;&#1604;&#1571;&#1583;&#1575;&#1569;
+                            {% else %}
+                                Coverage and performance analysis
+                            {% endif %}
+                        </li>
+                    </ul>
+
+                </div>
+
+            </article>
+
+
+            <article class="coverage-card">
+
+                <div class="coverage-map-frame">
+                    <img
+                        src="{% static 'website/images/coverage-mila.webp' %}"
+                        alt="Mila coverage map"
+                        class="coverage-map"
+                    >
+                </div>
+
+                <div class="coverage-content">
+
+                    <div class="coverage-badge">
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1608;&#1604;&#1575;&#1610;&#1577; &#1605;&#1610;&#1604;&#1577;
+                        {% else %}
+                            Mila Province
+                        {% endif %}
+                    </div>
+
+                    <h3>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1575;&#1605;&#1578;&#1583;&#1575;&#1583; &#1605;&#1581;&#1604;&#1610; &#1602;&#1608;&#1610;
+                        {% else %}
+                            Strong Local Reach
+                        {% endif %}
+                    </h3>
+
+                    <p>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1578;&#1594;&#1591;&#1610;&#1577; &#1605;&#1581;&#1604;&#1610;&#1577;
+                            &#1578;&#1593;&#1603;&#1587; &#1575;&#1604;&#1602;&#1585;&#1576;
+                            &#1605;&#1606; &#1575;&#1604;&#1587;&#1608;&#1602;
+                            &#1608;&#1575;&#1604;&#1605;&#1578;&#1575;&#1576;&#1593;&#1577;
+                            &#1575;&#1604;&#1605;&#1587;&#1578;&#1605;&#1585;&#1577;.
+                        {% else %}
+                            Local coverage built around market proximity
+                            and continuous field execution.
+                        {% endif %}
+                    </p>
+
+                    <ul class="coverage-points">
+                        <li>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1588;&#1576;&#1603;&#1577; &#1578;&#1608;&#1586;&#1610;&#1593; &#1581;&#1575;&#1590;&#1585;&#1577;
+                            {% else %}
+                                Established distribution footprint
+                            {% endif %}
+                        </li>
+
+                        <li>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1578;&#1606;&#1601;&#1610;&#1584; &#1605;&#1606;&#1592;&#1605; &#1604;&#1604;&#1586;&#1610;&#1575;&#1585;&#1575;&#1578;
+                            {% else %}
+                                Organized field visits
+                            {% endif %}
+                        </li>
+
+                        <li>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1578;&#1581;&#1587;&#1610;&#1606; &#1605;&#1587;&#1578;&#1605;&#1585; &#1604;&#1604;&#1571;&#1583;&#1575;&#1569;
+                            {% else %}
+                                Continuous performance improvement
+                            {% endif %}
+                        </li>
+                    </ul>
+
+                </div>
+
+            </article>
+
+        </div>
+
+    </div>
+
+</section>
+
+<section class="contact-section" id="contact">
+
+    <div class="container contact-premium-grid">
+
+
+        <div class="contact-copy">
+
+            <div class="section-kicker light">
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1608;&#1575;&#1589;&#1604; &#1605;&#1593;&#1606;&#1575;
+                {% else %}
+                    CONTACT DELISKY
+                {% endif %}
+            </div>
+
+
+            <h2>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1606;&#1581;&#1606; &#1571;&#1602;&#1585;&#1576; &#1573;&#1604;&#1610;&#1603;.
+                    <span>&#1578;&#1608;&#1575;&#1589;&#1604; &#1605;&#1593; DELISKY.</span>
+                {% else %}
+                    Closer to You.
+                    <span>Connect with DELISKY.</span>
+                {% endif %}
+            </h2>
+
+
+            <p>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1593;&#1585;&#1601; &#1593;&#1604;&#1609; &#1605;&#1608;&#1602;&#1593;
+                    DELISKY &#1608;&#1575;&#1601;&#1578;&#1581;&#1607;
+                    &#1605;&#1576;&#1575;&#1588;&#1585;&#1577; &#1593;&#1604;&#1609; Google Maps.
+                {% else %}
+                    Find DELISKY and open our company location directly on Google Maps.
+                {% endif %}
+            </p>
+
+
+            <div class="contact-actions">
+
+                <a
+                    class="button button-red"
+                    href="https://maps.app.goo.gl/7qj2NUu5i9UJ2bYo6"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1601;&#1578;&#1581; &#1575;&#1604;&#1605;&#1608;&#1602;&#1593; &#1593;&#1604;&#1609; Google Maps
+                    {% else %}
+                        Open in Google Maps
+                    {% endif %}
+                </a>
+
+            </div>
+
+
+            <div class="contact-details contact-details-v2">
+
+
+                <a
+                    class="contact-detail-card contact-whatsapp-card"
+                    href="https://wa.me/213660775108"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+
+                    <span
+                        class="contact-detail-icon contact-whatsapp-icon"
+                        aria-hidden="true"
+                    >
+
+                        <svg
+                            viewBox="0 0 32 32"
+                            role="img"
+                            aria-hidden="true"
+                        >
+                            <circle
+                                cx="16"
+                                cy="16"
+                                r="15"
+                            ></circle>
+
+                            <path
+                                d="M22.7 18.9c-.4-.2-2.4-1.2-2.8-1.3-.4-.1-.7-.2-1 .2-.3.4-1.1 1.3-1.4 1.6-.3.3-.5.3-.9.1-2.5-1.2-4.1-2.2-5.8-5-.4-.7.4-.7 1.2-2.2.1-.3 0-.6-.1-.8-.1-.2-1-2.4-1.4-3.3-.4-.9-.8-.8-1-.8h-.9c-.3 0-.8.1-1.2.6-.4.4-1.6 1.6-1.6 3.9s1.7 4.5 1.9 4.8c.2.3 3.3 5.1 8.1 7.1 3 1.3 4.2 1.4 5.7 1.2.9-.1 2.4-1 2.7-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5z"
+                            ></path>
+                        </svg>
+
+                    </span>
+
+
+                    <div>
+
+                        <small>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1575;&#1604;&#1607;&#1575;&#1578;&#1601; &#1608;&#1608;&#1575;&#1578;&#1587;&#1575;&#1576;
+                            {% else %}
+                                PHONE &amp; WHATSAPP
+                            {% endif %}
+                        </small>
+
+                        <strong dir="ltr">
+                            +213 660 77 51 08
+                        </strong>
+
+                    </div>
+
+                </a>
+
+
+                <a
+                    class="contact-detail-card contact-email-card"
+                    href="mailto:contact@delisky-dz.com"
+                >
+
+                    <span
+                        class="contact-detail-icon contact-email-icon"
+                        aria-hidden="true"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden="true"
+                        >
+                            <rect
+                                x="3"
+                                y="5"
+                                width="18"
+                                height="14"
+                                rx="3"
+                            ></rect>
+
+                            <path
+                                d="M4.5 7.5L12 13L19.5 7.5"
+                            ></path>
+                        </svg>
+                    </span>
+
+
+                    <div>
+
+                        <small>
+                            {% if LANGUAGE_CODE == 'ar' %}
+                                &#1575;&#1604;&#1576;&#1585;&#1610;&#1583; &#1575;&#1604;&#1573;&#1604;&#1603;&#1578;&#1585;&#1608;&#1606;&#1610;
+                            {% else %}
+                                EMAIL
+                            {% endif %}
+                        </small>
+
+                        <strong dir="ltr">
+                            contact@delisky-dz.com
+                        </strong>
+
+                    </div>
+
+                </a>
+
+
+            </div>
+
+        </div>
+
+
+        <div class="contact-map-card">
+
+            <div class="contact-map-head">
+
+                <div>
+
+                    <small>DELISKY</small>
+
+                    <strong>
+                        {% if LANGUAGE_CODE == 'ar' %}
+                            &#1605;&#1608;&#1602;&#1593; &#1575;&#1604;&#1588;&#1585;&#1603;&#1577;
+                        {% else %}
+                            Company Location
+                        {% endif %}
+                    </strong>
+
+                </div>
+
+
+                <span class="contact-map-status">
+                    {% if LANGUAGE_CODE == 'ar' %}
+                        &#1575;&#1604;&#1605;&#1608;&#1602;&#1593;
+                    {% else %}
+                        LOCATION
+                    {% endif %}
+                </span>
+
+            </div>
+
+
+            <div class="contact-map-frame">
+
+                <iframe
+                    src="https://www.google.com/maps?q=36.1769473,6.1807217&z=15&output=embed"
+                    title="DELISKY location"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    allowfullscreen
+                ></iframe>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</section>
+
+
+
+<footer class="site-footer site-footer-v2">
+
+    <div class="container footer-inner footer-inner-v2">
+
+
+        <div class="footer-brand">
+
+            <img
+                src="{% static 'website/images/delisky-logo.jpg' %}"
+                alt="DELISKY"
+            >
+
+        </div>
+
+
+        <div class="footer-legal">
+
+            <p class="footer-copyright">
+
+                {% if LANGUAGE_CODE == 'ar' %}
+                    Copyright &copy; {% now "Y" %} DELISKY.
+                    &#1580;&#1605;&#1610;&#1593; &#1575;&#1604;&#1581;&#1602;&#1608;&#1602; &#1605;&#1581;&#1601;&#1608;&#1592;&#1577;.
+                {% else %}
+                    Copyright &copy; {% now "Y" %} DELISKY. All rights reserved.
+                {% endif %}
+
+            </p>
+
+
+            <p class="footer-credit">
+
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1589;&#1605;&#1610;&#1605; &#1608;&#1578;&#1591;&#1608;&#1610;&#1585; &#1575;&#1604;&#1605;&#1608;&#1602;&#1593; &#1576;&#1608;&#1575;&#1587;&#1591;&#1577;
+                    <a
+                        class="footer-developer-link"
+                        href="https://maps.app.goo.gl/PcVYxDti8XzcJKiDA"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >MediaNet Computer</a>
+                {% else %}
+                    Website designed &amp; developed by
+                    <a
+                        class="footer-developer-link"
+                        href="https://maps.app.goo.gl/PcVYxDti8XzcJKiDA"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >MediaNet Computer</a>
+                {% endif %}
+
+            </p>
+
+        </div>
+
+
+    </div>
+
+</footer>
+
 
 {% endblock %}

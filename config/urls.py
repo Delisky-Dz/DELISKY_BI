@@ -10,6 +10,10 @@ urlpatterns = [
         include("apps.dashboard.urls"),
     ),
     path(
+        "accountant/recruitment/",
+        include("apps.recruitment.accountant_urls"),
+    ),
+    path(
         "accountant/workers/",
         include("apps.workforce.urls"),
     ),
@@ -28,6 +32,9 @@ urlpatterns = [
 ]
 
 urlpatterns += i18n_patterns(
+    path(
+        "careers/",
+        include("apps.recruitment.public_urls"),
+    ),
     path("", include("apps.website.urls")),
 )
-

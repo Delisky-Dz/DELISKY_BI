@@ -22,3 +22,12 @@ class PublicWebsiteLanguageTests(TestCase):
         response = self.client.get("/login/")
 
         self.assertNotEqual(response.status_code, 404)
+
+    def test_home_contains_main_corporate_sections(self):
+        response = self.client.get("/en/")
+
+        self.assertContains(response, 'id="about"')
+        self.assertContains(response, 'id="activity"')
+        self.assertContains(response, 'class="business-grid"')
+        self.assertContains(response, 'id="fleet"')
+        self.assertContains(response, 'id="coverage"')

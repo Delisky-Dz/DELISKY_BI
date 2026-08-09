@@ -112,6 +112,23 @@
                 </div>
 
                 <a
+                    href="{% url 'recruitment_accountant:list' %}"
+                    class="side-link{% if request.resolver_match.namespace == 'recruitment_accountant' %} is-active{% endif %}"
+                >
+                    <span class="side-icon">&#9993;</span>
+
+                    <span class="side-link-copy">
+                        طلبات التوظيف
+
+                        {% if recruitment_new_count %}
+                            <strong class="side-count-badge">
+                                {{ recruitment_new_count }}
+                            </strong>
+                        {% endif %}
+                    </span>
+                </a>
+
+                <a
                     href="{% url 'workforce:worker_list' %}"
                     class="side-link{% if request.resolver_match.namespace == 'workforce' and '/categories/' not in request.path and request.resolver_match.url_name|slice:':11' != 'capability_' %} is-active{% endif %}"
                 >

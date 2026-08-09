@@ -33,6 +33,43 @@
     </div>
 </section>
 
+<section class="recruitment-home-card">
+
+    <div>
+        <span class="section-kicker">
+            Recruitment
+        </span>
+
+        <h2>
+            طلبات التوظيف
+        </h2>
+
+        <p>
+            راجع الطلبات الواردة من موقع DELISKY
+            وتابع حالة كل مترشح.
+        </p>
+    </div>
+
+    <div class="recruitment-home-actions">
+
+        <div class="recruitment-home-count">
+            <span>طلبات جديدة</span>
+            <strong>
+                {{ recruitment_new_count }}
+            </strong>
+        </div>
+
+        <a
+            href="{% url 'recruitment_accountant:list' %}"
+            class="primary-button"
+        >
+            فتح طلبات التوظيف
+        </a>
+
+    </div>
+
+</section>
+
 <section class="stats-grid">
     <article class="stat-card">
         <span>إجمالي الدفعات</span>

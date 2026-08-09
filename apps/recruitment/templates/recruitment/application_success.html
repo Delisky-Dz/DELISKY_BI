@@ -1,0 +1,55 @@
+{% extends "website/base.html" %}
+{% load i18n %}
+
+{% get_current_language as LANGUAGE_CODE %}
+
+{% block content %}
+
+<section class="careers-success">
+
+    <div class="container">
+
+        <div class="careers-success-card">
+
+            <span class="careers-success-icon">
+                &#10003;
+            </span>
+
+            <h1>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1605; &#1575;&#1587;&#1578;&#1604;&#1575;&#1605; &#1591;&#1604;&#1576;&#1603;
+                {% else %}
+                    Application Received
+                {% endif %}
+            </h1>
+
+            <p>
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1578;&#1605; &#1578;&#1587;&#1580;&#1610;&#1604; &#1591;&#1604;&#1576; &#1575;&#1604;&#1578;&#1608;&#1592;&#1610;&#1601;
+                    &#1576;&#1606;&#1580;&#1575;&#1581;. &#1587;&#1610;&#1578;&#1605;
+                    &#1605;&#1585;&#1575;&#1580;&#1593;&#1578;&#1607; &#1605;&#1606; &#1591;&#1585;&#1601;
+                    DELISKY.
+                {% else %}
+                    Your application has been saved successfully
+                    and will be reviewed by DELISKY.
+                {% endif %}
+            </p>
+
+            <a
+                href="/{{ LANGUAGE_CODE }}/"
+                class="button button-red"
+            >
+                {% if LANGUAGE_CODE == 'ar' %}
+                    &#1575;&#1604;&#1593;&#1608;&#1583;&#1577; &#1573;&#1604;&#1609; &#1575;&#1604;&#1585;&#1574;&#1610;&#1587;&#1610;&#1577;
+                {% else %}
+                    Back to Home
+                {% endif %}
+            </a>
+
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

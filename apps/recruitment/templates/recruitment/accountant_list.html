@@ -1,0 +1,203 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    طلبات التوظيف | DELISKY BI
+{% endblock %}
+
+{% block page_title %}
+    طلبات التوظيف
+{% endblock %}
+
+{% block content %}
+
+<section class="recruitment-accountant-hero">
+    <div>
+        <span class="section-kicker">
+            Recruitment Center
+        </span>
+
+        <h2>
+            إدارة طلبات التوظيف
+        </h2>
+
+        <p>
+            جميع الطلبات المرسلة من موقع DELISKY
+            محفوظة هنا للمراجعة والمتابعة.
+        </p>
+    </div>
+
+    <div class="recruitment-new-indicator">
+        <span>طلبات جديدة</span>
+        <strong>{{ recruitment_new_count }}</strong>
+    </div>
+</section>
+
+
+<section class="recruitment-status-tabs">
+
+    {% for tab in status_tabs %}
+        <a
+            href="{% if tab.value %}?status={{ tab.value }}{% else %}{% url 'recruitment_accountant:list' %}{% endif %}"
+            class="recruitment-status-tab{% if selected_status == tab.value %} is-active{% endif %}"
+        >
+            <span>{{ tab.label }}</span>
+            <strong>{{ tab.count }}</strong>
+        </a>
+    {% endfor %}
+
+</section>
+
+
+<section class="panel recruitment-table-panel">
+
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                سجل المترشحين
+            </span>
+
+            <h2>
+                طلبات التوظيف
+            </h2>
+        </div>
+
+        <span class="record-count">
+            {{ page.paginator.count }} طلب
+        </span>
+    </div>
+
+
+    {% if applications %}
+
+        <div class="table-scroll">
+
+            <table class="batches-table recruitment-table">
+
+                <thead>
+                    <tr>
+                        <th>المترشح</th>
+                        <th>الوظيفة</th>
+                        <th>الهاتف</th>
+                        <th>الولاية</th>
+                        <th>الخبرة</th>
+                        <th>تاريخ الطلب</th>
+                        <th>الحالة</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for application in applications %}
+
+                        <tr>
+
+                            <td>
+                                <strong>
+                                    {{ application.full_name }}
+                                </strong>
+
+                                <small>
+                                    #{{ application.id }}
+                                </small>
+                            </td>
+
+                            <td>
+                                {{ application.get_requested_position_display }}
+                            </td>
+
+                            <td dir="ltr">
+                                {{ application.phone }}
+                            </td>
+
+                            <td>
+                                {{ application.wilaya }}
+                            </td>
+
+                            <td>
+                                {{ application.experience_years }}
+                                سنة
+                            </td>
+
+                            <td>
+                                {{ application.submitted_at|date:"Y-m-d H:i" }}
+                            </td>
+
+                            <td>
+                                <span
+                                    class="recruitment-status-badge recruitment-status-{{ application.status|lower }}"
+                                >
+                                    {{ application.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <a
+                                    href="{% url 'recruitment_accountant:detail' application.id %}"
+                                    class="table-link"
+                                >
+                                    فتح الطلب
+                                </a>
+                            </td>
+
+                        </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+
+        {% if page.paginator.num_pages > 1 %}
+
+            <div class="recruitment-pagination">
+
+                {% if page.has_previous %}
+                    <a
+                        href="?{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page.previous_page_number }}"
+                    >
+                        السابق
+                    </a>
+                {% endif %}
+
+                <span>
+                    الصفحة {{ page.number }}
+                    من
+                    {{ page.paginator.num_pages }}
+                </span>
+
+                {% if page.has_next %}
+                    <a
+                        href="?{% if selected_status %}status={{ selected_status }}&{% endif %}page={{ page.next_page_number }}"
+                    >
+                        التالي
+                    </a>
+                {% endif %}
+
+            </div>
+
+        {% endif %}
+
+    {% else %}
+
+        <div class="empty-state">
+            <span>?</span>
+
+            <h3>
+                لا توجد طلبات في هذه الفئة
+            </h3>
+
+            <p>
+                ستظهر طلبات التوظيف هنا بمجرد
+                وصولها من الموقع.
+            </p>
+        </div>
+
+    {% endif %}
+
+</section>
+
+{% endblock %}

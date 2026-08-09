@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'apps.analytics.apps.AnalyticsConfig',
     'apps.assistant.apps.AssistantConfig',
     'apps.dashboard.apps.DashboardConfig',
+    'apps.recruitment.apps.RecruitmentConfig',
     'apps.website.apps.WebsiteConfig',
 ]
 

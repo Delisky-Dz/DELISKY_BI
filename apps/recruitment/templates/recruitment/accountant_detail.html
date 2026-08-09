@@ -1,0 +1,368 @@
+{% extends "imports/base.html" %}
+
+{% block title %}
+    {{ application.full_name }} | طلب توظيف
+{% endblock %}
+
+{% block page_title %}
+    ملف المترشح
+{% endblock %}
+
+{% block content %}
+
+<div class="recruitment-detail-top">
+
+    <a
+        href="{% url 'recruitment_accountant:list' %}"
+        class="recruitment-back-link"
+    >
+        &#8592; العودة إلى طلبات التوظيف
+    </a>
+
+</div>
+
+
+<section class="recruitment-detail-hero">
+
+    <div>
+
+        <span class="section-kicker">
+            طلب رقم #{{ application.id }}
+        </span>
+
+        <h2>
+            {{ application.full_name }}
+        </h2>
+
+        <p>
+            {{ application.get_requested_position_display }}
+            ?
+            {{ application.wilaya }}
+        </p>
+
+    </div>
+
+
+    <span
+        class="recruitment-status-badge recruitment-status-{{ application.status|lower }} recruitment-status-large"
+    >
+        {{ application.get_status_display }}
+    </span>
+
+</section>
+
+
+<div class="recruitment-detail-layout">
+
+    <div class="recruitment-detail-main">
+
+
+        <section class="panel recruitment-info-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-kicker">
+                        المعلومات الشخصية
+                    </span>
+
+                    <h2>
+                        بيانات المترشح
+                    </h2>
+                </div>
+            </div>
+
+
+            <div class="recruitment-info-grid">
+
+                <div>
+                    <span>الاسم واللقب</span>
+                    <strong>
+                        {{ application.full_name }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>تاريخ الميلاد</span>
+                    <strong dir="ltr">
+                        {{ application.birth_date|date:"Y-m-d" }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>العمر</span>
+                    <strong>
+                        {{ application_age }} سنة
+                    </strong>
+                </div>
+
+                <div>
+                    <span>الحالة العائلية</span>
+                    <strong>
+                        {{ application.get_marital_status_display }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>عدد الأولاد</span>
+                    <strong>
+                        {{ application.children_count }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>رقم الهاتف</span>
+                    <strong dir="ltr">
+                        {{ application.phone }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>البريد الإلكتروني</span>
+
+                    <strong>
+                        {% if application.email %}
+                            <span dir="ltr">
+                                {{ application.email }}
+                            </span>
+                        {% else %}
+                            غير مسجل
+                        {% endif %}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>الولاية</span>
+                    <strong>
+                        {{ application.wilaya }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>مكان الإقامة</span>
+                    <strong>
+                        {{ application.residence }}
+                    </strong>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <section class="panel recruitment-info-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-kicker">
+                        الخبرة المهنية
+                    </span>
+
+                    <h2>
+                        الوظيفة والخبرة
+                    </h2>
+                </div>
+            </div>
+
+
+            <div class="recruitment-info-grid">
+
+                <div>
+                    <span>الوظيفة المطلوبة</span>
+                    <strong>
+                        {{ application.get_requested_position_display }}
+                    </strong>
+                </div>
+
+                <div>
+                    <span>سنوات الخبرة</span>
+                    <strong>
+                        {{ application.experience_years }}
+                        سنة
+                    </strong>
+                </div>
+
+            </div>
+
+
+            <div class="recruitment-text-block">
+
+                <span>
+                    الشركات التي سبق العمل بها
+                </span>
+
+                <p>
+                    {% if application.previous_companies %}
+                        {{ application.previous_companies|linebreaksbr }}
+                    {% else %}
+                        لم يذكر المترشح شركات سابقة.
+                    {% endif %}
+                </p>
+
+            </div>
+
+        </section>
+
+
+        {% if application.requested_position == "DRIVER" or application.requested_position == "DRIVER_SELLER" %}
+
+            <section class="panel recruitment-info-panel">
+
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-kicker">
+                            معلومات السياقة
+                        </span>
+
+                        <h2>
+                            رخصة وخبرة السياقة
+                        </h2>
+                    </div>
+                </div>
+
+
+                <div class="recruitment-info-grid">
+
+                    <div>
+                        <span>يمتلك رخصة سياقة</span>
+                        <strong>
+                            {% if application.has_driving_license %}
+                                نعم
+                            {% else %}
+                                لا
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>صنف الرخصة</span>
+                        <strong dir="ltr">
+                            {{ application.driving_license_category|default:"?" }}
+                        </strong>
+                    </div>
+
+                    <div>
+                        <span>خبرة السياقة</span>
+                        <strong>
+                            {% if application.driving_experience_years != None %}
+                                {{ application.driving_experience_years }}
+                                سنة
+                            {% else %}
+                                ?
+                            {% endif %}
+                        </strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+        {% endif %}
+
+
+        <section class="panel recruitment-info-panel">
+
+            <div class="panel-heading">
+                <div>
+                    <span class="section-kicker">
+                        السيرة الذاتية
+                    </span>
+
+                    <h2>
+                        CV
+                    </h2>
+                </div>
+            </div>
+
+
+            {% if application.cv %}
+
+                <a
+                    href="{% url 'recruitment_accountant:download_cv' application.id %}"
+                    class="primary-button recruitment-cv-button"
+                >
+                    تحميل السيرة الذاتية PDF
+                </a>
+
+            {% else %}
+
+                <div class="recruitment-no-cv">
+                    لم يرفق المترشح سيرة ذاتية.
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    </div>
+
+
+    <aside class="recruitment-detail-aside">
+
+        <section class="panel recruitment-status-panel">
+
+            <span class="section-kicker">
+                متابعة الطلب
+            </span>
+
+            <h2>
+                حالة الطلب
+            </h2>
+
+            <form
+                method="post"
+                action="{% url 'recruitment_accountant:update_status' application.id %}"
+            >
+
+                {% csrf_token %}
+
+                <div class="form-field">
+
+                    <label for="{{ status_form.status.id_for_label }}">
+                        الحالة الحالية
+                    </label>
+
+                    {{ status_form.status }}
+
+                </div>
+
+                <button
+                    type="submit"
+                    class="primary-button recruitment-status-button"
+                >
+                    حفظ الحالة
+                </button>
+
+            </form>
+
+
+            <div class="recruitment-audit">
+
+                <span>
+                    تاريخ إرسال الطلب
+                </span>
+
+                <strong>
+                    {{ application.submitted_at|date:"Y-m-d H:i" }}
+                </strong>
+
+                {% if application.status_updated_by %}
+
+                    <span>
+                        آخر تحديث للحالة بواسطة
+                    </span>
+
+                    <strong>
+                        {{ application.status_updated_by.get_full_name|default:application.status_updated_by.username }}
+                    </strong>
+
+                {% endif %}
+
+            </div>
+
+        </section>
+
+    </aside>
+
+</div>
+
+{% endblock %}

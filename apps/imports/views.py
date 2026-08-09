@@ -12,6 +12,11 @@ from django.views.decorators.http import (
     require_POST,
 )
 
+from apps.recruitment.models import (
+    ApplicationStatus,
+    JobApplication,
+)
+
 from .access import accountant_required
 from .forms import ImportUploadForm
 from .models import (
@@ -112,6 +117,11 @@ def _home_context(
         "recent_batches": recent_batches,
         "status_counts": counts,
         "batch_total": sum(counts.values()),
+        "recruitment_new_count": (
+            JobApplication.objects.filter(
+                status=ApplicationStatus.NEW,
+            ).count()
+        ),
         "service_error_details": (
             service_error_details or []
         ),
