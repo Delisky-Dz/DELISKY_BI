@@ -31,6 +31,11 @@ MIDDLEWARE.insert(
     "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 
+MIDDLEWARE.insert(
+    1,
+    "config.middleware.ProductionHostSeparationMiddleware",
+)
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
