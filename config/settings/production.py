@@ -5,6 +5,8 @@ from .base import *
 
 DEBUG = False
 
+TURNSTILE_ENABLED = True
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")

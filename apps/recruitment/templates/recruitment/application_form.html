@@ -473,6 +473,16 @@
                 </div>
 
 
+                {% if turnstile_enabled %}
+                    <div class="career-turnstile-row">
+                        <div
+                            class="cf-turnstile"
+                            data-sitekey="{{ turnstile_site_key }}"
+                        ></div>
+                    </div>
+                {% endif %}
+
+
                 <div class="career-submit-row">
 
                     <button
@@ -503,6 +513,15 @@
     </div>
 
 </section>
+
+
+{% if turnstile_enabled %}
+<script
+    src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+    async
+    defer
+></script>
+{% endif %}
 
 
 <script>

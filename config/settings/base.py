@@ -30,6 +30,20 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
+TURNSTILE_ENABLED = False
+TURNSTILE_SITE_KEY = os.getenv(
+    "TURNSTILE_SITE_KEY",
+    "",
+).strip()
+TURNSTILE_SECRET_KEY = os.getenv(
+    "TURNSTILE_SECRET_KEY",
+    "",
+).strip()
+TURNSTILE_EXPECTED_HOSTNAME = os.getenv(
+    "TURNSTILE_EXPECTED_HOSTNAME",
+    "",
+).strip()
+
 ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
 
