@@ -5,9 +5,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$projectRoot = "C:\Users\MediaNet\DELISKY_BI"
+$projectRoot = Split-Path $PSScriptRoot -Parent
 
-$backupRoot = "H:\DELISKY_BACKUPS"
+$backupRoot = "D:\DELISKY_BACKUPS"
+$backupDrive = (Split-Path -Qualifier $backupRoot).TrimEnd("\").TrimEnd(":")
 $dbBackupRoot = Join-Path $backupRoot "PostgreSQL"
 $projectBackupRoot = Join-Path $backupRoot "Project"
 $mediaBackupRoot = Join-Path $backupRoot "Media"
@@ -61,12 +62,12 @@ try {
     }
 
     # Verify dedicated backup disk.
-    $partition = Get-Partition -DriveLetter H -ErrorAction Stop
+    $partition = Get-Partition -DriveLetter $backupDrive -ErrorAction Stop
     $disk = Get-Disk -Number $partition.DiskNumber -ErrorAction Stop
-    $volume = Get-Volume -DriveLetter H -ErrorAction Stop
+    $volume = Get-Volume -DriveLetter $backupDrive -ErrorAction Stop
 
     if ($disk.SerialNumber.Trim() -ne $expectedDiskSerial) {
-        throw "H: is not the expected DELISKY backup disk."
+        throw "${backupDrive}: is not the expected DELISKY backup disk."
     }
 
     if ($disk.HealthStatus -ne "Healthy") {
@@ -289,24 +290,28 @@ try {
         throw "Age recipient file contains an invalid recipient."
     }
 
-    $ageCommand = Get-Command `
-        age.exe `
-        -ErrorAction SilentlyContinue
+    $ageExe = "C:\Program Files\age\age.exe"
 
-    if ($null -ne $ageCommand) {
-        $ageExe = $ageCommand.Source
-    }
-    else {
-        $ageExe = Get-ChildItem `
-            -Path "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" `
-            -Filter "age.exe" `
-            -File `
-            -Recurse `
-            -ErrorAction SilentlyContinue |
-            Where-Object {
-                $_.FullName -match 'FiloSottile\.age'
-            } |
-            Select-Object -First 1 -ExpandProperty FullName
+    if (-not (Test-Path -LiteralPath $ageExe)) {
+        $ageCommand = Get-Command `
+            age.exe `
+            -ErrorAction SilentlyContinue
+
+        if ($null -ne $ageCommand) {
+            $ageExe = $ageCommand.Source
+        }
+        else {
+            $ageExe = Get-ChildItem `
+                -Path "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" `
+                -Filter "age.exe" `
+                -File `
+                -Recurse `
+                -ErrorAction SilentlyContinue |
+                Where-Object {
+                    $_.FullName -match 'FiloSottile\.age'
+                } |
+                Select-Object -First 1 -ExpandProperty FullName
+        }
     }
 
     if (-not $ageExe -or -not (Test-Path -LiteralPath $ageExe)) {
@@ -414,7 +419,7 @@ try {
     # Capacity
     # ---------------------------------------------------------------
 
-    $volumeAfter = Get-Volume -DriveLetter H
+    $volumeAfter = Get-Volume -DriveLetter $backupDrive
 
     $freeGB = [math]::Round(
         $volumeAfter.SizeRemaining / 1GB,
