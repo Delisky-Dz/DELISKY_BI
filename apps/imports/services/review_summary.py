@@ -84,36 +84,22 @@ class ImportReviewSummary:
         }
 
 
-def build_import_review_summary(
-    preflight_result: Any,
+def build_import_review_summary_from_metadata(
+    *,
+    brand_code: str,
+    period_start: Any,
+    period_end: Any,
     row_result: ReportRowReadResult,
     cleaning_result: ReportCleaningResult,
 ) -> ImportReviewSummary:
-    if not preflight_result.is_valid:
-        raise ImportReviewSummaryError(
-            "invalid_preflight",
-            (
-                "A review summary cannot be built from "
-                "an invalid preflight result."
-            ),
-        )
-
-    parsed = preflight_result.parsed_filename
-
-    if parsed is None:
-        raise ImportReviewSummaryError(
-            "incomplete_preflight",
-            "Parsed filename information is missing.",
-        )
-
     if (
-        parsed.report_type != row_result.report_type
-        or parsed.report_type != cleaning_result.report_type
+        row_result.report_type
+        != cleaning_result.report_type
     ):
         raise ImportReviewSummaryError(
             "report_type_mismatch",
             (
-                "Preflight, row reader, and cleaner report "
+                "Row reader and cleaner report "
                 "types do not match."
             ),
         )
@@ -190,9 +176,9 @@ def build_import_review_summary(
     return ImportReviewSummary(
         filename=cleaning_result.filename,
         report_type=cleaning_result.report_type,
-        brand_code=parsed.brand_code,
-        period_start=parsed.period_start.isoformat(),
-        period_end=parsed.period_end.isoformat(),
+        brand_code=brand_code,
+        period_start=period_start.isoformat(),
+        period_end=period_end.isoformat(),
         total_rows=cleaning_result.total_rows,
         accepted_rows=cleaning_result.accepted_rows,
         excluded_rows=cleaning_result.excluded_rows,
@@ -211,4 +197,48 @@ def build_import_review_summary(
             else REVIEW_STATUS_BLOCKED
         ),
         issue_groups=issue_groups,
+    )
+
+
+def build_import_review_summary(
+    preflight_result: Any,
+    row_result: ReportRowReadResult,
+    cleaning_result: ReportCleaningResult,
+) -> ImportReviewSummary:
+    if not preflight_result.is_valid:
+        raise ImportReviewSummaryError(
+            "invalid_preflight",
+            (
+                "A review summary cannot be built from "
+                "an invalid preflight result."
+            ),
+        )
+
+    parsed = preflight_result.parsed_filename
+
+    if parsed is None:
+        raise ImportReviewSummaryError(
+            "incomplete_preflight",
+            "Parsed filename information is missing.",
+        )
+
+    if (
+        parsed.report_type != row_result.report_type
+        or parsed.report_type
+        != cleaning_result.report_type
+    ):
+        raise ImportReviewSummaryError(
+            "report_type_mismatch",
+            (
+                "Preflight, row reader, and cleaner report "
+                "types do not match."
+            ),
+        )
+
+    return build_import_review_summary_from_metadata(
+        brand_code=parsed.brand_code,
+        period_start=parsed.period_start,
+        period_end=parsed.period_end,
+        row_result=row_result,
+        cleaning_result=cleaning_result,
     )

@@ -30,6 +30,7 @@ from apps.imports.services import (
     create_or_update_import_review,
     ImportBatchReviewError,
     build_import_review_summary,
+    build_import_review_summary_from_metadata,
     REVIEW_STATUS_REVIEWED,
     REVIEW_STATUS_BLOCKED,
     clean_report_rows,
@@ -2251,6 +2252,83 @@ class ImportReviewSummaryTests(SimpleTestCase):
         )
 
         return summary
+
+    def test_metadata_builder_matches_existing_preflight_builder(self):
+        filename = (
+            "Chargement_BIFA_"
+            "2026-03-07_2026-03-11.xlsx"
+        )
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "report data"
+        worksheet.append(
+            [
+                "VAN",
+                "Qt\u00e9",
+                "Article",
+            ]
+        )
+        worksheet.append(
+            [
+                "BIFA LIV01",
+                10,
+                "ARTICLE A",
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            filename,
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-"
+                "officedocument.spreadsheetml.sheet"
+            ),
+        )
+
+        preflight = run_import_preflight(uploaded)
+        self.assertTrue(
+            preflight.is_valid,
+            preflight.errors,
+        )
+
+        row_result = read_report_rows(
+            uploaded,
+            preflight,
+        )
+        cleaning = clean_report_rows(
+            row_result,
+            preflight,
+        )
+
+        existing_summary = build_import_review_summary(
+            preflight,
+            row_result,
+            cleaning,
+        )
+
+        parsed = preflight.parsed_filename
+        self.assertIsNotNone(parsed)
+
+        metadata_summary = (
+            build_import_review_summary_from_metadata(
+                brand_code=parsed.brand_code,
+                period_start=parsed.period_start,
+                period_end=parsed.period_end,
+                row_result=row_result,
+                cleaning_result=cleaning,
+            )
+        )
+
+        self.assertEqual(
+            metadata_summary.as_dict(),
+            existing_summary.as_dict(),
+        )
+
 
     def test_clean_file_is_reviewed_and_approvable(self):
         summary = self.make_summary(

@@ -22,6 +22,7 @@ from .review_summary import (
     REVIEW_STATUS_BLOCKED,
     REVIEW_STATUS_REVIEWED,
     build_import_review_summary,
+    build_import_review_summary_from_metadata,
 )
 from .report_row_cleaner import (
     CleanedReportRow,
@@ -84,6 +85,7 @@ __all__ = [
     "ImportBatchReviewResult",
     "ImportBatchReviewError",
     "build_import_review_summary",
+    "build_import_review_summary_from_metadata",
     "REVIEW_STATUS_REVIEWED",
     "REVIEW_STATUS_BLOCKED",
     "ReviewIssueGroup",
