@@ -19,3 +19,8 @@ if configured_database_name != DEV_DATABASE_NAME:
         "Unsafe development database configuration: "
         f"expected '{DEV_DATABASE_NAME}', got '{configured_database_name}'."
     )
+
+
+# Safety guard: development tests must use their own database.
+DEV_TEST_DATABASE_NAME = "test_delisky_bi_dev"
+DATABASES["default"]["TEST"]["NAME"] = DEV_TEST_DATABASE_NAME
