@@ -756,6 +756,82 @@ def _clean_pos(
     return _status_from_issues(issues), cleaned, issues
 
 
+def clean_report_rows_from_metadata(
+    row_result: ReportRowReadResult,
+    *,
+    period_start: Any | None = None,
+    period_end: Any | None = None,
+) -> ReportCleaningResult:
+    if row_result.report_type in {
+        "SALES",
+        "POS",
+    } and (
+        period_start is None
+        or period_end is None
+    ):
+        raise ReportRowCleaningError(
+            "missing_period_metadata",
+            (
+                "Period start and end are required "
+                f"for {row_result.report_type} rows."
+            ),
+        )
+
+    cleaned_rows: list[CleanedReportRow] = []
+
+    for row in row_result.rows:
+        raw = row.as_dict()
+
+        if row_result.report_type in {
+            "OPENING_STOCK",
+            "CHARGEMENT",
+        }:
+            status, cleaned, issues = (
+                _clean_stock_or_load(
+                    raw,
+                    row_result.report_type,
+                )
+            )
+        elif row_result.report_type == "ITEMS":
+            status, cleaned, issues = _clean_items(raw)
+        elif row_result.report_type == "SALES":
+            status, cleaned, issues = _clean_sales(
+                raw,
+                period_start,
+                period_end,
+            )
+        elif row_result.report_type == "POS":
+            status, cleaned, issues = _clean_pos(
+                raw,
+                period_start,
+                period_end,
+            )
+        else:
+            raise ReportRowCleaningError(
+                "unsupported_report_type",
+                (
+                    "No row cleaner exists for report "
+                    f"type {row_result.report_type}."
+                ),
+            )
+
+        cleaned_rows.append(
+            CleanedReportRow(
+                row_number=row.row_number,
+                status=status,
+                raw_values=row.values,
+                cleaned_values=tuple(cleaned.items()),
+                issues=tuple(issues),
+            )
+        )
+
+    return ReportCleaningResult(
+        filename=row_result.filename,
+        report_type=row_result.report_type,
+        rows=tuple(cleaned_rows),
+    )
+
+
 def clean_report_rows(
     row_result: ReportRowReadResult,
     preflight_result: Any,
@@ -786,56 +862,16 @@ def clean_report_rows(
             ),
         )
 
-    cleaned_rows: list[CleanedReportRow] = []
-
-    for row in row_result.rows:
-        raw = row.as_dict()
-
-        if row_result.report_type in {
-            "OPENING_STOCK",
-            "CHARGEMENT",
-        }:
-            status, cleaned, issues = (
-                _clean_stock_or_load(
-                    raw,
-                    row_result.report_type,
-                )
-            )
-        elif row_result.report_type == "ITEMS":
-            status, cleaned, issues = _clean_items(raw)
-        elif row_result.report_type == "SALES":
-            status, cleaned, issues = _clean_sales(
-                raw,
-                parsed.period_start,
-                parsed.period_end,
-            )
-        elif row_result.report_type == "POS":
-            status, cleaned, issues = _clean_pos(
-                raw,
-                parsed.period_start,
-                parsed.period_end,
-            )
-        else:
-            raise ReportRowCleaningError(
-                "unsupported_report_type",
-                (
-                    "No row cleaner exists for report "
-                    f"type {row_result.report_type}."
-                ),
-            )
-
-        cleaned_rows.append(
-            CleanedReportRow(
-                row_number=row.row_number,
-                status=status,
-                raw_values=row.values,
-                cleaned_values=tuple(cleaned.items()),
-                issues=tuple(issues),
-            )
-        )
-
-    return ReportCleaningResult(
-        filename=row_result.filename,
-        report_type=row_result.report_type,
-        rows=tuple(cleaned_rows),
+    return clean_report_rows_from_metadata(
+        row_result,
+        period_start=getattr(
+            parsed,
+            "period_start",
+            None,
+        ),
+        period_end=getattr(
+            parsed,
+            "period_end",
+            None,
+        ),
     )

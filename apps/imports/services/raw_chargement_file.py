@@ -109,7 +109,7 @@ def adapt_raw_chargement_file(
 
 CANONICAL_CHARGEMENT_HEADERS = (
     "VAN",
-    "Qt?",
+    "Qt\u00e9",
     "Article",
 )
 

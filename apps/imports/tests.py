@@ -34,6 +34,7 @@ from apps.imports.services import (
     REVIEW_STATUS_REVIEWED,
     REVIEW_STATUS_BLOCKED,
     clean_report_rows,
+    clean_report_rows_from_metadata,
     STATUS_STOPPED,
     STATUS_EXCLUDED,
     STATUS_ACCEPTED,
@@ -1826,6 +1827,87 @@ class ReportRowCleanerTests(SimpleTestCase):
             row_result,
             preflight,
         )
+
+    def test_metadata_cleaner_matches_existing_preflight_cleaner(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "report data"
+
+        worksheet.append(
+            [
+                "VAN",
+                "Date&Heure",
+                "Nom du client",
+                "Total",
+                "Region",
+            ]
+        )
+        worksheet.append(
+            [
+                "BIFA LIV01",
+                "07/03/2026 09:10:11",
+                "Client Test",
+                1250,
+                "MILA",
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            (
+                "Sales_BIFA_"
+                "2026-03-07_2026-03-11.xlsx"
+            ),
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-"
+                "officedocument.spreadsheetml.sheet"
+            ),
+        )
+
+        preflight = run_import_preflight(uploaded)
+        self.assertTrue(
+            preflight.is_valid,
+            preflight.errors,
+        )
+
+        row_result = read_report_rows(
+            uploaded,
+            preflight,
+        )
+
+        existing = clean_report_rows(
+            row_result,
+            preflight,
+        )
+
+        parsed = preflight.parsed_filename
+        self.assertIsNotNone(parsed)
+
+        metadata_result = (
+            clean_report_rows_from_metadata(
+                row_result,
+                period_start=parsed.period_start,
+                period_end=parsed.period_end,
+            )
+        )
+
+        self.assertEqual(
+            metadata_result.filename,
+            existing.filename,
+        )
+        self.assertEqual(
+            metadata_result.report_type,
+            existing.report_type,
+        )
+        self.assertEqual(
+            metadata_result.rows,
+            existing.rows,
+        )
+
 
     def test_accepts_and_normalizes_sales_row(self):
         result = self.make_cleaning_result(

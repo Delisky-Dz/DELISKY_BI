@@ -20,7 +20,7 @@ class RawExcelReaderTests(SimpleTestCase):
         worksheet.append(
             [
                 "Vers l'emplacement",
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ]
         )
@@ -60,8 +60,8 @@ class RawExcelReaderTests(SimpleTestCase):
         worksheet.append(
             [
                 "Vers l'emplacement",
-                "Qt?",
-                " qt? ",
+                "Qt\u00e9",
+                " qt\u00e9 ",
                 "Article",
             ]
         )
@@ -106,7 +106,7 @@ class RawExcelReaderTests(SimpleTestCase):
             [
                 "Vers l'emplacement",
                 None,
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ]
         )
@@ -155,7 +155,7 @@ class RawExcelReaderTests(SimpleTestCase):
         first.append(
             [
                 "Vers l'emplacement",
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ]
         )
@@ -232,7 +232,7 @@ class RawExcelReaderTests(SimpleTestCase):
             result.headers,
             (
                 "Vers l'emplacement",
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ),
         )
@@ -250,7 +250,7 @@ class RawExcelReaderTests(SimpleTestCase):
             result.rows[0].as_dict(),
             {
                 "Vers l'emplacement": "SOURCE A",
-                "Qt?": 10,
+                "Qt\u00e9": 10,
                 "Article": "ARTICLE A",
             },
         )
@@ -263,7 +263,7 @@ class RawExcelReaderTests(SimpleTestCase):
             result.rows[1].as_dict(),
             {
                 "Vers l'emplacement": "SOURCE B",
-                "Qt?": 20,
+                "Qt\u00e9": 20,
                 "Article": "ARTICLE B",
             },
         )

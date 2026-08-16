@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from apps.imports.services.report_row_cleaner import (
     STATUS_STOPPED,
     clean_report_rows,
+    clean_report_rows_from_metadata,
 )
 
 from apps.imports.services.raw_chargement_file import (
@@ -32,7 +33,7 @@ class RawChargementFileTests(SimpleTestCase):
         worksheet.append(
             [
                 "Vers l'emplacement",
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ]
         )
@@ -101,7 +102,7 @@ class RawChargementFileTests(SimpleTestCase):
             result.rows[0].values,
             {
                 "VAN": "DELISKY LIV01",
-                "Qt?": 10,
+                "Qt\u00e9": 10,
                 "Article": "ARTICLE A",
             },
         )
@@ -115,7 +116,7 @@ class RawChargementFileTests(SimpleTestCase):
             result.rows[1].values,
             {
                 "VAN": "NITA LIV01",
-                "Qt?": 20,
+                "Qt\u00e9": 20,
                 "Article": "ARTICLE B",
             },
         )
@@ -128,7 +129,7 @@ class RawChargementFileTests(SimpleTestCase):
         worksheet.append(
             [
                 "Vers l'emplacement",
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ]
         )
@@ -174,7 +175,7 @@ class RawChargementFileTests(SimpleTestCase):
             result.rows[0].values,
             {
                 "VAN": "DELISKY LIV01",
-                "Qt?": 0,
+                "Qt\u00e9": 0,
                 "Article": None,
             },
         )
@@ -188,7 +189,7 @@ class RawChargementFileTests(SimpleTestCase):
         worksheet.append(
             [
                 "Vers l'emplacement",
-                "Qt?",
+                "Qt\u00e9",
                 "Article",
             ]
         )
@@ -253,6 +254,45 @@ class RawChargementFileTests(SimpleTestCase):
 
         self.assertFalse(
             stopped_issue.details["authoritative"]
+        )
+
+
+    def test_raw_chargement_cleans_without_period_metadata(self):
+        adapted = adapt_raw_chargement_file(
+            self.make_upload(),
+            truck_mapping={
+                "SOURCE A": "DELISKY LIV01",
+                "SOURCE B": "NITA LIV01",
+            },
+        )
+
+        row_result = to_report_row_read_result(
+            adapted
+        )
+
+        cleaned = clean_report_rows_from_metadata(
+            row_result
+        )
+
+        self.assertEqual(
+            cleaned.report_type,
+            "CHARGEMENT",
+        )
+        self.assertEqual(
+            cleaned.total_rows,
+            2,
+        )
+        self.assertEqual(
+            cleaned.accepted_rows,
+            2,
+        )
+        self.assertEqual(
+            cleaned.rows[0].row_number,
+            3,
+        )
+        self.assertEqual(
+            cleaned.rows[1].row_number,
+            5,
         )
 
 

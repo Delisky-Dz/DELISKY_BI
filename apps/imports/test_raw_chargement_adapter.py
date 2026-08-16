@@ -16,17 +16,17 @@ class RawChargementAdapterTests(SimpleTestCase):
             [
                 {
                     "Vers l'emplacement": "SOURCE A",
-                    "Qt?": 10,
+                    "Qt\u00e9": 10,
                     "Article": "ARTICLE A",
                 },
                 {
                     "Vers l'emplacement": "SOURCE B",
-                    "Qt?": 20,
+                    "Qt\u00e9": 20,
                     "Article": "ARTICLE B",
                 },
                 {
                     "Vers l'emplacement": "SOURCE A",
-                    "Qt?": 30,
+                    "Qt\u00e9": 30,
                     "Article": "ARTICLE C",
                 },
             ],
@@ -41,17 +41,17 @@ class RawChargementAdapterTests(SimpleTestCase):
             (
                 {
                     "VAN": "DELISKY LIV01",
-                    "Qt?": 10,
+                    "Qt\u00e9": 10,
                     "Article": "ARTICLE A",
                 },
                 {
                     "VAN": "NITA LIV01",
-                    "Qt?": 20,
+                    "Qt\u00e9": 20,
                     "Article": "ARTICLE B",
                 },
                 {
                     "VAN": "DELISKY LIV01",
-                    "Qt?": 30,
+                    "Qt\u00e9": 30,
                     "Article": "ARTICLE C",
                 },
             ),
@@ -66,12 +66,12 @@ class RawChargementAdapterTests(SimpleTestCase):
                 [
                     {
                         "Vers l'emplacement": "SOURCE A",
-                        "Qt?": 10,
+                        "Qt\u00e9": 10,
                         "Article": "ARTICLE A",
                     },
                     {
                         "Vers l'emplacement": "UNKNOWN",
-                        "Qt?": 20,
+                        "Qt\u00e9": 20,
                         "Article": "ARTICLE B",
                     },
                 ],
@@ -98,7 +98,7 @@ class RawChargementAdapterTests(SimpleTestCase):
         result = adapt_raw_chargement_row(
             {
                 "Vers l'emplacement": "VAN-EXT-01",
-                "Qt?": 12,
+                "Qt\u00e9": 12,
                 "Article": "BISCUIT A",
             },
             truck_mapping={
@@ -110,7 +110,7 @@ class RawChargementAdapterTests(SimpleTestCase):
             result,
             {
                 "VAN": "DELISKY LIV01",
-                "Qt?": 12,
+                "Qt\u00e9": 12,
                 "Article": "BISCUIT A",
             },
         )
@@ -119,7 +119,7 @@ class RawChargementAdapterTests(SimpleTestCase):
         result = adapt_raw_chargement_row(
             {
                 "Vers l'emplacement": "VAN-EXT-01",
-                "Qt?": 0,
+                "Qt\u00e9": 0,
                 "Article": None,
             },
             truck_mapping={
@@ -127,14 +127,14 @@ class RawChargementAdapterTests(SimpleTestCase):
             },
         )
 
-        self.assertEqual(result["Qt?"], 0)
+        self.assertEqual(result["Qt\u00e9"], 0)
         self.assertIsNone(result["Article"])
 
     def test_raw_header_matching_is_normalized(self):
         result = adapt_raw_chargement_row(
             {
                 "  Vers l'emplacement  ": "SOURCE 01",
-                "qt?": 5,
+                "qt\u00e9": 5,
                 " article ": "ARTICLE TEST",
             },
             truck_mapping={
@@ -146,7 +146,7 @@ class RawChargementAdapterTests(SimpleTestCase):
             result,
             {
                 "VAN": "BIFA PSLIV01",
-                "Qt?": 5,
+                "Qt\u00e9": 5,
                 "Article": "ARTICLE TEST",
             },
         )
@@ -158,8 +158,8 @@ class RawChargementAdapterTests(SimpleTestCase):
             adapt_raw_chargement_row(
                 {
                     "Vers l'emplacement": "SOURCE 01",
-                    "Qt?": 5,
-                    " qt? ": 7,
+                    "Qt\u00e9": 5,
+                    " qt\u00e9 ": 7,
                     "Article": "ARTICLE TEST",
                 },
                 truck_mapping={
@@ -197,7 +197,7 @@ class RawChargementAdapterTests(SimpleTestCase):
             adapt_raw_chargement_row(
                 {
                     "Vers l'emplacement": "UNKNOWN VAN",
-                    "Qt?": 5,
+                    "Qt\u00e9": 5,
                     "Article": "ARTICLE TEST",
                 },
                 truck_mapping={

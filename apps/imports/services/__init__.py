@@ -33,6 +33,7 @@ from .report_row_cleaner import (
     STATUS_EXCLUDED,
     STATUS_STOPPED,
     clean_report_rows,
+    clean_report_rows_from_metadata,
 )
 from .value_normalizers import (
     ValueNormalizationError,
@@ -92,6 +93,7 @@ __all__ = [
     "ImportReviewSummaryError",
     "ImportReviewSummary",
     "clean_report_rows",
+    "clean_report_rows_from_metadata",
     "STATUS_STOPPED",
     "STATUS_EXCLUDED",
     "STATUS_ACCEPTED",

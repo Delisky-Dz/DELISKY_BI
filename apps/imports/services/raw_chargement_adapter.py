@@ -87,7 +87,7 @@ def adapt_raw_chargement_row(
     )
     quantity = _required_value(
         row,
-        "Qt?",
+        "Qt\u00e9",
     )
     article = _required_value(
         row,
@@ -101,7 +101,7 @@ def adapt_raw_chargement_row(
 
     return {
         "VAN": internal_code,
-        "Qt?": quantity,
+        "Qt\u00e9": quantity,
         "Article": article,
     }
 
