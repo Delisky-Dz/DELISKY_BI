@@ -22,6 +22,7 @@ class RawChargementImportRequest:
 @dataclass(frozen=True, slots=True)
 class RawChargementFileReviewResult:
     succeeded: bool
+    original_filename: str | None
     batch: ImportBatch | None
     error_code: str | None
     error_message: str | None
@@ -54,6 +55,15 @@ def create_raw_chargement_multi_import_reviews(
     results: list[RawChargementFileReviewResult] = []
 
     for request in requests:
+        original_filename = (
+            request.original_filename
+            or getattr(
+                request.source,
+                "name",
+                None,
+            )
+        )
+
         try:
             review_result = (
                 create_raw_chargement_import_review(
@@ -65,7 +75,7 @@ def create_raw_chargement_multi_import_reviews(
                     period_end=request.period_end,
                     truck_mapping=request.truck_mapping,
                     original_filename=(
-                        request.original_filename
+                        original_filename
                     ),
                 )
             )
@@ -73,6 +83,7 @@ def create_raw_chargement_multi_import_reviews(
             results.append(
                 RawChargementFileReviewResult(
                     succeeded=False,
+                    original_filename=original_filename,
                     batch=None,
                     error_code=exc.code,
                     error_message=exc.message,
@@ -84,6 +95,7 @@ def create_raw_chargement_multi_import_reviews(
         results.append(
             RawChargementFileReviewResult(
                 succeeded=True,
+                original_filename=original_filename,
                 batch=review_result.batch,
                 error_code=None,
                 error_message=None,

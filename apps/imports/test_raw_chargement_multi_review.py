@@ -149,6 +149,15 @@ class RawChargementMultiReviewTests(TestCase):
             2,
         )
 
+        self.assertEqual(
+            result.files[0].original_filename,
+            "valid_delisky.xlsx",
+        )
+        self.assertEqual(
+            result.files[1].original_filename,
+            "mixed_file.xlsx",
+        )
+
         self.assertTrue(
             result.files[0].succeeded
         )
@@ -182,4 +191,171 @@ class RawChargementMultiReviewTests(TestCase):
         self.assertEqual(
             batch.brand.code,
             "DELISKY",
+        )
+
+    def test_creates_independent_batches_for_two_valid_files(self):
+        delisky_upload = self.make_upload(
+            filename="delisky_valid.xlsx",
+            rows=[
+                [
+                    "SOURCE DELISKY",
+                    10,
+                    "ARTICLE DELISKY",
+                ],
+            ],
+        )
+
+        nita_upload = self.make_upload(
+            filename="nita_valid.xlsx",
+            rows=[
+                [
+                    "SOURCE NITA",
+                    25,
+                    "ARTICLE NITA",
+                ],
+            ],
+        )
+
+        result = create_raw_chargement_multi_import_reviews(
+            (
+                RawChargementImportRequest(
+                    source=delisky_upload,
+                    brand_code="DELISKY",
+                    period_start="2026-03-07",
+                    period_end="2026-03-11",
+                    truck_mapping={
+                        "SOURCE DELISKY": "DELISKY LIV01",
+                    },
+                ),
+                RawChargementImportRequest(
+                    source=nita_upload,
+                    brand_code="NITA",
+                    period_start="2026-03-14",
+                    period_end="2026-03-18",
+                    truck_mapping={
+                        "SOURCE NITA": "NITA LIV01",
+                    },
+                ),
+            ),
+            uploaded_by=self.user,
+        )
+
+        self.assertEqual(len(result.files), 2)
+        self.assertEqual(result.succeeded_count, 2)
+        self.assertEqual(result.failed_count, 0)
+
+        self.assertTrue(result.files[0].succeeded)
+        self.assertTrue(result.files[1].succeeded)
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            2,
+        )
+
+        delisky_batch = ImportBatch.objects.get(
+            original_filename="delisky_valid.xlsx",
+        )
+        nita_batch = ImportBatch.objects.get(
+            original_filename="nita_valid.xlsx",
+        )
+
+        self.assertNotEqual(
+            delisky_batch.pk,
+            nita_batch.pk,
+        )
+
+        self.assertEqual(
+            delisky_batch.brand.code,
+            "DELISKY",
+        )
+        self.assertEqual(
+            delisky_batch.period_start.isoformat(),
+            "2026-03-07",
+        )
+        self.assertEqual(
+            delisky_batch.period_end.isoformat(),
+            "2026-03-11",
+        )
+        self.assertEqual(
+            delisky_batch.rows.count(),
+            1,
+        )
+
+        self.assertEqual(
+            nita_batch.brand.code,
+            "NITA",
+        )
+        self.assertEqual(
+            nita_batch.period_start.isoformat(),
+            "2026-03-14",
+        )
+        self.assertEqual(
+            nita_batch.period_end.isoformat(),
+            "2026-03-18",
+        )
+        self.assertEqual(
+            nita_batch.rows.count(),
+            1,
+        )
+
+    def test_explicit_original_filename_is_preserved_in_result_and_batch(self):
+        upload = self.make_upload(
+            filename="temporary_upload_name.xlsx",
+            rows=[
+                [
+                    "SOURCE DELISKY",
+                    10,
+                    "ARTICLE A",
+                ],
+            ],
+        )
+
+        result = create_raw_chargement_multi_import_reviews(
+            (
+                RawChargementImportRequest(
+                    source=upload,
+                    brand_code="DELISKY",
+                    period_start="2026-03-07",
+                    period_end="2026-03-11",
+                    truck_mapping={
+                        "SOURCE DELISKY": "DELISKY LIV01",
+                    },
+                    original_filename=(
+                        "collector_delisky_chargement.xlsx"
+                    ),
+                ),
+            ),
+            uploaded_by=self.user,
+        )
+
+        self.assertEqual(
+            result.succeeded_count,
+            1,
+        )
+        self.assertEqual(
+            result.failed_count,
+            0,
+        )
+
+        file_result = result.files[0]
+
+        self.assertEqual(
+            file_result.original_filename,
+            "collector_delisky_chargement.xlsx",
+        )
+
+        self.assertIsNotNone(
+            file_result.batch,
+        )
+
+        file_result.batch.refresh_from_db()
+
+        self.assertEqual(
+            file_result.batch.original_filename,
+            "collector_delisky_chargement.xlsx",
+        )
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            1,
         )
