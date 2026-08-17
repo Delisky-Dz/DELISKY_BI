@@ -294,12 +294,6 @@ def parse_chargement_row(
             row.cleaned_data,
             "quantity",
         )
-        _require_non_negative(
-            row,
-            quantity,
-            "quantity",
-        )
-
         return ChargementAnalyticalRow(
             **_base_values(row),
             article=read_required_text(

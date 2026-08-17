@@ -259,6 +259,78 @@ class StockFlowAggregationTests(TestCase):
             Decimal("34.75"),
         )
 
+    def test_chargement_returns_reduce_net_quantity(self):
+        truck = self.create_truck(
+            202,
+            "STOCK-VAN-202",
+        )
+
+        worker = self.create_worker(202)
+
+        self.create_assignment(
+            truck=truck,
+            worker=worker,
+        )
+
+        batch = self.create_batch(
+            202,
+            ImportReportType.CHARGEMENT,
+            accepted_rows=2,
+        )
+
+        self.create_quantity_row(
+            batch,
+            202,
+            van="STOCK-VAN-202",
+            article="Return Test Product",
+            article_normalized="return test product",
+            quantity="100",
+            excel_row_number=2,
+        )
+
+        self.create_quantity_row(
+            batch,
+            203,
+            van="STOCK-VAN-202",
+            article="Return Test Product",
+            article_normalized="return test product",
+            quantity="-20",
+            excel_row_number=3,
+        )
+
+        result = aggregate_chargement()
+
+        self.assertEqual(
+            result.overall.total_quantity,
+            Decimal("80"),
+        )
+
+        self.assertEqual(
+            result.overall.record_count,
+            2,
+        )
+
+        self.assertEqual(
+            result.overall.positive_quantity_record_count,
+            1,
+        )
+
+        self.assertEqual(
+            result.overall.negative_quantity_record_count,
+            1,
+        )
+
+        self.assertEqual(
+            result.overall.zero_quantity_record_count,
+            0,
+        )
+
+        self.assertEqual(
+            result.by_brand_product[0]
+            .metrics.total_quantity,
+            Decimal("80"),
+        )
+
     def test_normalized_product_names_are_grouped(self):
         truck = self.create_truck(
             3,

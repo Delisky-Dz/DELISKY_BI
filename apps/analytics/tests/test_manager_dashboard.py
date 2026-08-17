@@ -90,6 +90,7 @@ class ManagerDashboardTests(SimpleTestCase):
             total_quantity=Decimal("0"),
             record_count=0,
             positive_quantity_record_count=0,
+            negative_quantity_record_count=0,
             zero_quantity_record_count=0,
         )
 

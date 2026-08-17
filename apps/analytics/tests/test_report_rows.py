@@ -164,6 +164,34 @@ class ReportRowsTests(TestCase):
             Decimal("80"),
         )
 
+    def test_parses_negative_chargement_return_row(self):
+        batch = self.create_batch(
+            102,
+            ImportReportType.CHARGEMENT,
+        )
+
+        row = self.create_row(
+            batch,
+            102,
+            {
+                **self.base_cleaned_data(),
+                "article": "Returned Product",
+                "article_normalized": "returned product",
+                "quantity": "-20",
+            },
+        )
+
+        result = parse_chargement_row(row)
+
+        self.assertIsInstance(
+            result,
+            ChargementAnalyticalRow,
+        )
+        self.assertEqual(
+            result.quantity,
+            Decimal("-20"),
+        )
+
     def test_parses_sales_row(self):
         batch = self.create_batch(
             3,

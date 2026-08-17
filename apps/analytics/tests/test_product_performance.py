@@ -49,6 +49,9 @@ class ProductPerformanceTests(SimpleTestCase):
             positive_quantity_record_count=(
                 1 if quantity > 0 else 0
             ),
+            negative_quantity_record_count=(
+                1 if quantity < 0 else 0
+            ),
             zero_quantity_record_count=(
                 1 if quantity == 0 else 0
             ),
@@ -127,6 +130,7 @@ class ProductPerformanceTests(SimpleTestCase):
                 total_quantity=Decimal("0"),
                 record_count=0,
                 positive_quantity_record_count=0,
+                negative_quantity_record_count=0,
                 zero_quantity_record_count=0,
             ),
             by_brand=(),
@@ -325,6 +329,93 @@ class ProductPerformanceTests(SimpleTestCase):
         self.assertEqual(
             truck_product.quantities.sold_quantity,
             Decimal("30"),
+        )
+
+    def test_chargement_returns_reduce_supply_and_gap(self):
+        items = self.make_items_result(
+            worker_products=(
+                self.worker_item(
+                    "Return Test Product",
+                    "return test product",
+                    "70",
+                ),
+            ),
+            truck_products=(
+                self.truck_item(
+                    "Return Test Product",
+                    "return test product",
+                    "70",
+                ),
+            ),
+        )
+
+        chargement = self.make_stock_result(
+            ImportReportType.CHARGEMENT,
+            worker_products=(
+                self.worker_stock(
+                    "Return Test Product",
+                    "return test product",
+                    "100",
+                ),
+                self.worker_stock(
+                    "Return Test Product",
+                    "return test product",
+                    "-20",
+                ),
+            ),
+            truck_products=(
+                self.truck_stock(
+                    "Return Test Product",
+                    "return test product",
+                    "100",
+                ),
+                self.truck_stock(
+                    "Return Test Product",
+                    "return test product",
+                    "-20",
+                ),
+            ),
+        )
+
+        result = self.combine(
+            items=items,
+            chargement=chargement,
+        )
+
+        worker_product = result.worker_products[0]
+        truck_product = result.truck_products[0]
+
+        self.assertEqual(
+            worker_product.quantities.chargement_quantity,
+            Decimal("80"),
+        )
+        self.assertEqual(
+            worker_product.quantities.supplied_quantity,
+            Decimal("80"),
+        )
+        self.assertEqual(
+            worker_product.quantities.sold_quantity,
+            Decimal("70"),
+        )
+        self.assertEqual(
+            worker_product.quantities.analytical_quantity_gap,
+            Decimal("10"),
+        )
+        self.assertEqual(
+            worker_product.quantities.sold_to_supplied_ratio,
+            Decimal("0.875"),
+        )
+
+        self.assertEqual(
+            truck_product.quantities.chargement_quantity,
+            Decimal("80"),
+        )
+        self.assertEqual(
+            truck_product.quantities.analytical_quantity_gap,
+            Decimal("10"),
+        )
+        self.assertFalse(
+            worker_product.quantities.has_negative_quantity_gap
         )
 
     def test_not_sold_products_are_ranked_by_supply(self):

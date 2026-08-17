@@ -47,6 +47,7 @@ class QuantityMetrics:
     total_quantity: Decimal
     record_count: int
     positive_quantity_record_count: int
+    negative_quantity_record_count: int
     zero_quantity_record_count: int
 
 
@@ -155,6 +156,7 @@ class _QuantityAccumulator:
     )
     record_count: int = 0
     positive_quantity_record_count: int = 0
+    negative_quantity_record_count: int = 0
     zero_quantity_record_count: int = 0
 
     def add(self, quantity: Decimal) -> None:
@@ -163,6 +165,8 @@ class _QuantityAccumulator:
 
         if quantity > 0:
             self.positive_quantity_record_count += 1
+        elif quantity < 0:
+            self.negative_quantity_record_count += 1
         else:
             self.zero_quantity_record_count += 1
 
@@ -172,6 +176,9 @@ class _QuantityAccumulator:
             record_count=self.record_count,
             positive_quantity_record_count=(
                 self.positive_quantity_record_count
+            ),
+            negative_quantity_record_count=(
+                self.negative_quantity_record_count
             ),
             zero_quantity_record_count=(
                 self.zero_quantity_record_count

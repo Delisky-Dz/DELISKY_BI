@@ -347,7 +347,10 @@ def _clean_stock_or_load(
                 raw_value=raw.get(QTY_HEADER),
             )
         )
-    elif quantity < 0:
+    elif (
+        quantity < 0
+        and report_type != "CHARGEMENT"
+    ):
         issues.append(
             _issue(
                 "negative_quantity",

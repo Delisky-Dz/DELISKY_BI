@@ -2077,6 +2077,49 @@ class ReportRowCleanerTests(SimpleTestCase):
             "Client Test",
         )
 
+    def test_accepts_negative_chargement_quantity_as_return(self):
+        result = self.make_cleaning_result(
+            filename=(
+                "Chargement_BIFA_"
+                "2026-03-07_2026-03-11.xlsx"
+            ),
+            headers=[
+                "VAN",
+                "Qt\u00e9",
+                "Article",
+            ],
+            rows=[
+                [
+                    "BIFA LIV01",
+                    -20,
+                    "Returned Product",
+                ],
+            ],
+        )
+
+        row = result.rows[0]
+
+        self.assertEqual(
+            row.status,
+            STATUS_ACCEPTED,
+        )
+        self.assertEqual(
+            row.cleaned_dict()["quantity"],
+            Decimal("-20"),
+        )
+        self.assertEqual(
+            row.issues,
+            (),
+        )
+        self.assertEqual(
+            result.warning_count,
+            0,
+        )
+        self.assertEqual(
+            result.error_count,
+            0,
+        )
+
     def test_excludes_negative_item_quantity_with_warning(self):
         result = self.make_cleaning_result(
             filename=(
@@ -2144,6 +2187,50 @@ class ReportRowCleanerTests(SimpleTestCase):
         )
         self.assertFalse(
             row.issues[0].details["authoritative"]
+        )
+
+    def test_rejects_negative_opening_stock_quantity(self):
+        result = self.make_cleaning_result(
+            filename="OpeningStock_BIFA_2026-03-07.xlsx",
+            headers=[
+                "VAN",
+                "Qt\u00e9",
+                "Article",
+            ],
+            rows=[
+                [
+                    "BIFA LIV01",
+                    -20,
+                    "Opening Product",
+                ],
+            ],
+        )
+
+        row = result.rows[0]
+
+        self.assertEqual(
+            row.status,
+            STATUS_EXCLUDED,
+        )
+        self.assertEqual(
+            tuple(issue.code for issue in row.issues),
+            ("negative_quantity",),
+        )
+        self.assertEqual(
+            row.issues[0].severity,
+            "ERROR",
+        )
+        self.assertEqual(
+            row.cleaned_dict()["quantity"],
+            Decimal("-20"),
+        )
+        self.assertEqual(
+            result.warning_count,
+            0,
+        )
+        self.assertEqual(
+            result.error_count,
+            1,
         )
 
     def test_marks_zero_stock_marker_as_stopped(self):
