@@ -7,7 +7,12 @@ from django.test import TestCase
 from openpyxl import Workbook
 
 from apps.fleet.models import Truck
-from apps.imports.models import DistributionBrand, ImportBatch
+from apps.imports.models import (
+    DistributionBrand,
+    ImportBatch,
+    ImportSourceSystem,
+    SourceTruckMapping,
+)
 from apps.imports.services.raw_chargement_multi_review import (
     RawChargementImportRequest,
     create_raw_chargement_multi_import_reviews,
@@ -461,4 +466,73 @@ class RawChargementMultiReviewTests(TestCase):
         self.assertEqual(
             ImportBatch.objects.count(),
             0,
+        )
+
+    def test_uses_persistent_mapping_from_source_system_code(self):
+        source_system = ImportSourceSystem.objects.create(
+            code="AIO_WEB",
+            name="AIO-WEB",
+            is_active=True,
+        )
+
+        SourceTruckMapping.objects.create(
+            source_system=source_system,
+            source_code="SOURCE DELISKY",
+            truck=Truck.objects.get(
+                internal_code="DELISKY LIV01",
+            ),
+            is_active=True,
+        )
+
+        upload = self.make_upload(
+            filename="aio_delisky.xlsx",
+            rows=[
+                [
+                    "SOURCE DELISKY",
+                    15,
+                    "ARTICLE A",
+                ],
+            ],
+        )
+
+        result = create_raw_chargement_multi_import_reviews(
+            (
+                RawChargementImportRequest(
+                    source=upload,
+                    brand_code="DELISKY",
+                    period_start="2026-03-07",
+                    period_end="2026-03-11",
+                    source_system_code="AIO_WEB",
+                ),
+            ),
+            uploaded_by=self.user,
+        )
+
+        self.assertEqual(
+            result.succeeded_count,
+            1,
+        )
+        self.assertEqual(
+            result.failed_count,
+            0,
+        )
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            1,
+        )
+
+        batch = ImportBatch.objects.get()
+
+        self.assertEqual(
+            batch.brand.code,
+            "DELISKY",
+        )
+        self.assertEqual(
+            batch.rows.count(),
+            1,
+        )
+        self.assertEqual(
+            batch.rows.get().raw_data["VAN"],
+            "DELISKY LIV01",
         )

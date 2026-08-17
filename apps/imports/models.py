@@ -189,6 +189,185 @@ class DistributionBrand(models.Model):
 
 
 
+class ImportSourceSystem(models.Model):
+    code = models.CharField(
+        max_length=40,
+    )
+    name = models.CharField(
+        max_length=120,
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["name", "code"]
+
+        constraints = [
+            models.UniqueConstraint(
+                Lower("code"),
+                name="import_source_system_code_ci_uniq",
+                violation_error_message=(
+                    "\u064a\u0648\u062c\u062f "
+                    "\u0646\u0638\u0627\u0645 "
+                    "\u0645\u0635\u062f\u0631 "
+                    "\u0622\u062e\u0631 "
+                    "\u064a\u0633\u062a\u0639\u0645\u0644 "
+                    "\u0646\u0641\u0633 "
+                    "\u0627\u0644\u0631\u0645\u0632."
+                ),
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        if self.code:
+            self.code = self.code.strip().upper()
+
+        if self.name:
+            self.name = " ".join(
+                self.name.split()
+            )
+
+        if not self.code:
+            errors["code"] = (
+                "\u0631\u0645\u0632 "
+                "\u0646\u0638\u0627\u0645 "
+                "\u0627\u0644\u0645\u0635\u062f\u0631 "
+                "\u0645\u0637\u0644\u0648\u0628."
+            )
+
+        if not self.name:
+            errors["name"] = (
+                "\u0627\u0633\u0645 "
+                "\u0646\u0638\u0627\u0645 "
+                "\u0627\u0644\u0645\u0635\u062f\u0631 "
+                "\u0645\u0637\u0644\u0648\u0628."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.code:
+            self.code = self.code.strip().upper()
+
+        if self.name:
+            self.name = " ".join(
+                self.name.split()
+            )
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
+class SourceTruckMapping(models.Model):
+    source_system = models.ForeignKey(
+        ImportSourceSystem,
+        on_delete=models.PROTECT,
+        related_name="truck_mappings",
+    )
+    source_code = models.CharField(
+        max_length=120,
+    )
+    truck = models.ForeignKey(
+        "fleet.Truck",
+        on_delete=models.PROTECT,
+        related_name="source_mappings",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "source_system__code",
+            "source_code",
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                F("source_system"),
+                Lower("source_code"),
+                name="source_truck_map_source_code_ci_uniq",
+                violation_error_message=(
+                    "\u064a\u0648\u062c\u062f "
+                    "\u0631\u0628\u0637 "
+                    "\u0622\u062e\u0631 "
+                    "\u0644\u0646\u0641\u0633 "
+                    "\u0643\u0648\u062f "
+                    "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
+                    "\u062f\u0627\u062e\u0644 "
+                    "\u0646\u0638\u0627\u0645 "
+                    "\u0627\u0644\u0645\u0635\u062f\u0631 "
+                    "\u0646\u0641\u0633\u0647."
+                ),
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        if self.source_code:
+            self.source_code = " ".join(
+                self.source_code.split()
+            ).upper()
+
+        if not self.source_code:
+            errors["source_code"] = (
+                "\u0643\u0648\u062f "
+                "\u0627\u0644\u0634\u0627\u062d\u0646\u0629 "
+                "\u0641\u064a "
+                "\u0646\u0638\u0627\u0645 "
+                "\u0627\u0644\u0645\u0635\u062f\u0631 "
+                "\u0645\u0637\u0644\u0648\u0628."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.source_code:
+            self.source_code = " ".join(
+                self.source_code.split()
+            ).upper()
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.source_system.code}: "
+            f"{self.source_code} -> {self.truck}"
+        )
+
+
 class ImportBatch(models.Model):
     brand = models.ForeignKey(
         DistributionBrand,

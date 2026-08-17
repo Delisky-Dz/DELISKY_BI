@@ -7,6 +7,10 @@ from .raw_chargement_review import (
     RawChargementImportReviewError,
     create_raw_chargement_import_review,
 )
+from .source_truck_mapping_store import (
+    SourceTruckMappingStoreError,
+    build_source_truck_mapping,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,7 +19,8 @@ class RawChargementImportRequest:
     brand_code: str
     period_start: Any
     period_end: Any
-    truck_mapping: Mapping[object, object]
+    truck_mapping: Mapping[object, object] | None = None
+    source_system_code: str | None = None
     original_filename: str | None = None
 
 
@@ -65,6 +70,22 @@ def create_raw_chargement_multi_import_reviews(
         )
 
         try:
+            if request.truck_mapping is not None:
+                truck_mapping = request.truck_mapping
+            elif request.source_system_code:
+                truck_mapping = build_source_truck_mapping(
+                    request.source_system_code
+                )
+            else:
+                raise SourceTruckMappingStoreError(
+                    "truck_mapping_missing",
+                    (
+                        "A truck mapping or source "
+                        "system code is required."
+                    ),
+                    details={},
+                )
+
             review_result = (
                 create_raw_chargement_import_review(
                     request.source,
@@ -73,13 +94,16 @@ def create_raw_chargement_multi_import_reviews(
                     brand_code=request.brand_code,
                     period_start=request.period_start,
                     period_end=request.period_end,
-                    truck_mapping=request.truck_mapping,
+                    truck_mapping=truck_mapping,
                     original_filename=(
                         original_filename
                     ),
                 )
             )
-        except RawChargementImportReviewError as exc:
+        except (
+            RawChargementImportReviewError,
+            SourceTruckMappingStoreError,
+        ) as exc:
             results.append(
                 RawChargementFileReviewResult(
                     succeeded=False,
