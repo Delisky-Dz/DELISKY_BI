@@ -3073,6 +3073,7 @@ class ImportBatchReviewServiceTests(TestCase):
                 "2026-03-07_2026-03-11.xlsx"
             ),
             status="APPROVED",
+            file_sha256="f" * 64,
             total_rows=1,
             accepted_rows=1,
             excluded_rows=0,

@@ -276,6 +276,82 @@ class ImportSourceSystem(models.Model):
         return f"{self.code} - {self.name}"
 
 
+class ImportSourceUpload(models.Model):
+    source_system = models.ForeignKey(
+        ImportSourceSystem,
+        on_delete=models.PROTECT,
+        related_name="source_uploads",
+    )
+    source_file = models.FileField(
+        upload_to="imports/raw/%Y/%m/",
+        blank=True,
+    )
+    original_filename = models.CharField(
+        max_length=255,
+    )
+    worksheet_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+    file_size_bytes = models.PositiveBigIntegerField(
+        default=0,
+    )
+    file_sha256 = models.CharField(
+        max_length=64,
+        validators=[sha256_validator],
+        db_index=True,
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="uploaded_import_sources",
+    )
+    uploaded_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = ["-uploaded_at", "-id"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["file_sha256"],
+                name="import_source_upload_file_sha_uniq",
+                violation_error_message=(
+                    "\u0633\u0628\u0642 \u0631\u0641\u0639 \u0646\u0641\u0633 "
+                    "\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062e\u0627\u0645."
+                ),
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.original_filename:
+            self.original_filename = (
+                self.original_filename.strip()
+            )
+
+        if self.worksheet_name:
+            self.worksheet_name = (
+                self.worksheet_name.strip()
+            )
+
+        if self.file_sha256:
+            self.file_sha256 = (
+                self.file_sha256.lower()
+            )
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.source_system.code} - "
+            f"{self.original_filename}"
+        )
+
+
 class SourceTruckMapping(models.Model):
     source_system = models.ForeignKey(
         ImportSourceSystem,
@@ -369,6 +445,13 @@ class SourceTruckMapping(models.Model):
 
 
 class ImportBatch(models.Model):
+    source_upload = models.ForeignKey(
+        ImportSourceUpload,
+        on_delete=models.PROTECT,
+        related_name="derived_batches",
+        null=True,
+        blank=True,
+    )
     brand = models.ForeignKey(
         DistributionBrand,
         verbose_name="\u0627\u0644\u0635\u0646\u0641 \u0627\u0644\u062a\u062c\u0627\u0631\u064a",
@@ -443,6 +526,7 @@ class ImportBatch(models.Model):
         "\u0628\u0635\u0645\u0629 \u0627\u0644\u0645\u0644\u0641 SHA-256",
         max_length=64,
         validators=[sha256_validator],
+        blank=True,
         db_index=True,
     )
     content_sha256 = models.CharField(
@@ -557,6 +641,43 @@ class ImportBatch(models.Model):
 
         constraints = [
             models.CheckConstraint(
+                condition=(
+                    (
+                        Q(source_upload__isnull=True)
+                        & ~Q(file_sha256="")
+                    )
+                    |
+                    (
+                        Q(source_upload__isnull=False)
+                        & Q(file_sha256="")
+                    )
+                ),
+                name="import_batch_one_source_identity",
+                violation_error_message=(
+                    "\u064a\u062c\u0628 \u0623\u0646 \u062a\u0639\u062a\u0645\u062f "
+                    "\u0627\u0644\u062f\u0641\u0639\u0629 \u0639\u0644\u0649 \u0645\u0644\u0641 "
+                    "\u0645\u0628\u0627\u0634\u0631 \u0623\u0648 \u0645\u0644\u0641 \u062e\u0627\u0645 "
+                    "\u0645\u0634\u062a\u0642\u060c \u0648\u0644\u064a\u0633 \u0627\u0644\u0627\u062b\u0646\u064a\u0646 \u0645\u0639\u064b\u0627."
+                ),
+            ),
+            models.UniqueConstraint(
+                fields=[
+                    "source_upload",
+                    "brand",
+                    "report_type",
+                    "period_start",
+                    "period_end",
+                ],
+                condition=Q(source_upload__isnull=False),
+                name="import_source_scope_uniq",
+                violation_error_message=(
+                    "\u0633\u0628\u0642 \u0625\u0646\u0634\u0627\u0621 \u062f\u0641\u0639\u0629 "
+                    "\u0645\u0634\u062a\u0642\u0629 \u0644\u0646\u0641\u0633 \u0627\u0644\u0645\u0644\u0641 "
+                    "\u0648\u0627\u0644\u0635\u0646\u0641 \u0648\u0627\u0644\u0646\u0648\u0639 "
+                    "\u0648\u0627\u0644\u0641\u062a\u0631\u0629."
+                ),
+            ),
+            models.CheckConstraint(
                 condition=Q(period_end__gte=F("period_start")),
                 name="import_period_end_not_before_start",
                 violation_error_message=(
@@ -616,7 +737,10 @@ class ImportBatch(models.Model):
             ),
             models.UniqueConstraint(
                 fields=["file_sha256"],
-                condition=Q(status=ImportBatchStatus.APPROVED),
+                condition=(
+                    Q(status=ImportBatchStatus.APPROVED)
+                    & ~Q(file_sha256="")
+                ),
                 name="import_approved_file_sha_uniq",
                 violation_error_message=(
                     "\u0633\u0628\u0642 \u0627\u0639\u062a\u0645\u0627\u062f "
