@@ -359,3 +359,106 @@ class RawChargementMultiReviewTests(TestCase):
             ImportBatch.objects.count(),
             1,
         )
+
+    def test_all_failed_files_return_results_without_creating_batches(self):
+        first_upload = self.make_upload(
+            filename="first_mixed.xlsx",
+            rows=[
+                [
+                    "SOURCE DELISKY",
+                    10,
+                    "ARTICLE A",
+                ],
+                [
+                    "SOURCE NITA",
+                    20,
+                    "ARTICLE B",
+                ],
+            ],
+        )
+
+        second_upload = self.make_upload(
+            filename="second_unknown.xlsx",
+            rows=[
+                [
+                    "SOURCE UNKNOWN",
+                    30,
+                    "ARTICLE C",
+                ],
+            ],
+        )
+
+        result = create_raw_chargement_multi_import_reviews(
+            (
+                RawChargementImportRequest(
+                    source=first_upload,
+                    brand_code="DELISKY",
+                    period_start="2026-03-07",
+                    period_end="2026-03-11",
+                    truck_mapping={
+                        "SOURCE DELISKY": "DELISKY LIV01",
+                        "SOURCE NITA": "NITA LIV01",
+                    },
+                ),
+                RawChargementImportRequest(
+                    source=second_upload,
+                    brand_code="DELISKY",
+                    period_start="2026-03-07",
+                    period_end="2026-03-11",
+                    truck_mapping={
+                        "SOURCE UNKNOWN": "UNKNOWN LIV01",
+                    },
+                ),
+            ),
+            uploaded_by=self.user,
+        )
+
+        self.assertEqual(
+            len(result.files),
+            2,
+        )
+        self.assertEqual(
+            result.succeeded_count,
+            0,
+        )
+        self.assertEqual(
+            result.failed_count,
+            2,
+        )
+
+        self.assertFalse(
+            result.files[0].succeeded
+        )
+        self.assertFalse(
+            result.files[1].succeeded
+        )
+
+        self.assertEqual(
+            result.files[0].original_filename,
+            "first_mixed.xlsx",
+        )
+        self.assertEqual(
+            result.files[1].original_filename,
+            "second_unknown.xlsx",
+        )
+
+        self.assertEqual(
+            result.files[0].error_code,
+            "brand_validation_failed",
+        )
+        self.assertEqual(
+            result.files[1].error_code,
+            "brand_validation_failed",
+        )
+
+        self.assertIsNone(
+            result.files[0].batch
+        )
+        self.assertIsNone(
+            result.files[1].batch
+        )
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            0,
+        )
