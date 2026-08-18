@@ -80,6 +80,22 @@ class TruckForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.fields["route_type"].choices = [
+            ("", "---------"),
+            (
+                Truck.RouteType.LIV,
+                "بيع مباشر (Cash Van)",
+            ),
+            (
+                Truck.RouteType.PLIV,
+                "Pré-vente / Livreur",
+            ),
+            (
+                Truck.RouteType.PSLIV,
+                "Pré-vente Superette",
+            ),
+        ]
+
         self.fields[
             "distribution_brand"
         ].required = True

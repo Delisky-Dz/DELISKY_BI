@@ -321,6 +321,47 @@ class AccountantTruckViewTests(TestCase):
             normalized_html,
         )
 
+    def test_create_form_shows_business_route_type_labels(
+        self,
+    ):
+        self.login_accountant()
+
+        response = self.client.get(
+            reverse(
+                "fleet:truck_create"
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        choices = list(
+            response.context["form"]
+            .fields["route_type"]
+            .choices
+        )
+
+        self.assertEqual(
+            choices,
+            [
+                ("", "---------"),
+                (
+                    Truck.RouteType.LIV,
+                    "بيع مباشر (Cash Van)",
+                ),
+                (
+                    Truck.RouteType.PLIV,
+                    "Pr\u00e9-vente / Livreur",
+                ),
+                (
+                    Truck.RouteType.PSLIV,
+                    "Pr\u00e9-vente Superette",
+                ),
+            ],
+        )
+
     def test_create_form_requires_distribution_identity(
         self,
     ):
