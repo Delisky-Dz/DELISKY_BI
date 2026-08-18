@@ -17,6 +17,9 @@ from apps.imports.models import (
 from apps.imports.services.raw_chargement_derived_review import (
     create_raw_chargement_derived_import_reviews,
 )
+from apps.imports.services.raw_chargement_review import (
+    RawChargementImportReviewError,
+)
 
 
 class RawChargementDerivedReviewTests(TestCase):
@@ -125,6 +128,264 @@ class RawChargementDerivedReviewTests(TestCase):
                 "application/vnd.openxmlformats-officedocument."
                 "spreadsheetml.sheet"
             ),
+        )
+
+    def test_allows_blank_datetime_for_stopped_chargement_row(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Vers l'emplacement",
+                "Qt\u00e9",
+                "Article",
+                "Date&Heure",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "VAN1-DELISKY",
+                0,
+                None,
+                None,
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        upload = SimpleUploadedFile(
+            "stopped_blank_datetime.xlsx",
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        result = create_raw_chargement_derived_import_reviews(
+            upload,
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="stopped_blank_datetime.xlsx",
+        )
+
+        self.assertEqual(
+            len(result.batches),
+            1,
+        )
+        self.assertEqual(
+            ImportSourceUpload.objects.count(),
+            1,
+        )
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            1,
+        )
+
+    def test_rejects_blank_datetime_on_active_chargement_row(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Vers l'emplacement",
+                "Qt\u00e9",
+                "Article",
+                "Date&Heure",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "VAN1-DELISKY",
+                10,
+                "ARTICLE DELISKY",
+                None,
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        upload = SimpleUploadedFile(
+            "blank_datetime.xlsx",
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        with self.assertRaises(
+            RawChargementImportReviewError
+        ) as context:
+            create_raw_chargement_derived_import_reviews(
+                upload,
+                source_system_code="AIO_WEB",
+                uploaded_by=self.user,
+                period_start="2026-08-01",
+                period_end="2026-08-17",
+                original_filename="blank_datetime.xlsx",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "missing_datetime",
+        )
+
+        self.assertEqual(
+            context.exception.details[
+                "excel_row_number"
+            ],
+            2,
+        )
+
+        self.assertEqual(
+            ImportSourceUpload.objects.count(),
+            0,
+        )
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            0,
+        )
+
+    def test_rejects_invalid_raw_datetime_before_persistence(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Vers l'emplacement",
+                "Qt\u00e9",
+                "Article",
+                "Date&Heure",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "VAN1-DELISKY",
+                10,
+                "ARTICLE DELISKY",
+                "NOT-A-DATETIME",
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        upload = SimpleUploadedFile(
+            "invalid_datetime.xlsx",
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        with self.assertRaises(
+            RawChargementImportReviewError
+        ) as context:
+            create_raw_chargement_derived_import_reviews(
+                upload,
+                source_system_code="AIO_WEB",
+                uploaded_by=self.user,
+                period_start="2026-08-01",
+                period_end="2026-08-17",
+                original_filename="invalid_datetime.xlsx",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "invalid_datetime",
+        )
+
+        self.assertEqual(
+            context.exception.details[
+                "excel_row_number"
+            ],
+            2,
+        )
+
+        self.assertEqual(
+            ImportSourceUpload.objects.count(),
+            0,
+        )
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            0,
+        )
+
+    def test_rejects_raw_datetime_outside_declared_period(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Vers l'emplacement",
+                "Qt\u00e9",
+                "Article",
+                "Date&Heure",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "VAN1-DELISKY",
+                10,
+                "ARTICLE DELISKY",
+                "2026-07-31 10:30:00",
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        upload = SimpleUploadedFile(
+            "outside_period.xlsx",
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        with self.assertRaises(
+            RawChargementImportReviewError
+        ) as context:
+            create_raw_chargement_derived_import_reviews(
+                upload,
+                source_system_code="AIO_WEB",
+                uploaded_by=self.user,
+                period_start="2026-08-01",
+                period_end="2026-08-17",
+                original_filename="outside_period.xlsx",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "date_outside_period",
+        )
+
+        self.assertEqual(
+            ImportSourceUpload.objects.count(),
+            0,
+        )
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            0,
         )
 
     def test_one_mixed_raw_file_creates_source_upload_and_brand_batches(self):

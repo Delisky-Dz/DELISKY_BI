@@ -117,16 +117,25 @@ CANONICAL_CHARGEMENT_HEADERS = (
 def to_report_row_read_result(
     result: RawChargementFileResult,
 ) -> ReportRowReadResult:
+    headers = CANONICAL_CHARGEMENT_HEADERS
+
+    if any(
+        "Date&Heure" in row.values
+        for row in result.rows
+    ):
+        headers = headers + (
+            "Date&Heure",
+        )
+
     rows = tuple(
         RawReportRow(
             row_number=row.excel_row_number,
             values=tuple(
                 (
                     header,
-                    row.values[header],
+                    row.values.get(header),
                 )
-                for header
-                in CANONICAL_CHARGEMENT_HEADERS
+                for header in headers
             ),
         )
         for row in result.rows
@@ -136,6 +145,6 @@ def to_report_row_read_result(
         filename=result.filename,
         report_type="CHARGEMENT",
         worksheet_name=result.worksheet_name,
-        headers=CANONICAL_CHARGEMENT_HEADERS,
+        headers=headers,
         rows=rows,
     )

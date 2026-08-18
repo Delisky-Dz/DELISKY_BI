@@ -204,3 +204,23 @@ class RawChargementAdapterTests(SimpleTestCase):
                     "KNOWN VAN": "DELISKY LIV01",
                 },
             )
+
+    def test_preserves_raw_datetime_for_period_validation(self):
+        raw_datetime = "2026-08-05 10:30:00"
+
+        result = adapt_raw_chargement_row(
+            {
+                "Vers l'emplacement": "SOURCE 01",
+                "Qt\u00e9": 5,
+                "Article": "ARTICLE TEST",
+                "Date&Heure": raw_datetime,
+            },
+            truck_mapping={
+                "SOURCE 01": "DELISKY LIV01",
+            },
+        )
+
+        self.assertEqual(
+            result["Date&Heure"],
+            raw_datetime,
+        )

@@ -296,6 +296,63 @@ class RawChargementFileTests(SimpleTestCase):
         )
 
 
+    def test_report_row_result_preserves_raw_datetime_metadata(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Vers l'emplacement",
+                "Qt\u00e9",
+                "Article",
+                "Date&Heure",
+            ]
+        )
+        worksheet.append(
+            [
+                "SOURCE A",
+                10,
+                "ARTICLE A",
+                "2026-08-05 10:30:00",
+            ]
+        )
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            "chargement_with_datetime.xlsx",
+            buffer.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        adapted = adapt_raw_chargement_file(
+            uploaded,
+            truck_mapping={
+                "SOURCE A": "DELISKY LIV01",
+            },
+        )
+
+        row_result = to_report_row_read_result(
+            adapted
+        )
+
+        self.assertIn(
+            "Date&Heure",
+            row_result.headers,
+        )
+        self.assertEqual(
+            row_result.rows[0].as_dict()[
+                "Date&Heure"
+            ],
+            "2026-08-05 10:30:00",
+        )
+
     def test_error_reports_real_excel_row_number(self):
         with self.assertRaises(
             RawChargementFileError

@@ -94,16 +94,31 @@ def adapt_raw_chargement_row(
         "Article",
     )
 
+    datetime_header = normalize_header(
+        "Date&Heure"
+    )
+    has_datetime = datetime_header in row
+    raw_datetime = row.get(
+        datetime_header
+    )
+
     internal_code = map_source_truck_code(
         source_truck,
         mapping=truck_mapping,
     )
 
-    return {
+    adapted = {
         "VAN": internal_code,
         "Qt\u00e9": quantity,
         "Article": article,
     }
+
+    if has_datetime:
+        adapted["Date&Heure"] = (
+            raw_datetime
+        )
+
+    return adapted
 
 
 def adapt_raw_chargement_rows(

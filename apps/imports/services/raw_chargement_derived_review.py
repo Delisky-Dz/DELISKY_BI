@@ -16,11 +16,13 @@ from .raw_chargement_brand_partition import (
     partition_raw_chargement_rows_by_brand,
 )
 from .raw_chargement_file import (
+    AdaptedChargementRow,
     RawChargementFileResult,
     adapt_raw_chargement_file,
     to_report_row_read_result,
 )
 from .raw_chargement_review import (
+    RawChargementImportReviewError,
     _coerce_period_date,
 )
 from .report_row_cleaner import (
@@ -36,6 +38,135 @@ from .source_truck_mapping_store import (
 from .source_upload_store import (
     create_import_source_upload,
 )
+from .value_normalizers import (
+    ValueNormalizationError,
+    is_blank_value,
+    parse_datetime_value,
+    parse_decimal_value,
+)
+
+def _validate_raw_chargement_period(
+    rows: tuple[AdaptedChargementRow, ...],
+    *,
+    period_start: Any,
+    period_end: Any,
+) -> None:
+    for row in rows:
+        if "Date&Heure" not in row.values:
+            continue
+
+        raw_datetime = row.values[
+            "Date&Heure"
+        ]
+
+        if is_blank_value(raw_datetime):
+            quantity_raw = row.values.get(
+                "Qt\u00e9"
+            )
+            article_is_blank = is_blank_value(
+                row.values.get("Article")
+            )
+
+            try:
+                quantity = parse_decimal_value(
+                    quantity_raw
+                )
+            except ValueNormalizationError:
+                quantity = None
+                quantity_is_invalid = True
+            else:
+                quantity_is_invalid = False
+
+            is_stopped_candidate = (
+                article_is_blank
+                and not quantity_is_invalid
+                and (
+                    is_blank_value(quantity_raw)
+                    or quantity == 0
+                )
+            )
+
+            if is_stopped_candidate:
+                continue
+
+            raise RawChargementImportReviewError(
+                "missing_datetime",
+                (
+                    "The raw Chargement Date&Heure "
+                    "value is required for an active row."
+                ),
+                details={
+                    "excel_row_number": (
+                        row.excel_row_number
+                    ),
+                },
+            )
+
+        try:
+            parsed_datetime = parse_datetime_value(
+                raw_datetime
+            )
+        except ValueNormalizationError as exc:
+            raise RawChargementImportReviewError(
+                "invalid_datetime",
+                (
+                    "The raw Chargement Date&Heure "
+                    "value is invalid."
+                ),
+                details={
+                    "excel_row_number": (
+                        row.excel_row_number
+                    ),
+                    "raw_value": str(
+                        raw_datetime
+                    ),
+                },
+            ) from exc
+
+        if parsed_datetime is None:
+            raise RawChargementImportReviewError(
+                "invalid_datetime",
+                (
+                    "The raw Chargement Date&Heure "
+                    "value is invalid."
+                ),
+                details={
+                    "excel_row_number": (
+                        row.excel_row_number
+                    ),
+                    "raw_value": str(
+                        raw_datetime
+                    ),
+                },
+            )
+
+        row_date = parsed_datetime.date()
+
+        if (
+            row_date < period_start
+            or row_date > period_end
+        ):
+            raise RawChargementImportReviewError(
+                "date_outside_period",
+                (
+                    "The raw Chargement row date is "
+                    "outside the declared period."
+                ),
+                details={
+                    "excel_row_number": (
+                        row.excel_row_number
+                    ),
+                    "row_date": (
+                        row_date.isoformat()
+                    ),
+                    "period_start": (
+                        period_start.isoformat()
+                    ),
+                    "period_end": (
+                        period_end.isoformat()
+                    ),
+                },
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,10 +207,6 @@ def create_raw_chargement_derived_import_reviews(
     )
 
     if normalized_period_end < normalized_period_start:
-        from .raw_chargement_review import (
-            RawChargementImportReviewError,
-        )
-
         raise RawChargementImportReviewError(
             "invalid_period_range",
             (
@@ -96,6 +223,12 @@ def create_raw_chargement_derived_import_reviews(
         source,
         truck_mapping=truck_mapping,
         original_filename=original_filename,
+    )
+
+    _validate_raw_chargement_period(
+        adapted.rows,
+        period_start=normalized_period_start,
+        period_end=normalized_period_end,
     )
 
     rows_by_brand = (
