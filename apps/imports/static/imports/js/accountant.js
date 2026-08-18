@@ -319,4 +319,164 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         );
     }
+
+    const rawFormList = document.querySelector(
+        "#raw-form-list"
+    );
+
+    const rawAddFileButton = document.querySelector(
+        "#raw-add-file"
+    );
+
+    const rawEmptyTemplate = document.querySelector(
+        "#raw-empty-form-template"
+    );
+
+    const rawTotalForms = document.querySelector(
+        "#id_raw-TOTAL_FORMS"
+    );
+
+    const rawMaxForms = document.querySelector(
+        "#id_raw-MAX_NUM_FORMS"
+    );
+
+    const updateRawAddButton = () => {
+        if (
+            !rawAddFileButton
+            || !rawTotalForms
+        ) {
+            return;
+        }
+
+        const total = Number.parseInt(
+            rawTotalForms.value || "0",
+            10
+        );
+
+        const configuredMax = Number.parseInt(
+            rawMaxForms?.value || "20",
+            10
+        );
+
+        const maxForms = Number.isFinite(
+            configuredMax
+        )
+            ? configuredMax
+            : 20;
+
+        rawAddFileButton.disabled = (
+            total >= maxForms
+        );
+    };
+
+    const markRawFormDeleted = (row) => {
+        if (!row) {
+            return;
+        }
+
+        const deleteInput = row.querySelector(
+            'input[name$="-DELETE"]'
+        );
+
+        if (deleteInput) {
+            deleteInput.checked = true;
+        }
+
+        row.hidden = true;
+    };
+
+    if (
+        rawFormList
+        && rawAddFileButton
+        && rawEmptyTemplate
+        && rawTotalForms
+    ) {
+        rawAddFileButton.addEventListener(
+            "click",
+            () => {
+                const total = Number.parseInt(
+                    rawTotalForms.value || "0",
+                    10
+                );
+
+                const configuredMax = Number.parseInt(
+                    rawMaxForms?.value || "20",
+                    10
+                );
+
+                const maxForms = Number.isFinite(
+                    configuredMax
+                )
+                    ? configuredMax
+                    : 20;
+
+                if (total >= maxForms) {
+                    updateRawAddButton();
+                    return;
+                }
+
+                const html = (
+                    rawEmptyTemplate.innerHTML
+                    .replaceAll(
+                        "__prefix__",
+                        String(total)
+                    )
+                );
+
+                const wrapper = (
+                    document.createElement("div")
+                );
+
+                wrapper.innerHTML = html.trim();
+
+                const row = wrapper.firstElementChild;
+
+                if (!row) {
+                    return;
+                }
+
+                const title = row.querySelector(
+                    "[data-raw-form-title]"
+                );
+
+                if (title) {
+                    title.textContent = (
+                        "ملف "
+                        + String(total + 1)
+                    );
+                }
+
+                rawFormList.appendChild(row);
+
+                rawTotalForms.value = String(
+                    total + 1
+                );
+
+                updateRawAddButton();
+            }
+        );
+
+        rawFormList.addEventListener(
+            "click",
+            (event) => {
+                const removeButton = (
+                    event.target.closest(
+                        ".raw-remove-file"
+                    )
+                );
+
+                if (!removeButton) {
+                    return;
+                }
+
+                const row = removeButton.closest(
+                    "[data-raw-form]"
+                );
+
+                markRawFormDeleted(row);
+            }
+        );
+
+        updateRawAddButton();
+    }
 });

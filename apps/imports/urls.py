@@ -8,6 +8,11 @@ app_name = "imports"
 
 urlpatterns = [
     path(
+        "raw-chargement/",
+        views.raw_chargement_upload,
+        name="raw_chargement_upload",
+    ),
+    path(
         "",
         views.accountant_home,
         name="accountant_home",

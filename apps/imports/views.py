@@ -18,7 +18,10 @@ from apps.recruitment.models import (
 )
 
 from .access import accountant_required
-from .forms import ImportUploadForm
+from .forms import (
+    ImportUploadForm,
+    RawChargementUploadFormSet,
+)
 from .models import (
     ImportBatch,
     ImportBatchStatus,
@@ -35,6 +38,10 @@ from .services.batch_approval import (
 from .services.batch_review import (
     ImportBatchReviewError,
     create_or_update_import_review,
+)
+from .services.raw_chargement_derived_multi_review import (
+    RawChargementDerivedImportRequest,
+    create_raw_chargement_derived_multi_import_reviews,
 )
 
 
@@ -94,6 +101,8 @@ def _home_context(
     *,
     upload_form: ImportUploadForm | None = None,
     service_error_details: list[dict] | None = None,
+    raw_upload_formset=None,
+    raw_upload_result=None,
 ) -> dict:
     recent_batches = (
         ImportBatch.objects
@@ -125,6 +134,14 @@ def _home_context(
         "service_error_details": (
             service_error_details or []
         ),
+        "raw_upload_formset": (
+            raw_upload_formset
+            if raw_upload_formset is not None
+            else RawChargementUploadFormSet(
+                prefix="raw"
+            )
+        ),
+        "raw_upload_result": raw_upload_result,
     }
 
 
@@ -262,6 +279,79 @@ def _present_problem_rows(batch) -> list[dict]:
         )
 
     return problem_rows
+
+
+@accountant_required
+@require_POST
+def raw_chargement_upload(request):
+    formset = RawChargementUploadFormSet(
+        request.POST,
+        request.FILES,
+        prefix="raw",
+    )
+
+    if not formset.is_valid():
+        return render(
+            request,
+            "imports/accountant_home.html",
+            _home_context(
+                raw_upload_formset=formset,
+            ),
+        )
+
+    import_requests = []
+
+    for form in formset.forms:
+        cleaned_data = form.cleaned_data
+
+        if cleaned_data.get("DELETE"):
+            continue
+
+        source_file = cleaned_data[
+            "source_file"
+        ]
+        source_system = cleaned_data[
+            "source_system"
+        ]
+
+        import_requests.append(
+            RawChargementDerivedImportRequest(
+                source=source_file,
+                source_system_code=(
+                    source_system.code
+                ),
+                period_start=cleaned_data[
+                    "period_start"
+                ],
+                period_end=cleaned_data[
+                    "period_end"
+                ],
+                original_filename=(
+                    source_file.name
+                ),
+            )
+        )
+
+    result = (
+        create_raw_chargement_derived_multi_import_reviews(
+            tuple(import_requests),
+            uploaded_by=request.user,
+            reviewed_by=request.user,
+        )
+    )
+
+    return render(
+        request,
+        "imports/accountant_home.html",
+        _home_context(
+            raw_upload_formset=(
+                RawChargementUploadFormSet(
+                    prefix="raw"
+                )
+            ),
+            raw_upload_result=result,
+        ),
+    )
 
 
 @accountant_required

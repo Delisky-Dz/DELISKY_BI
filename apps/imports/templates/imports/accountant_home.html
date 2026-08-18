@@ -290,6 +290,321 @@
     </aside>
 </div>
 
+
+<section
+    class="panel raw-upload-panel"
+    id="raw-chargement-import"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                Raw Chargement
+            </span>
+
+            <h2>
+                استيراد
+                Chargement
+                الخام
+            </h2>
+        </div>
+
+        <span class="secure-pill">
+            Multi-file
+        </span>
+    </div>
+
+    <p>
+        يمكنك
+        رفع
+        عدة
+        ملفات،
+        مع
+        تحديد
+        المصدر
+        والفترة
+        لكل
+        ملف.
+        وسيحدد
+        النظام
+        العلامة
+        التجارية
+        تلقائيًا
+        من
+        بيانات
+        الشاحنات.
+    </p>
+
+    <form
+        method="post"
+        action="{% url 'imports:raw_chargement_upload' %}"
+        enctype="multipart/form-data"
+        class="upload-form"
+        id="raw-chargement-form"
+        novalidate
+    >
+        {% csrf_token %}
+
+        {{ raw_upload_formset.management_form }}
+
+        {% if raw_upload_formset.non_form_errors %}
+            <div class="form-alert error">
+                {% for error in raw_upload_formset.non_form_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div id="raw-form-list">
+            {% for form in raw_upload_formset.forms %}
+                <article
+                    class="raw-file-row"
+                    data-raw-form
+                >
+                    <div class="panel-heading">
+                        <strong>
+                            ملف
+                            {{ forloop.counter }}
+                        </strong>
+
+                        <button
+                            type="button"
+                            class="raw-remove-file"
+                        >
+                            حذف
+                            الملف
+                        </button>
+                    </div>
+
+                    <div class="import-meta-grid">
+                        <div class="form-field">
+                            <label
+                                for="{{ form.source_system.id_for_label }}"
+                            >
+                                {{ form.source_system.label }}
+                            </label>
+
+                            {{ form.source_system }}
+
+                            {% for error in form.source_system.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.period_start.id_for_label }}"
+                            >
+                                {{ form.period_start.label }}
+                            </label>
+
+                            {{ form.period_start }}
+
+                            {% for error in form.period_start.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.period_end.id_for_label }}"
+                            >
+                                {{ form.period_end.label }}
+                            </label>
+
+                            {{ form.period_end }}
+
+                            {% for error in form.period_end.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="{{ form.source_file.id_for_label }}"
+                        >
+                            {{ form.source_file.label }}
+                        </label>
+
+                        {{ form.source_file }}
+
+                        {% for error in form.source_file.errors %}
+                            <span class="field-error">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="form-alert error">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div hidden>
+                        {{ form.DELETE }}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <template id="raw-empty-form-template">
+            <article
+                class="raw-file-row"
+                data-raw-form
+            >
+                <div class="panel-heading">
+                    <strong data-raw-form-title>
+                        ملف
+                    </strong>
+
+                    <button
+                        type="button"
+                        class="raw-remove-file"
+                    >
+                        حذف
+                        الملف
+                    </button>
+                </div>
+
+                <div class="import-meta-grid">
+                    <div class="form-field">
+                        <label
+                            for="{{ raw_upload_formset.empty_form.source_system.id_for_label }}"
+                        >
+                            {{ raw_upload_formset.empty_form.source_system.label }}
+                        </label>
+
+                        {{ raw_upload_formset.empty_form.source_system }}
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="{{ raw_upload_formset.empty_form.period_start.id_for_label }}"
+                        >
+                            {{ raw_upload_formset.empty_form.period_start.label }}
+                        </label>
+
+                        {{ raw_upload_formset.empty_form.period_start }}
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="{{ raw_upload_formset.empty_form.period_end.id_for_label }}"
+                        >
+                            {{ raw_upload_formset.empty_form.period_end.label }}
+                        </label>
+
+                        {{ raw_upload_formset.empty_form.period_end }}
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label
+                        for="{{ raw_upload_formset.empty_form.source_file.id_for_label }}"
+                    >
+                        {{ raw_upload_formset.empty_form.source_file.label }}
+                    </label>
+
+                    {{ raw_upload_formset.empty_form.source_file }}
+                </div>
+
+                <div hidden>
+                    {{ raw_upload_formset.empty_form.DELETE }}
+                </div>
+            </article>
+        </template>
+
+        <div class="upload-actions">
+            <button
+                type="button"
+                class="secondary-button"
+                id="raw-add-file"
+            >
+                +
+                إضافة
+                ملف
+                آخر
+            </button>
+
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                فحص
+                كل
+                الملفات
+            </button>
+        </div>
+    </form>
+
+    {% if raw_upload_result %}
+        <div class="raw-upload-results">
+            <div class="panel-heading">
+                <strong>
+                    نتيجة
+                    الفحص
+                </strong>
+
+                <span>
+                    {{ raw_upload_result.succeeded_count }}
+                    ناجح
+                    /
+                    {{ raw_upload_result.failed_count }}
+                    مرفوض
+                </span>
+            </div>
+
+            {% for item in raw_upload_result.files %}
+                <article class="raw-upload-result">
+                    <strong>
+                        {{ item.original_filename|default:"?" }}
+                    </strong>
+
+                    {% if item.succeeded %}
+                        <span class="status-badge status-reviewed">
+                            نجح
+                        </span>
+
+                        {% for batch in item.batches %}
+                            <a
+                                href="{% url 'imports:batch_detail' batch.id %}"
+                                class="table-link"
+                            >
+                                فتح
+                                مراجعة
+                                {{ batch.brand.code }}
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <span class="status-badge status-blocked">
+                            مرفوض
+                        </span>
+
+                        <span>
+                            {{ item.error_message }}
+                        </span>
+
+                        {% if item.error_code %}
+                            <code dir="ltr">
+                                {{ item.error_code }}
+                            </code>
+                        {% endif %}
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
 <section
     class="panel recent-panel"
     id="recent-batches"

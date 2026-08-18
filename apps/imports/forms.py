@@ -7,6 +7,7 @@ from .models import (
     ImportBatch,
     ImportBatchStatus,
     ImportReportType,
+    ImportSourceSystem,
 )
 from .services.filename_parser import (
     ImportFilenameError,
@@ -374,3 +375,138 @@ class ImportUploadForm(forms.Form):
             )
 
         return cleaned_data
+
+class RawChargementUploadForm(forms.Form):
+    source_system = forms.ModelChoiceField(
+        label=(
+            "\u0646\u0638\u0627\u0645 "
+            "\u0627\u0644\u0645\u0635\u062f\u0631"
+        ),
+        queryset=ImportSourceSystem.objects.none(),
+        empty_label=(
+            "\u0627\u062e\u062a\u0631 "
+            "\u0646\u0638\u0627\u0645 "
+            "\u0627\u0644\u0645\u0635\u062f\u0631"
+        ),
+        widget=forms.Select(
+            attrs={
+                "class": "accountant-select",
+            }
+        ),
+    )
+
+    period_start = forms.DateField(
+        label=(
+            "\u0645\u0646 "
+            "\u062a\u0627\u0631\u064a\u062e"
+        ),
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+                "class": "accountant-date-input",
+            }
+        ),
+    )
+
+    period_end = forms.DateField(
+        label=(
+            "\u0625\u0644\u0649 "
+            "\u062a\u0627\u0631\u064a\u062e"
+        ),
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+                "class": "accountant-date-input",
+            }
+        ),
+    )
+
+    source_file = forms.FileField(
+        label=(
+            "\u0645\u0644\u0641 "
+            "Chargement Excel"
+        ),
+        help_text=(
+            "\u0627\u0644\u0635\u064a\u063a\u0629 "
+            "\u0627\u0644\u0645\u0642\u0628\u0648\u0644\u0629: "
+            "XLSX"
+        ),
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": (
+                    ".xlsx,"
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                "class": "accountant-file-input",
+            }
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields["source_system"].queryset = (
+            ImportSourceSystem.objects
+            .filter(is_active=True)
+            .order_by("name", "code")
+        )
+
+    def clean_source_file(self):
+        source_file = self.cleaned_data["source_file"]
+
+        extension = Path(
+            source_file.name
+        ).suffix.casefold()
+
+        if extension != ".xlsx":
+            raise forms.ValidationError(
+                (
+                    "\u064a\u0642\u0628\u0644 "
+                    "\u0627\u0644\u0646\u0638\u0627\u0645 "
+                    "\u0645\u0644\u0641\u0627\u062a XLSX "
+                    "\u0641\u0642\u0637."
+                )
+            )
+
+        return source_file
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        period_start = cleaned_data.get(
+            "period_start"
+        )
+        period_end = cleaned_data.get(
+            "period_end"
+        )
+
+        if (
+            period_start
+            and period_end
+            and period_end < period_start
+        ):
+            raise forms.ValidationError(
+                (
+                    "\u062a\u0627\u0631\u064a\u062e "
+                    "\u0627\u0644\u0646\u0647\u0627\u064a\u0629 "
+                    "\u0644\u0627 \u064a\u0645\u0643\u0646 "
+                    "\u0623\u0646 \u064a\u0643\u0648\u0646 "
+                    "\u0642\u0628\u0644 "
+                    "\u062a\u0627\u0631\u064a\u062e "
+                    "\u0627\u0644\u0628\u062f\u0627\u064a\u0629."
+                )
+            )
+
+        return cleaned_data
+
+RawChargementUploadFormSet = forms.formset_factory(
+    RawChargementUploadForm,
+    extra=1,
+    min_num=1,
+    validate_min=True,
+    max_num=20,
+    validate_max=True,
+    absolute_max=20,
+    can_delete=True,
+)
