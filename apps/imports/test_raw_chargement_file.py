@@ -353,6 +353,302 @@ class RawChargementFileTests(SimpleTestCase):
             "2026-08-05 10:30:00",
         )
 
+    def test_ignores_export_summary_footer_row(self):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Qt\u00e9",
+                "De l'emplacement",
+                "Vers l'emplacement",
+                "Dernier achat",
+                "D\u00e9tail",
+                "Prix",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "2026-08-05 10:30:00",
+                "ARTICLE A",
+                10,
+                "DEPOT",
+                "SOURCE A",
+                100,
+                0,
+                120,
+            ]
+        )
+
+        worksheet.append(
+            [
+                None,
+                "1",
+                "10,000",
+                None,
+                None,
+                "100,00",
+                "0,00",
+                "120,00",
+            ]
+        )
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            "chargement_with_footer.xlsx",
+            buffer.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        result = adapt_raw_chargement_file(
+            uploaded,
+            truck_mapping={
+                "SOURCE A": "DELISKY LIV01",
+            },
+        )
+
+        self.assertEqual(
+            len(result.rows),
+            1,
+        )
+        self.assertEqual(
+            result.rows[0].excel_row_number,
+            2,
+        )
+
+    def test_footer_like_row_before_end_is_not_ignored(
+        self,
+    ):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Qt\u00e9",
+                "De l'emplacement",
+                "Vers l'emplacement",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "2026-08-05 10:30:00",
+                "ARTICLE A",
+                10,
+                "DEPOT",
+                "SOURCE A",
+            ]
+        )
+
+        worksheet.append(
+            [
+                None,
+                "1",
+                "10,000",
+                None,
+                None,
+            ]
+        )
+
+        worksheet.append(
+            [
+                "2026-08-05 11:00:00",
+                "ARTICLE B",
+                5,
+                "DEPOT",
+                "SOURCE A",
+            ]
+        )
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            "chargement_footer_like_middle.xlsx",
+            buffer.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        with self.assertRaises(
+            RawChargementFileError
+        ) as context:
+            adapt_raw_chargement_file(
+                uploaded,
+                truck_mapping={
+                    "SOURCE A": "DELISKY LIV01",
+                },
+            )
+
+        self.assertEqual(
+            context.exception.details[
+                "excel_row_number"
+            ],
+            3,
+        )
+        self.assertEqual(
+            context.exception.details[
+                "cause_code"
+            ],
+            "missing_source_truck_code",
+        )
+
+    def test_footer_with_wrong_row_count_is_not_ignored(
+        self,
+    ):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Qt\u00e9",
+                "De l'emplacement",
+                "Vers l'emplacement",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "2026-08-05 10:30:00",
+                "ARTICLE A",
+                10,
+                "DEPOT",
+                "SOURCE A",
+            ]
+        )
+
+        worksheet.append(
+            [
+                None,
+                "2",
+                "10,000",
+                None,
+                None,
+            ]
+        )
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            "chargement_footer_wrong_count.xlsx",
+            buffer.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        with self.assertRaises(
+            RawChargementFileError
+        ) as context:
+            adapt_raw_chargement_file(
+                uploaded,
+                truck_mapping={
+                    "SOURCE A": "DELISKY LIV01",
+                },
+            )
+
+        self.assertEqual(
+            context.exception.details[
+                "excel_row_number"
+            ],
+            3,
+        )
+        self.assertEqual(
+            context.exception.details[
+                "cause_code"
+            ],
+            "missing_source_truck_code",
+        )
+
+    def test_missing_truck_on_real_data_row_is_not_treated_as_footer(
+        self,
+    ):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Qt\u00e9",
+                "De l'emplacement",
+                "Vers l'emplacement",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "2026-08-05 10:30:00",
+                "ARTICLE A",
+                10,
+                "DEPOT",
+                None,
+            ]
+        )
+
+        buffer = BytesIO()
+        workbook.save(buffer)
+        workbook.close()
+
+        uploaded = SimpleUploadedFile(
+            "chargement_missing_truck.xlsx",
+            buffer.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        with self.assertRaises(
+            RawChargementFileError
+        ) as context:
+            adapt_raw_chargement_file(
+                uploaded,
+                truck_mapping={
+                    "SOURCE A": "DELISKY LIV01",
+                },
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "row_adaptation_failed",
+        )
+        self.assertEqual(
+            context.exception.details[
+                "excel_row_number"
+            ],
+            2,
+        )
+        self.assertEqual(
+            context.exception.details[
+                "cause_code"
+            ],
+            "missing_source_truck_code",
+        )
+
     def test_error_reports_real_excel_row_number(self):
         with self.assertRaises(
             RawChargementFileError

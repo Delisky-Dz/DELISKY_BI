@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from .report_schemas import normalize_header
 from .raw_chargement_adapter import (
     RawChargementAdapterError,
     adapt_raw_chargement_row,
@@ -46,6 +47,89 @@ class RawChargementFileResult:
     rows: tuple[AdaptedChargementRow, ...]
 
 
+def _is_blank_value(value: object) -> bool:
+    if value is None:
+        return True
+
+    if isinstance(value, str):
+        return not value.strip()
+
+    return False
+
+
+def _summary_row_count(
+    value: object,
+) -> int | None:
+    if isinstance(value, bool):
+        return None
+
+    if isinstance(value, int):
+        return value if value >= 0 else None
+
+    if isinstance(value, float):
+        if value.is_integer() and value >= 0:
+            return int(value)
+        return None
+
+    if isinstance(value, str):
+        cleaned = value.strip()
+
+        if cleaned.isdigit():
+            return int(cleaned)
+
+    return None
+
+
+def _is_export_summary_footer(
+    raw_row: Mapping[object, object],
+    *,
+    adapted_row_count: int,
+    is_last_row: bool,
+) -> bool:
+    if not is_last_row:
+        return False
+
+    normalized = {
+        normalize_header(header): value
+        for header, value in raw_row.items()
+    }
+
+    source_truck = normalized.get(
+        normalize_header("Vers l'emplacement")
+    )
+    source_location = normalized.get(
+        normalize_header("De l'emplacement")
+    )
+    raw_datetime = normalized.get(
+        normalize_header("Date&Heure")
+    )
+    article = normalized.get(
+        normalize_header("Article")
+    )
+    quantity = normalized.get(
+        normalize_header("Qt\u00e9")
+    )
+
+    if not all(
+        _is_blank_value(value)
+        for value in (
+            source_truck,
+            source_location,
+            raw_datetime,
+        )
+    ):
+        return False
+
+    if _is_blank_value(quantity):
+        return False
+
+    summary_count = _summary_row_count(
+        article
+    )
+
+    return summary_count == adapted_row_count
+
+
 def adapt_raw_chargement_file(
     source: Any,
     *,
@@ -68,11 +152,23 @@ def adapt_raw_chargement_file(
         ) from exc
 
     adapted_rows: list[AdaptedChargementRow] = []
+    raw_rows = raw_result.rows
 
-    for raw_row in raw_result.rows:
+    for index, raw_row in enumerate(raw_rows):
+        raw_values = raw_row.as_dict()
+
+        if _is_export_summary_footer(
+            raw_values,
+            adapted_row_count=len(adapted_rows),
+            is_last_row=(
+                index == len(raw_rows) - 1
+            ),
+        ):
+            continue
+
         try:
             values = adapt_raw_chargement_row(
-                raw_row.as_dict(),
+                raw_values,
                 truck_mapping=truck_mapping,
             )
         except (
