@@ -237,89 +237,113 @@ def create_raw_chargement_derived_import_reviews(
         )
     )
 
-    source_upload_result = (
-        create_import_source_upload(
-            source,
-            source_system_code=source_system_code,
-            uploaded_by=uploaded_by,
-            worksheet_name=adapted.worksheet_name,
-            original_filename=adapted.filename,
-        )
-    )
-
-    source_upload = (
-        source_upload_result.source_upload
-    )
-
+    source_upload_result = None
     batches: list[ImportBatch] = []
 
-    with transaction.atomic():
-        for brand_code in sorted(rows_by_brand):
-            brand_rows = rows_by_brand[
-                brand_code
-            ]
-
-            brand_file_result = RawChargementFileResult(
-                filename=adapted.filename,
-                worksheet_name=adapted.worksheet_name,
-                rows=brand_rows,
-            )
-
-            row_result = to_report_row_read_result(
-                brand_file_result
-            )
-
-            cleaning_result = (
-                clean_report_rows_from_metadata(
-                    row_result
-                )
-            )
-
-            summary = (
-                build_import_review_summary_from_metadata(
-                    brand_code=brand_code,
-                    period_start=normalized_period_start,
-                    period_end=normalized_period_end,
-                    row_result=row_result,
-                    cleaning_result=cleaning_result,
-                )
-            )
-
-            prepared_rows = prepare_import_rows(
-                cleaning_result
-            )
-
-            existing_batch = (
-                ImportBatch.objects
-                .filter(
-                    source_upload=source_upload,
-                    brand__code__iexact=brand_code,
-                    report_type="CHARGEMENT",
-                    period_start=normalized_period_start,
-                    period_end=normalized_period_end,
-                )
-                .first()
-            )
-
-            review_result = (
-                _persist_derived_import_review(
-                    source_upload=source_upload,
+    try:
+        with transaction.atomic():
+            source_upload_result = (
+                create_import_source_upload(
+                    source,
+                    source_system_code=source_system_code,
                     uploaded_by=uploaded_by,
-                    reviewer=reviewer,
-                    batch=existing_batch,
-                    brand_code=brand_code,
-                    report_type="CHARGEMENT",
-                    period_start=normalized_period_start,
-                    period_end=normalized_period_end,
                     worksheet_name=adapted.worksheet_name,
-                    summary=summary,
-                    prepared_rows=prepared_rows,
+                    original_filename=adapted.filename,
                 )
             )
 
-            batches.append(
-                review_result.batch
+            source_upload = (
+                source_upload_result.source_upload
             )
+
+            for brand_code in sorted(rows_by_brand):
+                brand_rows = rows_by_brand[
+                    brand_code
+                ]
+
+                brand_file_result = RawChargementFileResult(
+                    filename=adapted.filename,
+                    worksheet_name=adapted.worksheet_name,
+                    rows=brand_rows,
+                )
+
+                row_result = to_report_row_read_result(
+                    brand_file_result
+                )
+
+                cleaning_result = (
+                    clean_report_rows_from_metadata(
+                        row_result
+                    )
+                )
+
+                summary = (
+                    build_import_review_summary_from_metadata(
+                        brand_code=brand_code,
+                        period_start=normalized_period_start,
+                        period_end=normalized_period_end,
+                        row_result=row_result,
+                        cleaning_result=cleaning_result,
+                    )
+                )
+
+                prepared_rows = prepare_import_rows(
+                    cleaning_result
+                )
+
+                existing_batch = (
+                    ImportBatch.objects
+                    .filter(
+                        source_upload=source_upload,
+                        brand__code__iexact=brand_code,
+                        report_type="CHARGEMENT",
+                        period_start=normalized_period_start,
+                        period_end=normalized_period_end,
+                    )
+                    .first()
+                )
+
+                review_result = (
+                    _persist_derived_import_review(
+                        source_upload=source_upload,
+                        uploaded_by=uploaded_by,
+                        reviewer=reviewer,
+                        batch=existing_batch,
+                        brand_code=brand_code,
+                        report_type="CHARGEMENT",
+                        period_start=normalized_period_start,
+                        period_end=normalized_period_end,
+                        worksheet_name=adapted.worksheet_name,
+                        summary=summary,
+                        prepared_rows=prepared_rows,
+                    )
+                )
+
+                batches.append(
+                    review_result.batch
+                )
+
+    except Exception:
+        if (
+            source_upload_result is not None
+            and source_upload_result.created
+        ):
+            source_upload = (
+                source_upload_result.source_upload
+            )
+            saved_file_name = (
+                source_upload.source_file.name
+            )
+
+            if saved_file_name:
+                try:
+                    source_upload.source_file.storage.delete(
+                        saved_file_name
+                    )
+                except Exception:
+                    pass
+
+        raise
 
     return RawChargementDerivedReviewResult(
         source_upload=source_upload,

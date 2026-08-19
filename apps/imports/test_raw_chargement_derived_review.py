@@ -475,6 +475,57 @@ class RawChargementDerivedReviewTests(TestCase):
         )
 
 
+    def test_new_source_upload_is_removed_if_derived_persistence_fails(
+        self,
+    ):
+        from pathlib import Path
+        from unittest.mock import patch
+
+        upload = self.make_upload()
+
+        with patch(
+            (
+                "apps.imports.services."
+                "raw_chargement_derived_review."
+                "_persist_derived_import_review"
+            ),
+            side_effect=RuntimeError(
+                "forced derived persistence failure"
+            ),
+        ):
+            with self.assertRaises(RuntimeError):
+                create_raw_chargement_derived_import_reviews(
+                    upload,
+                    source_system_code="AIO_WEB",
+                    uploaded_by=self.user,
+                    period_start="2026-08-01",
+                    period_end="2026-08-17",
+                    original_filename="aio_mixed_raw.xlsx",
+                )
+
+        self.assertEqual(
+            ImportSourceUpload.objects.count(),
+            0,
+        )
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            0,
+        )
+
+        stored_files = [
+            item
+            for item in Path(
+                self.media_directory.name
+            ).rglob("*")
+            if item.is_file()
+        ]
+
+        self.assertEqual(
+            stored_files,
+            [],
+        )
+
     def test_reprocessing_same_mixed_raw_file_reuses_derived_batches(self):
         first_upload = self.make_upload()
 
