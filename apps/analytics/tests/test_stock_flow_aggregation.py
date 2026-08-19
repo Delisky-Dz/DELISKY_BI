@@ -499,6 +499,70 @@ class StockFlowAggregationTests(TestCase):
             ),
         )
 
+    def test_dated_chargement_uses_worker_assignment_for_row_date(self):
+        truck = self.create_truck(
+            405,
+            "STOCK-VAN-405",
+        )
+        first_worker = self.create_worker(405)
+        second_worker = self.create_worker(406)
+
+        self.create_assignment(
+            truck=truck,
+            worker=first_worker,
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 3),
+        )
+        self.create_assignment(
+            truck=truck,
+            worker=second_worker,
+            start_date=date(2026, 7, 4),
+            end_date=date(2026, 7, 7),
+        )
+
+        batch = self.create_batch(
+            405,
+            ImportReportType.CHARGEMENT,
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 7),
+        )
+
+        row = self.create_quantity_row(
+            batch,
+            405,
+            van="STOCK-VAN-405",
+            article="Dated Chargement Product",
+            article_normalized="dated chargement product",
+            quantity="50",
+        )
+
+        cleaned_data = dict(row.cleaned_data)
+        cleaned_data["chargement_datetime"] = (
+            "2026-07-05T10:30:00"
+        )
+        row.cleaned_data = cleaned_data
+        row.save(update_fields=["cleaned_data"])
+
+        result = aggregate_chargement()
+
+        self.assertEqual(
+            len(result.by_worker),
+            1,
+        )
+        self.assertEqual(
+            result.by_worker[0].worker_id,
+            second_worker.pk,
+        )
+        self.assertEqual(
+            result.by_worker[0].metrics.total_quantity,
+            Decimal("50"),
+        )
+        self.assertEqual(
+            result.attribution_issues,
+            (),
+        )
+
+
     def test_partial_period_overlap_is_excluded(self):
         batch = self.create_batch(
             50,

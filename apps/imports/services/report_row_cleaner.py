@@ -326,6 +326,30 @@ def _clean_stock_or_load(
             issues,
         )
 
+    chargement_datetime = None
+    has_chargement_datetime = (
+        report_type == "CHARGEMENT"
+        and "Date&Heure" in raw
+    )
+
+    if has_chargement_datetime:
+        datetime_raw = raw.get("Date&Heure")
+
+        try:
+            chargement_datetime = parse_datetime_value(
+                datetime_raw
+            )
+        except ValueNormalizationError:
+            issues.append(
+                _issue(
+                    "invalid_datetime",
+                    SEVERITY_ERROR,
+                    "The chargement datetime is invalid.",
+                    field_name="Date&Heure",
+                    raw_value=datetime_raw,
+                )
+            )
+
     if article is None:
         issues.append(
             _issue(
@@ -368,6 +392,11 @@ def _clean_stock_or_load(
         "article_normalized": normalize_lookup_text(article),
         "quantity": quantity,
     }
+
+    if has_chargement_datetime:
+        cleaned["chargement_datetime"] = (
+            chargement_datetime
+        )
 
     return _status_from_issues(issues), cleaned, issues
 

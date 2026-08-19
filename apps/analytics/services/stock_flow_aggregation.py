@@ -12,6 +12,7 @@ from .approved_data_source import (
 from .assignment_resolver import (
     AssignmentIndex,
     build_assignment_index,
+    resolve_worker_for_date,
     resolve_worker_for_period,
 )
 from .report_rows import (
@@ -285,10 +286,14 @@ def aggregate_stock_flow(
     """
     Aggregate OPENING_STOCK or CHARGEMENT quantities.
 
-    These reports have batch-level temporal precision. A row is
+    Analytical period inclusion remains batch-based: a row is
     included only when its complete batch period is contained in
     the requested analytical period. Partial overlaps are never
     apportioned across invented dates.
+
+    Dated CHARGEMENT rows may additionally use their exact
+    chargement datetime for worker attribution. Legacy CHARGEMENT
+    rows without that datetime retain period-level attribution.
     """
     if report_type not in SUPPORTED_STOCK_FLOW_REPORT_TYPES:
         raise ValueError(
@@ -457,12 +462,22 @@ def aggregate_stock_flow(
         )
         truck_product.accumulator.add(quantity)
 
-        assignment_resolution = resolve_worker_for_period(
-            truck,
-            analytical_row.period_start,
-            analytical_row.period_end,
-            assignment_index=assignment_index,
-        )
+        if (
+            report_type == ImportReportType.CHARGEMENT
+            and analytical_row.chargement_datetime is not None
+        ):
+            assignment_resolution = resolve_worker_for_date(
+                truck,
+                analytical_row.chargement_datetime.date(),
+                assignment_index=assignment_index,
+            )
+        else:
+            assignment_resolution = resolve_worker_for_period(
+                truck,
+                analytical_row.period_start,
+                analytical_row.period_end,
+                assignment_index=assignment_index,
+            )
 
         if not assignment_resolution.is_matched:
             issues.append(

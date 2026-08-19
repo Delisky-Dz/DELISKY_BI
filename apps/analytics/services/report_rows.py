@@ -12,6 +12,7 @@ from apps.imports.models import (
 
 from .typed_values import (
     AnalyticalValueError,
+    read_optional_datetime,
     read_optional_text,
     read_required_date,
     read_required_datetime,
@@ -67,6 +68,7 @@ class ChargementAnalyticalRow(BaseAnalyticalRow):
     article: str
     article_normalized: str
     quantity: Decimal
+    chargement_datetime: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,6 +296,11 @@ def parse_chargement_row(
             row.cleaned_data,
             "quantity",
         )
+        chargement_datetime = read_optional_datetime(
+            row.cleaned_data,
+            "chargement_datetime",
+        )
+
         return ChargementAnalyticalRow(
             **_base_values(row),
             article=read_required_text(
@@ -305,6 +312,7 @@ def parse_chargement_row(
                 "article_normalized",
             ),
             quantity=quantity,
+            chargement_datetime=chargement_datetime,
         )
     except AnalyticalValueError as exc:
         raise _convert_value_error(

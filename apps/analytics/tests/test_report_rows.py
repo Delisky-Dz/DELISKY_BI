@@ -164,6 +164,34 @@ class ReportRowsTests(TestCase):
             Decimal("80"),
         )
 
+    def test_parses_chargement_datetime_when_available(self):
+        batch = self.create_batch(
+            101,
+            ImportReportType.CHARGEMENT,
+        )
+
+        row = self.create_row(
+            batch,
+            101,
+            {
+                **self.base_cleaned_data(),
+                "article": "Loaded Product",
+                "article_normalized": "loaded product",
+                "quantity": "20",
+                "chargement_datetime": (
+                    "2026-07-04T10:30:45"
+                ),
+            },
+        )
+
+        result = parse_chargement_row(row)
+
+        self.assertEqual(
+            result.chargement_datetime,
+            datetime(2026, 7, 4, 10, 30, 45),
+        )
+
+
     def test_parses_negative_chargement_return_row(self):
         batch = self.create_batch(
             102,

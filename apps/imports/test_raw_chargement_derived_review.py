@@ -130,6 +130,70 @@ class RawChargementDerivedReviewTests(TestCase):
             ),
         )
 
+    def test_preserves_raw_chargement_datetime_in_cleaned_data(self):
+        from datetime import datetime
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Vers l'emplacement",
+                "Qt\u00e9",
+                "Article",
+                "Date&Heure",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "VAN1-DELISKY",
+                10,
+                "ARTICLE DELISKY",
+                "2026-08-05 10:30:00",
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        upload = SimpleUploadedFile(
+            "dated_chargement.xlsx",
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        result = create_raw_chargement_derived_import_reviews(
+            upload,
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="dated_chargement.xlsx",
+        )
+
+        self.assertEqual(
+            len(result.batches),
+            1,
+        )
+
+        row = result.batches[0].rows.get()
+        stored_datetime = row.cleaned_data.get(
+            "chargement_datetime"
+        )
+
+        self.assertIsNotNone(stored_datetime)
+        self.assertEqual(
+            datetime.fromisoformat(stored_datetime),
+            datetime(2026, 8, 5, 10, 30, 0),
+        )
+
+
     def test_allows_blank_datetime_for_stopped_chargement_row(self):
         workbook = Workbook()
         worksheet = workbook.active
