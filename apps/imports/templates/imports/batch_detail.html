@@ -62,6 +62,61 @@
     </dl>
 </section>
 
+{% if batch.replaces_batch %}
+    <section class="panel replacement-notice">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    دفعة تصحيحية
+                </span>
+
+                {% if batch.status == "APPROVED" %}
+                    <h2>
+                        هذه الدفعة استبدلت دفعة معتمدة سابقة
+                    </h2>
+                {% elif batch.status == "SUPERSEDED" %}
+                    <h2>
+                        هذه الدفعة كانت قد استبدلت دفعة معتمدة سابقة
+                    </h2>
+                {% elif can_approve %}
+                    <h2>
+                        هذه الدفعة ستستبدل دفعة معتمدة سابقة
+                    </h2>
+                {% else %}
+                    <h2>
+                        هذه دفعة تصحيحية مرتبطة بدفعة معتمدة سابقة
+                    </h2>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if batch.status == "APPROVED" %}
+            <p>
+                تم استبدال الدفعة #{{ batch.replaces_batch.id }} بهذه الدفعة، وأصبحت هذه البيانات هي المعتمدة في التحليلات.
+            </p>
+        {% elif batch.status == "SUPERSEDED" %}
+            <p>
+                كانت هذه الدفعة قد استبدلت الدفعة #{{ batch.replaces_batch.id }} قبل أن تُستبدل هي لاحقًا.
+            </p>
+        {% elif can_approve %}
+            <p>
+                عند اعتماد هذه الدفعة، ستصبح الدفعة #{{ batch.replaces_batch.id }} مستبدلة، وستحل هذه البيانات محلها في التحليلات.
+            </p>
+        {% else %}
+            <p>
+                لن يتم استبدال الدفعة #{{ batch.replaces_batch.id }} إلا بعد تصحيح هذه الدفعة واعتمادها.
+            </p>
+        {% endif %}
+
+        <a
+            href="{% url 'imports:batch_detail' batch.replaces_batch.id %}"
+            class="back-link"
+        >
+            مراجعة الدفعة السابقة #{{ batch.replaces_batch.id }}
+        </a>
+    </section>
+{% endif %}
+
 <section class="review-metrics">
     <article>
         <span>إجمالي الصفوف</span>

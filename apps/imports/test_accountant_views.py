@@ -437,6 +437,124 @@ class AccountantImportViewTests(TestCase):
         )
 
 
+    def test_replacement_batch_detail_shows_previous_approved_batch(self):
+        from apps.imports.models import ImportBatch
+
+        previous = ImportBatch.objects.create(
+            brand=self.batch.brand,
+            report_type=self.batch.report_type,
+            period_start=self.batch.period_start,
+            period_end=self.batch.period_end,
+            original_filename="previous.xlsx",
+            worksheet_name=self.batch.worksheet_name,
+            file_size_bytes=1,
+            file_sha256="c" * 64,
+            content_sha256="d" * 64,
+            status="APPROVED",
+            total_rows=1,
+            accepted_rows=1,
+            excluded_rows=0,
+            stopped_rows=0,
+            warning_count=0,
+            error_count=0,
+            uploaded_by=self.accountant,
+            reviewed_by=self.accountant,
+            approved_by=self.accountant,
+        )
+
+        self.batch.replaces_batch = previous
+        self.batch.save(
+            update_fields=[
+                "replaces_batch",
+                "updated_at",
+            ]
+        )
+
+        self.login_accountant()
+
+        response = self.client.get(
+            reverse(
+                "imports:batch_detail",
+                args=[self.batch.pk],
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertContains(
+            response,
+            "\u0647\u0630\u0647 \u0627\u0644\u062f\u0641\u0639\u0629 \u0633\u062a\u0633\u062a\u0628\u062f\u0644 \u062f\u0641\u0639\u0629 \u0645\u0639\u062a\u0645\u062f\u0629 \u0633\u0627\u0628\u0642\u0629",
+        )
+
+        self.assertContains(
+            response,
+            reverse(
+                "imports:batch_detail",
+                args=[previous.pk],
+            ),
+        )
+
+        previous.status = "SUPERSEDED"
+        previous.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        self.batch.status = "APPROVED"
+        self.batch.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        response = self.client.get(
+            reverse(
+                "imports:batch_detail",
+                args=[self.batch.pk],
+            )
+        )
+
+        self.assertContains(
+            response,
+            "\u0647\u0630\u0647 \u0627\u0644\u062f\u0641\u0639\u0629 \u0627\u0633\u062a\u0628\u062f\u0644\u062a \u062f\u0641\u0639\u0629 \u0645\u0639\u062a\u0645\u062f\u0629 \u0633\u0627\u0628\u0642\u0629",
+        )
+
+        self.assertNotContains(
+            response,
+            "\u0647\u0630\u0647 \u0627\u0644\u062f\u0641\u0639\u0629 \u0633\u062a\u0633\u062a\u0628\u062f\u0644 \u062f\u0641\u0639\u0629 \u0645\u0639\u062a\u0645\u062f\u0629 \u0633\u0627\u0628\u0642\u0629",
+        )
+
+        self.batch.status = "SUPERSEDED"
+        self.batch.save(
+            update_fields=[
+                "status",
+                "updated_at",
+            ]
+        )
+
+        response = self.client.get(
+            reverse(
+                "imports:batch_detail",
+                args=[self.batch.pk],
+            )
+        )
+
+        self.assertContains(
+            response,
+            "\u0643\u0627\u0646\u062a \u0647\u0630\u0647 \u0627\u0644\u062f\u0641\u0639\u0629 \u0642\u062f \u0627\u0633\u062a\u0628\u062f\u0644\u062a \u0627\u0644\u062f\u0641\u0639\u0629",
+        )
+
+        self.assertNotContains(
+            response,
+            "\u0644\u0646 \u064a\u062a\u0645 \u0627\u0633\u062a\u0628\u062f\u0627\u0644 \u0627\u0644\u062f\u0641\u0639\u0629",
+        )
+
     def test_problem_row_presenter_hides_clean_rows(self):
         clean_row = SimpleNamespace(
             excel_row_number=2,
