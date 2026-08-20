@@ -13,6 +13,11 @@ urlpatterns = [
         name="raw_chargement_upload",
     ),
     path(
+        "raw-sales/",
+        views.raw_sales_upload,
+        name="raw_sales_upload",
+    ),
+    path(
         "",
         views.accountant_home,
         name="accountant_home",

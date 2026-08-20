@@ -320,87 +320,97 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
-    const rawFormList = document.querySelector(
-        "#raw-form-list"
-    );
+    const setupDynamicFormset = ({
+        listSelector,
+        addButtonSelector,
+        templateSelector,
+        totalFormsSelector,
+        maxFormsSelector,
+        rowSelector,
+        removeButtonSelector,
+        titleSelector,
+    }) => {
+        const formList = document.querySelector(
+            listSelector
+        );
 
-    const rawAddFileButton = document.querySelector(
-        "#raw-add-file"
-    );
+        const addButton = document.querySelector(
+            addButtonSelector
+        );
 
-    const rawEmptyTemplate = document.querySelector(
-        "#raw-empty-form-template"
-    );
+        const emptyTemplate = document.querySelector(
+            templateSelector
+        );
 
-    const rawTotalForms = document.querySelector(
-        "#id_raw-TOTAL_FORMS"
-    );
+        const totalForms = document.querySelector(
+            totalFormsSelector
+        );
 
-    const rawMaxForms = document.querySelector(
-        "#id_raw-MAX_NUM_FORMS"
-    );
+        const maxFormsInput = document.querySelector(
+            maxFormsSelector
+        );
 
-    const updateRawAddButton = () => {
+        const updateAddButton = () => {
+            if (!addButton || !totalForms) {
+                return;
+            }
+
+            const total = Number.parseInt(
+                totalForms.value || "0",
+                10
+            );
+
+            const configuredMax = Number.parseInt(
+                maxFormsInput?.value || "20",
+                10
+            );
+
+            const maxForms = Number.isFinite(
+                configuredMax
+            )
+                ? configuredMax
+                : 20;
+
+            addButton.disabled = (
+                total >= maxForms
+            );
+        };
+
+        const markFormDeleted = (row) => {
+            if (!row) {
+                return;
+            }
+
+            const deleteInput = row.querySelector(
+                'input[name$="-DELETE"]'
+            );
+
+            if (deleteInput) {
+                deleteInput.checked = true;
+            }
+
+            row.hidden = true;
+        };
+
         if (
-            !rawAddFileButton
-            || !rawTotalForms
+            !formList
+            || !addButton
+            || !emptyTemplate
+            || !totalForms
         ) {
             return;
         }
 
-        const total = Number.parseInt(
-            rawTotalForms.value || "0",
-            10
-        );
-
-        const configuredMax = Number.parseInt(
-            rawMaxForms?.value || "20",
-            10
-        );
-
-        const maxForms = Number.isFinite(
-            configuredMax
-        )
-            ? configuredMax
-            : 20;
-
-        rawAddFileButton.disabled = (
-            total >= maxForms
-        );
-    };
-
-    const markRawFormDeleted = (row) => {
-        if (!row) {
-            return;
-        }
-
-        const deleteInput = row.querySelector(
-            'input[name$="-DELETE"]'
-        );
-
-        if (deleteInput) {
-            deleteInput.checked = true;
-        }
-
-        row.hidden = true;
-    };
-
-    if (
-        rawFormList
-        && rawAddFileButton
-        && rawEmptyTemplate
-        && rawTotalForms
-    ) {
-        rawAddFileButton.addEventListener(
+        addButton.addEventListener(
             "click",
             () => {
                 const total = Number.parseInt(
-                    rawTotalForms.value || "0",
+                    totalForms.value || "0",
                     10
                 );
 
                 const configuredMax = Number.parseInt(
-                    rawMaxForms?.value || "20",
+                    maxFormsInput?.value || "20",
                     10
                 );
 
@@ -411,12 +421,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     : 20;
 
                 if (total >= maxForms) {
-                    updateRawAddButton();
+                    updateAddButton();
                     return;
                 }
 
                 const html = (
-                    rawEmptyTemplate.innerHTML
+                    emptyTemplate.innerHTML
                     .replaceAll(
                         "__prefix__",
                         String(total)
@@ -436,32 +446,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 const title = row.querySelector(
-                    "[data-raw-form-title]"
+                    titleSelector
                 );
 
                 if (title) {
                     title.textContent = (
-                        "ملف "
+                        "\u0645\u0644\u0641 "
                         + String(total + 1)
                     );
                 }
 
-                rawFormList.appendChild(row);
+                formList.appendChild(row);
 
-                rawTotalForms.value = String(
+                totalForms.value = String(
                     total + 1
                 );
 
-                updateRawAddButton();
+                updateAddButton();
             }
         );
 
-        rawFormList.addEventListener(
+        formList.addEventListener(
             "click",
             (event) => {
                 const removeButton = (
                     event.target.closest(
-                        ".raw-remove-file"
+                        removeButtonSelector
                     )
                 );
 
@@ -470,13 +480,35 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 const row = removeButton.closest(
-                    "[data-raw-form]"
+                    rowSelector
                 );
 
-                markRawFormDeleted(row);
+                markFormDeleted(row);
             }
         );
 
-        updateRawAddButton();
-    }
+        updateAddButton();
+    };
+
+    setupDynamicFormset({
+        listSelector: "#raw-form-list",
+        addButtonSelector: "#raw-add-file",
+        templateSelector: "#raw-empty-form-template",
+        totalFormsSelector: "#id_raw-TOTAL_FORMS",
+        maxFormsSelector: "#id_raw-MAX_NUM_FORMS",
+        rowSelector: "[data-raw-form]",
+        removeButtonSelector: ".raw-remove-file",
+        titleSelector: "[data-raw-form-title]",
+    });
+
+    setupDynamicFormset({
+        listSelector: "#sales-form-list",
+        addButtonSelector: "#sales-add-file",
+        templateSelector: "#sales-empty-form-template",
+        totalFormsSelector: "#id_sales-TOTAL_FORMS",
+        maxFormsSelector: "#id_sales-MAX_NUM_FORMS",
+        rowSelector: "[data-sales-form]",
+        removeButtonSelector: ".sales-remove-file",
+        titleSelector: "[data-sales-form-title]",
+    });
 });

@@ -606,6 +606,326 @@
 </section>
 
 <section
+    class="panel raw-upload-panel"
+    id="raw-sales-import"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                Raw Sales
+            </span>
+
+            <h2>
+                \u0627\u0633\u062a\u064a\u0631\u0627\u062f
+                \u0645\u0644\u0641\u0627\u062a
+                \u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a
+                \u0627\u0644\u062e\u0627\u0645
+            </h2>
+        </div>
+
+        <span class="secure-pill">
+            Multi-file
+        </span>
+    </div>
+
+    <p>
+        \u0627\u0631\u0641\u0639
+        \u0645\u0644\u0641
+        Sales
+        \u0644\u0643\u0644
+        \u0634\u0627\u062d\u0646\u0629\u060c
+        \u0645\u0639
+        \u062a\u062d\u062f\u064a\u062f
+        \u0646\u0638\u0627\u0645
+        \u0627\u0644\u0645\u0635\u062f\u0631
+        \u0648\u0627\u0644\u0641\u062a\u0631\u0629.
+        \u0633\u064a\u062d\u062f\u062f
+        \u0627\u0644\u0646\u0638\u0627\u0645
+        \u0627\u0644\u0634\u0627\u062d\u0646\u0629
+        \u0648\u0627\u0644\u0639\u0644\u0627\u0645\u0629
+        \u062a\u0644\u0642\u0627\u0626\u064a\u064b\u0627.
+    </p>
+
+    <form
+        method="post"
+        action="{% url 'imports:raw_sales_upload' %}"
+        enctype="multipart/form-data"
+        class="upload-form"
+        id="raw-sales-form"
+        novalidate
+    >
+        {% csrf_token %}
+
+        {{ sales_upload_formset.management_form }}
+
+        {% if sales_upload_formset.non_form_errors %}
+            <div class="form-alert error">
+                {% for error in sales_upload_formset.non_form_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div id="sales-form-list">
+            {% for form in sales_upload_formset.forms %}
+                <article
+                    class="raw-file-row"
+                    data-sales-form
+                >
+                    <div class="panel-heading">
+                        <strong>
+                            \u0645\u0644\u0641
+                            {{ forloop.counter }}
+                        </strong>
+
+                        <button
+                            type="button"
+                            class="sales-remove-file"
+                        >
+                            \u062d\u0630\u0641
+                            \u0627\u0644\u0645\u0644\u0641
+                        </button>
+                    </div>
+
+                    <div class="import-meta-grid">
+                        <div class="form-field">
+                            <label
+                                for="{{ form.source_system.id_for_label }}"
+                            >
+                                {{ form.source_system.label }}
+                            </label>
+
+                            {{ form.source_system }}
+
+                            {% for error in form.source_system.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.period_start.id_for_label }}"
+                            >
+                                {{ form.period_start.label }}
+                            </label>
+
+                            {{ form.period_start }}
+
+                            {% for error in form.period_start.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+
+                        <div class="form-field">
+                            <label
+                                for="{{ form.period_end.id_for_label }}"
+                            >
+                                {{ form.period_end.label }}
+                            </label>
+
+                            {{ form.period_end }}
+
+                            {% for error in form.period_end.errors %}
+                                <span class="field-error">
+                                    {{ error }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="{{ form.source_file.id_for_label }}"
+                        >
+                            {{ form.source_file.label }}
+                        </label>
+
+                        {{ form.source_file }}
+
+                        {% for error in form.source_file.errors %}
+                            <span class="field-error">
+                                {{ error }}
+                            </span>
+                        {% endfor %}
+                    </div>
+
+                    {% if form.non_field_errors %}
+                        <div class="form-alert error">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div hidden>
+                        {{ form.DELETE }}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+
+        <template id="sales-empty-form-template">
+            <article
+                class="raw-file-row"
+                data-sales-form
+            >
+                <div class="panel-heading">
+                    <strong data-sales-form-title>
+                        \u0645\u0644\u0641
+                    </strong>
+
+                    <button
+                        type="button"
+                        class="sales-remove-file"
+                    >
+                        \u062d\u0630\u0641
+                        \u0627\u0644\u0645\u0644\u0641
+                    </button>
+                </div>
+
+                <div class="import-meta-grid">
+                    <div class="form-field">
+                        <label
+                            for="{{ sales_upload_formset.empty_form.source_system.id_for_label }}"
+                        >
+                            {{ sales_upload_formset.empty_form.source_system.label }}
+                        </label>
+
+                        {{ sales_upload_formset.empty_form.source_system }}
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="{{ sales_upload_formset.empty_form.period_start.id_for_label }}"
+                        >
+                            {{ sales_upload_formset.empty_form.period_start.label }}
+                        </label>
+
+                        {{ sales_upload_formset.empty_form.period_start }}
+                    </div>
+
+                    <div class="form-field">
+                        <label
+                            for="{{ sales_upload_formset.empty_form.period_end.id_for_label }}"
+                        >
+                            {{ sales_upload_formset.empty_form.period_end.label }}
+                        </label>
+
+                        {{ sales_upload_formset.empty_form.period_end }}
+                    </div>
+                </div>
+
+                <div class="form-field">
+                    <label
+                        for="{{ sales_upload_formset.empty_form.source_file.id_for_label }}"
+                    >
+                        {{ sales_upload_formset.empty_form.source_file.label }}
+                    </label>
+
+                    {{ sales_upload_formset.empty_form.source_file }}
+                </div>
+
+                <div hidden>
+                    {{ sales_upload_formset.empty_form.DELETE }}
+                </div>
+            </article>
+        </template>
+
+        <div class="upload-actions">
+            <button
+                type="button"
+                class="secondary-button"
+                id="sales-add-file"
+            >
+                +
+                \u0625\u0636\u0627\u0641\u0629
+                \u0645\u0644\u0641
+                \u0622\u062e\u0631
+            </button>
+
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                \u0641\u062d\u0635
+                \u0643\u0644
+                \u0645\u0644\u0641\u0627\u062a
+                Sales
+            </button>
+        </div>
+    </form>
+
+    {% if sales_upload_result %}
+        <div class="raw-upload-results">
+            <div class="panel-heading">
+                <strong>
+                    \u0646\u062a\u064a\u062c\u0629
+                    \u0641\u062d\u0635
+                    Sales
+                </strong>
+
+                <span>
+                    {{ sales_upload_result.succeeded_count }}
+                    \u0646\u0627\u062c\u062d
+                    /
+                    {{ sales_upload_result.failed_count }}
+                    \u0645\u0631\u0641\u0648\u0636
+                </span>
+            </div>
+
+            {% for item in sales_upload_result.files %}
+                <article class="raw-upload-result">
+                    <strong>
+                        {{ item.filename|default:"?" }}
+                    </strong>
+
+                    {% if item.succeeded and item.batch %}
+                        {% if item.batch.status == "BLOCKED" %}
+                            <span class="status-badge status-blocked">
+                                \u064a\u062d\u062a\u0627\u062c
+                                \u062a\u0635\u062d\u064a\u062d
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-reviewed">
+                                \u062c\u0627\u0647\u0632
+                                \u0644\u0644\u0645\u0631\u0627\u062c\u0639\u0629
+                            </span>
+                        {% endif %}
+
+                        <a
+                            href="{% url 'imports:batch_detail' item.batch.id %}"
+                            class="table-link"
+                        >
+                            \u0641\u062a\u062d
+                            \u0645\u0631\u0627\u062c\u0639\u0629
+                            {{ item.batch.brand.code }}
+                        </a>
+                    {% else %}
+                        <span class="status-badge status-blocked">
+                            \u0645\u0631\u0641\u0648\u0636
+                        </span>
+
+                        <span>
+                            {{ item.error_message }}
+                        </span>
+
+                        {% if item.error_code %}
+                            <code dir="ltr">
+                                {{ item.error_code }}
+                            </code>
+                        {% endif %}
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+<section
     class="panel recent-panel"
     id="recent-batches"
 >

@@ -510,3 +510,40 @@ RawChargementUploadFormSet = forms.formset_factory(
     absolute_max=20,
     can_delete=True,
 )
+
+
+
+class RawSalesUploadForm(RawChargementUploadForm):
+    source_file = forms.FileField(
+        label=(
+            "\u0645\u0644\u0641 "
+            "Sales Excel"
+        ),
+        help_text=(
+            "\u0627\u0644\u0635\u064a\u063a\u0629 "
+            "\u0627\u0644\u0645\u0642\u0628\u0648\u0644\u0629: "
+            "XLSX"
+        ),
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": (
+                    ".xlsx,"
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                "class": "accountant-file-input",
+            }
+        ),
+    )
+
+
+RawSalesUploadFormSet = forms.formset_factory(
+    RawSalesUploadForm,
+    extra=1,
+    min_num=1,
+    validate_min=True,
+    max_num=20,
+    validate_max=True,
+    absolute_max=20,
+    can_delete=True,
+)

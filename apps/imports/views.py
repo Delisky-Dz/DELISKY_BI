@@ -21,6 +21,7 @@ from .access import accountant_required
 from .forms import (
     ImportUploadForm,
     RawChargementUploadFormSet,
+    RawSalesUploadFormSet,
 )
 from .models import (
     ImportBatch,
@@ -42,6 +43,10 @@ from .services.batch_review import (
 from .services.raw_chargement_derived_multi_review import (
     RawChargementDerivedImportRequest,
     create_raw_chargement_derived_multi_import_reviews,
+)
+from .services.raw_sales_multi_review import (
+    RawSalesImportRequest,
+    create_raw_sales_multi_import_reviews,
 )
 
 
@@ -103,6 +108,8 @@ def _home_context(
     service_error_details: list[dict] | None = None,
     raw_upload_formset=None,
     raw_upload_result=None,
+    sales_upload_formset=None,
+    sales_upload_result=None,
 ) -> dict:
     recent_batches = (
         ImportBatch.objects
@@ -142,6 +149,14 @@ def _home_context(
             )
         ),
         "raw_upload_result": raw_upload_result,
+        "sales_upload_formset": (
+            sales_upload_formset
+            if sales_upload_formset is not None
+            else RawSalesUploadFormSet(
+                prefix="sales"
+            )
+        ),
+        "sales_upload_result": sales_upload_result,
     }
 
 
@@ -350,6 +365,77 @@ def raw_chargement_upload(request):
                 )
             ),
             raw_upload_result=result,
+        ),
+    )
+
+
+@accountant_required
+@require_POST
+def raw_sales_upload(request):
+    formset = RawSalesUploadFormSet(
+        request.POST,
+        request.FILES,
+        prefix="sales",
+    )
+
+    if not formset.is_valid():
+        return render(
+            request,
+            "imports/accountant_home.html",
+            _home_context(
+                sales_upload_formset=formset,
+            ),
+        )
+
+    import_requests = []
+
+    for form in formset.forms:
+        cleaned_data = form.cleaned_data
+
+        if cleaned_data.get("DELETE"):
+            continue
+
+        source_file = cleaned_data[
+            "source_file"
+        ]
+        source_system = cleaned_data[
+            "source_system"
+        ]
+
+        import_requests.append(
+            RawSalesImportRequest(
+                source=source_file,
+                source_system_code=(
+                    source_system.code
+                ),
+                period_start=cleaned_data[
+                    "period_start"
+                ],
+                period_end=cleaned_data[
+                    "period_end"
+                ],
+                original_filename=(
+                    source_file.name
+                ),
+            )
+        )
+
+    result = create_raw_sales_multi_import_reviews(
+        tuple(import_requests),
+        uploaded_by=request.user,
+        reviewed_by=request.user,
+    )
+
+    return render(
+        request,
+        "imports/accountant_home.html",
+        _home_context(
+            sales_upload_formset=(
+                RawSalesUploadFormSet(
+                    prefix="sales"
+                )
+            ),
+            sales_upload_result=result,
         ),
     )
 
