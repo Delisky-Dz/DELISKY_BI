@@ -5,10 +5,14 @@ from django.db import transaction
 
 from apps.imports.models import (
     ImportBatch,
+    ImportBatchStatus,
     ImportSourceUpload,
 )
 
-from .batch_review import _validate_user
+from .batch_review import (
+    MUTABLE_BATCH_STATUSES,
+    _validate_user,
+)
 from .derived_batch_review import (
     _persist_derived_import_review,
 )
@@ -291,7 +295,7 @@ def create_raw_chargement_derived_import_reviews(
                     cleaning_result
                 )
 
-                existing_batch = (
+                scoped_batches = (
                     ImportBatch.objects
                     .filter(
                         source_upload=source_upload,
@@ -300,8 +304,34 @@ def create_raw_chargement_derived_import_reviews(
                         period_start=normalized_period_start,
                         period_end=normalized_period_end,
                     )
+                )
+
+                existing_batch = (
+                    scoped_batches
+                    .filter(
+                        status__in=MUTABLE_BATCH_STATUSES,
+                    )
                     .first()
                 )
+
+                replacement_target = None
+
+                if existing_batch is None:
+                    existing_batch = (
+                        scoped_batches.first()
+                    )
+
+                    if (
+                        existing_batch is not None
+                        and existing_batch.status
+                        == ImportBatchStatus.APPROVED
+                        and existing_batch.content_sha256
+                        != prepared_rows.content_sha256
+                    ):
+                        replacement_target = (
+                            existing_batch
+                        )
+                        existing_batch = None
 
                 review_result = (
                     _persist_derived_import_review(
@@ -318,6 +348,21 @@ def create_raw_chargement_derived_import_reviews(
                         prepared_rows=prepared_rows,
                     )
                 )
+
+                if replacement_target is not None:
+                    replacement_batch = (
+                        review_result.batch
+                    )
+                    replacement_batch.replaces_batch = (
+                        replacement_target
+                    )
+                    replacement_batch.full_clean()
+                    replacement_batch.save(
+                        update_fields=[
+                            "replaces_batch",
+                            "updated_at",
+                        ]
+                    )
 
                 batches.append(
                     review_result.batch

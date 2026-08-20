@@ -845,3 +845,193 @@ class RawChargementDerivedReviewTests(TestCase):
             ImportBatch.objects.count(),
             2,
         )
+
+    def test_reprocessing_approved_batch_with_changed_content_creates_and_reuses_replacement(
+        self,
+    ):
+        first_upload = self.make_upload()
+
+        file_bytes = first_upload.read()
+        first_upload.seek(0)
+
+        first = create_raw_chargement_derived_import_reviews(
+            first_upload,
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        original_batches = {
+            batch.brand.code: batch
+            for batch in first.batches
+        }
+
+        for index, batch in enumerate(
+            first.batches,
+            start=1,
+        ):
+            legacy_hash = f"{index:064x}"
+
+            self.assertNotEqual(
+                batch.content_sha256,
+                legacy_hash,
+            )
+
+            batch.status = "APPROVED"
+            batch.content_sha256 = legacy_hash
+            batch.save(
+                update_fields=[
+                    "status",
+                    "content_sha256",
+                ]
+            )
+
+        second_upload = SimpleUploadedFile(
+            "aio_mixed_raw.xlsx",
+            file_bytes,
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        second = create_raw_chargement_derived_import_reviews(
+            second_upload,
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        self.assertEqual(
+            ImportSourceUpload.objects.count(),
+            1,
+        )
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            4,
+        )
+
+        replacement_batches = {
+            batch.brand.code: batch
+            for batch in second.batches
+        }
+
+        self.assertEqual(
+            set(replacement_batches),
+            {"DELISKY", "NITA"},
+        )
+
+        for brand_code, replacement in (
+            replacement_batches.items()
+        ):
+            original = original_batches[
+                brand_code
+            ]
+
+            original.refresh_from_db()
+
+            self.assertEqual(
+                original.status,
+                "APPROVED",
+            )
+
+            self.assertNotEqual(
+                replacement.pk,
+                original.pk,
+            )
+
+            self.assertEqual(
+                replacement.status,
+                "REVIEWED",
+            )
+
+            self.assertEqual(
+                replacement.replaces_batch_id,
+                original.pk,
+            )
+
+            self.assertNotEqual(
+                replacement.content_sha256,
+                original.content_sha256,
+            )
+
+        third_upload = SimpleUploadedFile(
+            "aio_mixed_raw.xlsx",
+            file_bytes,
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        third = create_raw_chargement_derived_import_reviews(
+            third_upload,
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        second_ids = {
+            batch.brand.code: batch.pk
+            for batch in second.batches
+        }
+
+        third_ids = {
+            batch.brand.code: batch.pk
+            for batch in third.batches
+        }
+
+        self.assertEqual(
+            third_ids,
+            second_ids,
+        )
+
+        self.assertEqual(
+            ImportBatch.objects.count(),
+            4,
+        )
+
+    def test_source_scope_rejects_second_mutable_derived_batch(
+        self,
+    ):
+        from django.core.exceptions import ValidationError
+
+        result = create_raw_chargement_derived_import_reviews(
+            self.make_upload(),
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        original = next(
+            batch
+            for batch in result.batches
+            if batch.brand.code == "DELISKY"
+        )
+
+        duplicate = ImportBatch.objects.get(
+            pk=original.pk
+        )
+        duplicate.pk = None
+        duplicate._state.adding = True
+        duplicate.content_sha256 = "f" * 64
+        duplicate.replaces_batch = None
+
+        with self.assertRaises(
+            ValidationError
+        ) as captured:
+            duplicate.full_clean()
+
+        self.assertIn(
+            "__all__",
+            captured.exception.message_dict,
+        )

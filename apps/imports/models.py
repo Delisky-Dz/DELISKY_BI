@@ -668,12 +668,47 @@ class ImportBatch(models.Model):
                     "period_start",
                     "period_end",
                 ],
-                condition=Q(source_upload__isnull=False),
-                name="import_source_scope_uniq",
+                condition=(
+                    Q(source_upload__isnull=False)
+                    & Q(
+                        status__in=[
+                            ImportBatchStatus.PENDING,
+                            ImportBatchStatus.REVIEWED,
+                            ImportBatchStatus.BLOCKED,
+                            ImportBatchStatus.FAILED,
+                        ]
+                    )
+                ),
+                name="import_src_scope_mutable_uniq",
                 violation_error_message=(
-                    "\u0633\u0628\u0642 \u0625\u0646\u0634\u0627\u0621 \u062f\u0641\u0639\u0629 "
-                    "\u0645\u0634\u062a\u0642\u0629 \u0644\u0646\u0641\u0633 \u0627\u0644\u0645\u0644\u0641 "
-                    "\u0648\u0627\u0644\u0635\u0646\u0641 \u0648\u0627\u0644\u0646\u0648\u0639 "
+                    "\u0633\u0628\u0642 \u0625\u0646\u0634\u0627\u0621 "
+                    "\u062f\u0641\u0639\u0629 \u0645\u0634\u062a\u0642\u0629 "
+                    "\u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062a\u0639\u062f\u064a\u0644 "
+                    "\u0644\u0646\u0641\u0633 \u0627\u0644\u0645\u0644\u0641 "
+                    "\u0648\u0627\u0644\u0635\u0646\u0641 "
+                    "\u0648\u0627\u0644\u0646\u0648\u0639 "
+                    "\u0648\u0627\u0644\u0641\u062a\u0631\u0629."
+                ),
+            ),
+            models.UniqueConstraint(
+                fields=[
+                    "source_upload",
+                    "brand",
+                    "report_type",
+                    "period_start",
+                    "period_end",
+                ],
+                condition=(
+                    Q(source_upload__isnull=False)
+                    & Q(status=ImportBatchStatus.APPROVED)
+                ),
+                name="import_src_scope_approved_uniq",
+                violation_error_message=(
+                    "\u0633\u0628\u0642 \u0627\u0639\u062a\u0645\u0627\u062f "
+                    "\u062f\u0641\u0639\u0629 \u0645\u0634\u062a\u0642\u0629 "
+                    "\u0644\u0646\u0641\u0633 \u0627\u0644\u0645\u0644\u0641 "
+                    "\u0648\u0627\u0644\u0635\u0646\u0641 "
+                    "\u0648\u0627\u0644\u0646\u0648\u0639 "
                     "\u0648\u0627\u0644\u0641\u062a\u0631\u0629."
                 ),
             ),
