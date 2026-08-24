@@ -607,6 +607,275 @@
 
 <section
     class="panel raw-upload-panel"
+    id="raw-items-import"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                Raw Items
+            </span>
+
+            <h2>
+                رفع المبيعات حسب الصنف والزبون
+            </h2>
+        </div>
+
+        <span class="secure-pill">
+            Multi-file
+        </span>
+    </div>
+
+    <p>
+        اختر الفترة مرة واحدة،
+        ثم ارفع ملفات
+        <strong>Par article/client</strong>
+        الخاصة بـ BIFA و AIO WEB.
+        يتعرف النظام على الشاحنة
+        تلقائيًا من اسم الملف.
+    </p>
+
+    <form
+        method="post"
+        action="{% url 'imports:raw_items_upload' %}"
+        enctype="multipart/form-data"
+        class="upload-form"
+        id="raw-items-form"
+        novalidate
+    >
+        {% csrf_token %}
+
+        {% if items_upload_form.non_field_errors %}
+            <div class="form-alert error">
+                {% for error in items_upload_form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="import-meta-grid">
+            <div class="form-field">
+                <label for="{{ items_upload_form.period_start.id_for_label }}">
+                    {{ items_upload_form.period_start.label }}
+                </label>
+
+                {{ items_upload_form.period_start }}
+
+                {% for error in items_upload_form.period_start.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+
+            <div class="form-field">
+                <label for="{{ items_upload_form.period_end.id_for_label }}">
+                    {{ items_upload_form.period_end.label }}
+                </label>
+
+                {{ items_upload_form.period_end }}
+
+                {% for error in items_upload_form.period_end.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="raw-file-row">
+            <div class="panel-heading">
+                <strong>BIFA</strong>
+                <span class="secure-pill">BIFA_MILA</span>
+            </div>
+
+            <div class="form-field">
+                <label>
+                    {{ items_upload_form.bifa_files.label }}
+                </label>
+
+                <div>
+                    <span hidden>
+                        {{ items_upload_form.bifa_files }}
+                    </span>
+
+                    <label
+                        for="{{ items_upload_form.bifa_files.id_for_label }}"
+                        class="secondary-button"
+                        style="cursor:pointer;"
+                    >
+                        اختيار ملفات BIFA
+                    </label>
+
+                    <span
+                        data-items-file-label="{{ items_upload_form.bifa_files.id_for_label }}"
+                    >
+                        لم يتم اختيار أي ملف
+                    </span>
+                </div>
+
+                {% if items_upload_form.bifa_files.help_text %}
+                    <small>
+                        {{ items_upload_form.bifa_files.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in items_upload_form.bifa_files.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="raw-file-row">
+            <div class="panel-heading">
+                <strong>DELISKY / NITA</strong>
+                <span class="secure-pill">AIO_WEB</span>
+            </div>
+
+            <div class="form-field">
+                <label>
+                    {{ items_upload_form.aio_files.label }}
+                </label>
+
+                <div>
+                    <span hidden>
+                        {{ items_upload_form.aio_files }}
+                    </span>
+
+                    <label
+                        for="{{ items_upload_form.aio_files.id_for_label }}"
+                        class="secondary-button"
+                        style="cursor:pointer;"
+                    >
+                        اختيار ملفات DELISKY / NITA
+                    </label>
+
+                    <span
+                        data-items-file-label="{{ items_upload_form.aio_files.id_for_label }}"
+                    >
+                        لم يتم اختيار أي ملف
+                    </span>
+                </div>
+
+                {% if items_upload_form.aio_files.help_text %}
+                    <small>
+                        {{ items_upload_form.aio_files.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in items_upload_form.aio_files.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="upload-actions">
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                فحص كل ملفات Items
+            </button>
+        </div>
+    </form>
+
+    {% if items_upload_result %}
+        <div class="raw-upload-results">
+            <div class="panel-heading">
+                <strong>
+                    نتيجة فحص ملفات Items
+                </strong>
+
+                <span>
+                    نجح:
+                    {{ items_upload_result.succeeded_count }}
+                    /
+                    فشل:
+                    {{ items_upload_result.failed_count }}
+                </span>
+            </div>
+
+            {% for item in items_upload_result.files %}
+                <article class="raw-file-row">
+                    <div class="panel-heading">
+                        <strong dir="ltr">
+                            {{ item.filename }}
+                        </strong>
+
+                        {% if item.succeeded %}
+                            <span class="status-badge status-reviewed">
+                                ناجح
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-blocked">
+                                مرفوض
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.succeeded %}
+                        <div class="import-meta-grid">
+                            <span>
+                                العلامة:
+                                <strong>{{ item.batch.brand.code }}</strong>
+                            </span>
+
+                            <span>
+                                الحالة:
+                                <strong>{{ item.batch.status }}</strong>
+                            </span>
+
+                            <span>
+                                الصفوف:
+                                <strong>{{ item.batch.total_rows }}</strong>
+                            </span>
+
+                            <span>
+                                مقبول:
+                                <strong>{{ item.batch.accepted_rows }}</strong>
+                            </span>
+
+                            <span>
+                                مستبعد:
+                                <strong>{{ item.batch.excluded_rows }}</strong>
+                            </span>
+
+                            <span>
+                                أخطاء:
+                                <strong>{{ item.batch.error_count }}</strong>
+                            </span>
+                        </div>
+
+                        <a
+                            href="{% url 'imports:batch_detail' item.batch.id %}"
+                            class="secondary-button"
+                        >
+                            فتح مراجعة الدفعة
+                        </a>
+                    {% else %}
+                        <div class="form-alert error">
+                            <span>
+                                {{ item.error_message }}
+                            </span>
+
+                            {% if item.error_code %}
+                                <code dir="ltr">
+                                    {{ item.error_code }}
+                                </code>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+<section
+    class="panel raw-upload-panel"
     id="raw-sales-import"
 >
     <div class="panel-heading">

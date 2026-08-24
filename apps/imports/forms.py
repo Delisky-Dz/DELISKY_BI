@@ -547,3 +547,165 @@ RawSalesUploadFormSet = forms.formset_factory(
     absolute_max=20,
     can_delete=True,
 )
+
+
+from django.core.exceptions import ValidationError
+
+
+class RawItemsMultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class RawItemsMultipleFileField(forms.FileField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault(
+            "widget",
+            RawItemsMultipleFileInput(
+                attrs={
+                    "accept": (
+                        ".xlsx,"
+                        "application/vnd.openxmlformats-"
+                        "officedocument.spreadsheetml.sheet"
+                    ),
+                    "class": "accountant-file-input",
+                }
+            ),
+        )
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        if not data:
+            if self.required:
+                return super().clean(
+                    data,
+                    initial,
+                )
+            return []
+
+        files = (
+            data
+            if isinstance(data, (list, tuple))
+            else [data]
+        )
+
+        single_file_clean = super().clean
+
+        return [
+            single_file_clean(
+                item,
+                initial,
+            )
+            for item in files
+        ]
+
+
+class RawItemsUploadForm(forms.Form):
+    period_start = forms.DateField(
+        label="\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0628\u062f\u0627\u064a\u0629",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+            }
+        ),
+    )
+
+    period_end = forms.DateField(
+        label="\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0646\u0647\u0627\u064a\u0629",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+            }
+        ),
+    )
+
+    bifa_files = RawItemsMultipleFileField(
+        required=False,
+        label="\u0645\u0644\u0641\u0627\u062a BIFA",
+        help_text=(
+            "\u0627\u062e\u062a\u0631 \u0643\u0644 "
+            "\u0645\u0644\u0641\u0627\u062a Par article/client "
+            "\u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0634\u0627\u062d\u0646\u0627\u062a BIFA."
+        ),
+    )
+
+    aio_files = RawItemsMultipleFileField(
+        required=False,
+        label="\u0645\u0644\u0641\u0627\u062a AIO WEB",
+        help_text=(
+            "\u0627\u062e\u062a\u0631 \u0645\u0644\u0641\u0627\u062a "
+            "DELISKY / NITA Par article/client."
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        period_start = cleaned_data.get(
+            "period_start"
+        )
+        period_end = cleaned_data.get(
+            "period_end"
+        )
+
+        if (
+            period_start is not None
+            and period_end is not None
+            and period_end < period_start
+        ):
+            raise ValidationError(
+                "\u062a\u0627\u0631\u064a\u062e "
+                "\u0627\u0644\u0646\u0647\u0627\u064a\u0629 "
+                "\u0644\u0627 \u064a\u0645\u0643\u0646 "
+                "\u0623\u0646 \u064a\u0643\u0648\u0646 "
+                "\u0642\u0628\u0644 "
+                "\u062a\u0627\u0631\u064a\u062e "
+                "\u0627\u0644\u0628\u062f\u0627\u064a\u0629."
+            )
+
+        bifa_files = cleaned_data.get(
+            "bifa_files"
+        ) or []
+
+        aio_files = cleaned_data.get(
+            "aio_files"
+        ) or []
+
+        if not bifa_files and not aio_files:
+            raise ValidationError(
+                "\u064a\u062c\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 "
+                "\u0645\u0644\u0641 Items \u0648\u0627\u062d\u062f "
+                "\u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644."
+            )
+
+        if len(bifa_files) + len(aio_files) > 20:
+            raise ValidationError(
+                "\u0627\u0644\u062d\u062f "
+                "\u0627\u0644\u0623\u0642\u0635\u0649 "
+                "20 \u0645\u0644\u0641\u064b\u0627 "
+                "\u0641\u064a \u0639\u0645\u0644\u064a\u0629 "
+                "\u0648\u0627\u062d\u062f\u0629."
+            )
+
+        for field_name, files in (
+            ("bifa_files", bifa_files),
+            ("aio_files", aio_files),
+        ):
+            invalid = [
+                item.name
+                for item in files
+                if not str(
+                    item.name
+                ).lower().endswith(".xlsx")
+            ]
+
+            if invalid:
+                self.add_error(
+                    field_name,
+                    ValidationError(
+                        "\u064a\u064f\u0633\u0645\u062d "
+                        "\u0641\u0642\u0637 "
+                        "\u0628\u0645\u0644\u0641\u0627\u062a XLSX."
+                    ),
+                )
+
+        return cleaned_data

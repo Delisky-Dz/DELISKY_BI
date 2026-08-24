@@ -512,3 +512,39 @@ document.addEventListener("DOMContentLoaded", () => {
         titleSelector: "[data-sales-form-title]",
     });
 });
+
+/* RAW_ITEMS_FILE_LABELS */
+document.querySelectorAll(
+    "#raw-items-form input[type='file'][multiple]"
+).forEach((input) => {
+    const label = document.querySelector(
+        `[data-items-file-label="${input.id}"]`
+    );
+
+    if (!label) {
+        return;
+    }
+
+    input.addEventListener("change", () => {
+        const count = input.files
+            ? input.files.length
+            : 0;
+
+        if (count === 0) {
+            label.textContent =
+                "\u0644\u0645 \u064a\u062a\u0645 \u0627\u062e\u062a\u064a\u0627\u0631 \u0623\u064a \u0645\u0644\u0641";
+            return;
+        }
+
+        if (count === 1) {
+            label.textContent =
+                input.files[0].name;
+            return;
+        }
+
+        label.textContent =
+            "\u062a\u0645 \u0627\u062e\u062a\u064a\u0627\u0631 "
+            + count
+            + " \u0645\u0644\u0641\u0627\u062a";
+    });
+});
