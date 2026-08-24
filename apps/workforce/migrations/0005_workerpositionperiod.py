@@ -11,6 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('workforce', '0004_seed_worker_categories'),
+        ('fleet', '0003_enable_btree_gist'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
