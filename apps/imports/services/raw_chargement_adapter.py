@@ -94,6 +94,14 @@ def adapt_raw_chargement_row(
         "Article",
     )
 
+    barcode_header = normalize_header(
+        "Barcode"
+    )
+    has_barcode = barcode_header in row
+    raw_barcode = row.get(
+        barcode_header
+    )
+
     datetime_header = normalize_header(
         "Date&Heure"
     )
@@ -112,6 +120,9 @@ def adapt_raw_chargement_row(
         "Qt\u00e9": quantity,
         "Article": article,
     }
+
+    if has_barcode:
+        adapted["Barcode"] = raw_barcode
 
     if has_datetime:
         adapted["Date&Heure"] = (

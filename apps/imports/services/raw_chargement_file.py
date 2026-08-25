@@ -216,6 +216,14 @@ def to_report_row_read_result(
     headers = CANONICAL_CHARGEMENT_HEADERS
 
     if any(
+        "Barcode" in row.values
+        for row in result.rows
+    ):
+        headers = headers + (
+            "Barcode",
+        )
+
+    if any(
         "Date&Heure" in row.values
         for row in result.rows
     ):

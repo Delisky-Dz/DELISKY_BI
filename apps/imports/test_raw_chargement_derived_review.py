@@ -12,6 +12,7 @@ from apps.imports.models import (
     ImportBatch,
     ImportSourceSystem,
     ImportSourceUpload,
+    SourceProductPackaging,
     SourceTruckMapping,
 )
 from apps.imports.services.raw_chargement_derived_review import (
@@ -74,6 +75,26 @@ class RawChargementDerivedReviewTests(TestCase):
             )
         )
 
+        SourceProductPackaging.objects.create(
+            source_system=self.source_system,
+            source_product_code="TEST-DELISKY-ARTICLE",
+            designation="ARTICLE DELISKY",
+            normalized_designation="ARTICLE DELISKY",
+            units_per_carton=4,
+            needs_review=False,
+            is_active=True,
+        )
+
+        SourceProductPackaging.objects.create(
+            source_system=self.source_system,
+            source_product_code="TEST-NITA-ARTICLE",
+            designation="ARTICLE NITA",
+            normalized_designation="ARTICLE NITA",
+            units_per_carton=6,
+            needs_review=False,
+            is_active=True,
+        )
+
         SourceTruckMapping.objects.create(
             source_system=self.source_system,
             source_code="VAN1-DELISKY",
@@ -128,6 +149,81 @@ class RawChargementDerivedReviewTests(TestCase):
                 "application/vnd.openxmlformats-officedocument."
                 "spreadsheetml.sheet"
             ),
+        )
+
+    def test_persists_product_master_quantity_enrichment(self):
+        result = create_raw_chargement_derived_import_reviews(
+            self.make_upload(),
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        batches = {
+            batch.brand.code: batch
+            for batch in result.batches
+        }
+
+        delisky = (
+            batches["DELISKY"]
+            .rows
+            .get()
+            .cleaned_data
+        )
+
+        self.assertEqual(
+            delisky["total_units"],
+            10,
+        )
+        self.assertEqual(
+            delisky["units_per_carton"],
+            4,
+        )
+        self.assertEqual(
+            delisky["cartons"],
+            2,
+        )
+        self.assertEqual(
+            delisky["pieces"],
+            2,
+        )
+        self.assertEqual(
+            delisky["packaging_status"],
+            "READY",
+        )
+        self.assertEqual(
+            delisky["product_match_method"],
+            "designation",
+        )
+
+        nita = (
+            batches["NITA"]
+            .rows
+            .get()
+            .cleaned_data
+        )
+
+        self.assertEqual(
+            nita["total_units"],
+            20,
+        )
+        self.assertEqual(
+            nita["units_per_carton"],
+            6,
+        )
+        self.assertEqual(
+            nita["cartons"],
+            3,
+        )
+        self.assertEqual(
+            nita["pieces"],
+            2,
+        )
+        self.assertEqual(
+            nita["packaging_status"],
+            "READY",
         )
 
     def test_preserves_raw_chargement_datetime_in_cleaned_data(self):

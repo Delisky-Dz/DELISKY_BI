@@ -6,6 +6,7 @@ from django.db import transaction
 from apps.imports.models import (
     ImportBatch,
     ImportBatchStatus,
+    ImportSourceSystem,
     ImportSourceUpload,
 )
 
@@ -15,6 +16,9 @@ from .batch_review import (
 )
 from .derived_batch_review import (
     _persist_derived_import_review,
+)
+from .raw_chargement_cleaning_enrichment import (
+    enrich_raw_chargement_cleaning_result,
 )
 from .raw_chargement_brand_partition import (
     partition_raw_chargement_rows_by_brand,
@@ -223,6 +227,13 @@ def create_raw_chargement_derived_import_reviews(
         source_system_code
     )
 
+    source_system = (
+        ImportSourceSystem.objects.get(
+            code__iexact=source_system_code,
+            is_active=True,
+        )
+    )
+
     adapted = adapt_raw_chargement_file(
         source,
         truck_mapping=truck_mapping,
@@ -278,6 +289,13 @@ def create_raw_chargement_derived_import_reviews(
                 cleaning_result = (
                     clean_report_rows_from_metadata(
                         row_result
+                    )
+                )
+
+                cleaning_result = (
+                    enrich_raw_chargement_cleaning_result(
+                        cleaning_result,
+                        source_system=source_system,
                     )
                 )
 
