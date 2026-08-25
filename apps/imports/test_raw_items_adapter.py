@@ -42,11 +42,11 @@ class RawItemsAdapterTests(SimpleTestCase):
         result = adapt_raw_items_row(
             {
                 "Article": "ARTICLE A",
-                "Qt\u00e9": 24,
+                "Qté": 24,
                 "Client": "CLIENT A",
                 "Total": 1200,
                 "Barcode": "ABC",
-                "Cat\u00e9gorie": "BIFA",
+                "Catégorie": "BIFA",
             },
             source_truck_code="DCV-03",
             truck_mapping=self.mapping,
@@ -57,11 +57,26 @@ class RawItemsAdapterTests(SimpleTestCase):
             {
                 "VAN",
                 "Article",
-                "Qt\u00e9 vendue",
+                "Qté vendue",
                 "Client",
+                "Barcode",
             },
         )
 
+        self.assertEqual(
+            result["Barcode"],
+            "ABC",
+        )
+
+        self.assertNotIn(
+            "Total",
+            result,
+        )
+
+        self.assertNotIn(
+            "Catégorie",
+            result,
+        )
     def test_missing_client_column_is_rejected(self):
         with self.assertRaises(
             RawItemsAdapterError

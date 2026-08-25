@@ -424,7 +424,7 @@ class RawChargementUploadForm(forms.Form):
     source_file = forms.FileField(
         label=(
             "\u0645\u0644\u0641 "
-            "Chargement Excel"
+            "Excel \u0644\u0644\u0627\u0644\u062a\u062d\u0645\u064a\u0644"
         ),
         help_text=(
             "\u0627\u0644\u0635\u064a\u063a\u0629 "
@@ -517,7 +517,7 @@ class RawSalesUploadForm(RawChargementUploadForm):
     source_file = forms.FileField(
         label=(
             "\u0645\u0644\u0641 "
-            "Sales Excel"
+            "Excel \u0644\u0644\u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a"
         ),
         help_text=(
             "\u0627\u0644\u0635\u064a\u063a\u0629 "
@@ -623,7 +623,7 @@ class RawItemsUploadForm(forms.Form):
         label="\u0645\u0644\u0641\u0627\u062a BIFA",
         help_text=(
             "\u0627\u062e\u062a\u0631 \u0643\u0644 "
-            "\u0645\u0644\u0641\u0627\u062a Par article/client "
+            "\u0645\u0644\u0641\u0627\u062a \u062d\u0633\u0628 \u0627\u0644\u0635\u0646\u0641 \u0648\u0627\u0644\u0632\u0628\u0648\u0646 "
             "\u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0634\u0627\u062d\u0646\u0627\u062a BIFA."
         ),
     )
@@ -633,7 +633,7 @@ class RawItemsUploadForm(forms.Form):
         label="\u0645\u0644\u0641\u0627\u062a AIO WEB",
         help_text=(
             "\u0627\u062e\u062a\u0631 \u0645\u0644\u0641\u0627\u062a "
-            "DELISKY / NITA Par article/client."
+            "DELISKY / NITA \u062d\u0633\u0628 \u0627\u0644\u0635\u0646\u0641 \u0648\u0627\u0644\u0632\u0628\u0648\u0646."
         ),
     )
 
@@ -673,7 +673,7 @@ class RawItemsUploadForm(forms.Form):
         if not bifa_files and not aio_files:
             raise ValidationError(
                 "\u064a\u062c\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 "
-                "\u0645\u0644\u0641 Items \u0648\u0627\u062d\u062f "
+                "\u0645\u0644\u0641 \u0627\u0644\u0645\u0628\u064a\u0639\u0627\u062a \u062d\u0633\u0628 \u0627\u0644\u0635\u0646\u0641 \u0648\u0627\u0644\u0632\u0628\u0648\u0646 \u0648\u0627\u062d\u062f "
                 "\u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644."
             )
 
@@ -707,5 +707,52 @@ class RawItemsUploadForm(forms.Form):
                         "\u0628\u0645\u0644\u0641\u0627\u062a XLSX."
                     ),
                 )
+
+        return cleaned_data
+
+
+class RawOpeningStockUploadForm(forms.Form):
+    stock_date = forms.DateField(
+        label="\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+            }
+        ),
+    )
+
+    bifa_files = RawItemsMultipleFileField(
+        required=False,
+        label="\u0645\u0644\u0641\u0627\u062a BIFA",
+        help_text=(
+            "\u0627\u062e\u062a\u0631 \u0645\u0644\u0641\u0627\u062a "
+            "\u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a "
+            "\u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0640 BIFA."
+        ),
+    )
+
+    aio_files = RawItemsMultipleFileField(
+        required=False,
+        label="\u0645\u0644\u0641\u0627\u062a AIO WEB",
+        help_text=(
+            "\u0627\u062e\u062a\u0631 \u0645\u0644\u0641\u0627\u062a "
+            "\u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a "
+            "\u0627\u0644\u062e\u0627\u0635\u0629 \u0628\u0640 "
+            "DELISKY / NITA."
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        if not (
+            cleaned_data.get("bifa_files")
+            or cleaned_data.get("aio_files")
+        ):
+            raise ValidationError(
+                "\u064a\u062c\u0628 \u0627\u062e\u062a\u064a\u0627\u0631 "
+                "\u0645\u0644\u0641 \u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a "
+                "\u0648\u0627\u062d\u062f \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644."
+            )
 
         return cleaned_data

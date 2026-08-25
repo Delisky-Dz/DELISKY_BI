@@ -23,6 +23,7 @@ from .forms import (
     RawChargementUploadFormSet,
     RawSalesUploadFormSet,
     RawItemsUploadForm,
+    RawOpeningStockUploadForm,
 )
 from .models import (
     ImportBatch,
@@ -52,6 +53,10 @@ from .services.raw_sales_multi_review import (
 from .services.raw_items_multi_review import (
     RawItemsImportRequest,
     create_raw_items_multi_import_reviews,
+)
+from .services.raw_opening_stock_multi_review import (
+    RawOpeningStockImportRequest,
+    create_raw_opening_stock_multi_import_reviews,
 )
 
 
@@ -117,6 +122,8 @@ def _home_context(
     sales_upload_result=None,
     items_upload_form=None,
     items_upload_result=None,
+    opening_stock_upload_form=None,
+    opening_stock_upload_result=None,
 ) -> dict:
     recent_batches = (
         ImportBatch.objects
@@ -170,6 +177,14 @@ def _home_context(
             else RawItemsUploadForm()
         ),
         "items_upload_result": items_upload_result,
+        "opening_stock_upload_form": (
+            opening_stock_upload_form
+            if opening_stock_upload_form is not None
+            else RawOpeningStockUploadForm()
+        ),
+        "opening_stock_upload_result": (
+            opening_stock_upload_result
+        ),
     }
 
 
@@ -449,6 +464,81 @@ def raw_sales_upload(request):
                 )
             ),
             sales_upload_result=result,
+        ),
+    )
+
+
+@accountant_required
+@require_POST
+def raw_opening_stock_upload(request):
+    form = RawOpeningStockUploadForm(
+        request.POST,
+        request.FILES,
+    )
+
+    if not form.is_valid():
+        return render(
+            request,
+            "imports/accountant_home.html",
+            _home_context(
+                opening_stock_upload_form=form,
+            ),
+        )
+
+    stock_date = form.cleaned_data[
+        "stock_date"
+    ]
+
+    import_requests = []
+
+    for source_file in form.cleaned_data[
+        "bifa_files"
+    ]:
+        source_file.seek(0)
+
+        import_requests.append(
+            RawOpeningStockImportRequest(
+                source=source_file,
+                source_system_code="BIFA_MILA",
+                stock_date=stock_date,
+                original_filename=(
+                    source_file.name
+                ),
+            )
+        )
+
+    for source_file in form.cleaned_data[
+        "aio_files"
+    ]:
+        source_file.seek(0)
+
+        import_requests.append(
+            RawOpeningStockImportRequest(
+                source=source_file,
+                source_system_code="AIO_WEB",
+                stock_date=stock_date,
+                original_filename=(
+                    source_file.name
+                ),
+            )
+        )
+
+    result = (
+        create_raw_opening_stock_multi_import_reviews(
+            tuple(import_requests),
+            uploaded_by=request.user,
+            reviewed_by=request.user,
+        )
+    )
+
+    return render(
+        request,
+        "imports/accountant_home.html",
+        _home_context(
+            opening_stock_upload_form=(
+                RawOpeningStockUploadForm()
+            ),
+            opening_stock_upload_result=result,
         ),
     )
 

@@ -57,6 +57,11 @@ CANONICAL_ITEMS_HEADERS = (
     "Client",
 )
 
+OPTIONAL_ITEMS_HEADERS = (
+    "Nbre carton",
+    "Barcode",
+)
+
 
 def _is_blank_value(value: object) -> bool:
     if value is None:
@@ -303,6 +308,20 @@ def adapt_raw_items_file(
 def to_report_row_read_result(
     result: RawItemsFileResult,
 ) -> ReportRowReadResult:
+    optional_headers = tuple(
+        header
+        for header in OPTIONAL_ITEMS_HEADERS
+        if any(
+            header in row.values
+            for row in result.rows
+        )
+    )
+
+    headers = (
+        CANONICAL_ITEMS_HEADERS
+        + optional_headers
+    )
+
     rows = tuple(
         RawReportRow(
             row_number=row.excel_row_number,
@@ -311,7 +330,7 @@ def to_report_row_read_result(
                     header,
                     row.values.get(header),
                 )
-                for header in CANONICAL_ITEMS_HEADERS
+                for header in headers
             ),
         )
         for row in result.rows
@@ -321,6 +340,6 @@ def to_report_row_read_result(
         filename=result.filename,
         report_type="ITEMS",
         worksheet_name=result.worksheet_name,
-        headers=CANONICAL_ITEMS_HEADERS,
+        headers=headers,
         rows=rows,
     )

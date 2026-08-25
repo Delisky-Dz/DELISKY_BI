@@ -15,6 +15,7 @@ from apps.imports.models import (
     ImportBatchStatus,
     ImportSourceSystem,
     ImportSourceUpload,
+    SourceProductPackaging,
     SourceTruckMapping,
 )
 from apps.imports.services.batch_approval import (
@@ -97,6 +98,26 @@ class RawItemsDerivedReviewTests(TestCase):
             )
         )
 
+        SourceProductPackaging.objects.create(
+            source_system=self.bifa_source,
+            source_product_code="TEST-ARTICLE-A",
+            barcode="ABC",
+            designation="ARTICLE A",
+            units_per_carton=1,
+            needs_review=False,
+            is_active=True,
+        )
+
+        SourceProductPackaging.objects.create(
+            source_system=self.aio_source,
+            source_product_code="TEST-ARTICLE-A",
+            barcode="ABC",
+            designation="ARTICLE A",
+            units_per_carton=1,
+            needs_review=False,
+            is_active=True,
+        )
+
         SourceTruckMapping.objects.create(
             source_system=self.bifa_source,
             source_code="DCV-03",
@@ -119,22 +140,43 @@ class RawItemsDerivedReviewTests(TestCase):
         worksheet.append(
             [
                 "Article",
-                "Qt\u00e9",
+                "Qté",
                 "Total",
                 "Barcode",
+                "Nbre carton",
                 "Client",
             ]
         )
 
         for row in rows:
-            worksheet.append(row)
+            row_values = list(row)
+
+            # Legacy tests supplied:
+            # Article, Qté, Total, Barcode, Client.
+            #
+            # The Product Master fixture uses
+            # units_per_carton=1, therefore Qté and
+            # Nbre carton intentionally match here.
+            if len(row_values) == 5:
+                row_values.insert(
+                    4,
+                    row_values[1],
+                )
+            elif len(row_values) != 6:
+                raise ValueError(
+                    "Items test row must contain "
+                    "5 legacy values or 6 current values."
+                )
+
+            worksheet.append(
+                row_values
+            )
 
         output = BytesIO()
         workbook.save(output)
         workbook.close()
 
         return output.getvalue()
-
     def make_upload(
         self,
         filename,

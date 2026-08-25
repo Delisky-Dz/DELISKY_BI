@@ -8,7 +8,7 @@ from .source_truck_mapper import (
 )
 
 
-class RawItemsAdapterError(ValueError):
+class RawOpeningStockAdapterError(ValueError):
     def __init__(
         self,
         code: str,
@@ -34,11 +34,11 @@ def _normalized_row(
         )
 
         if normalized_header in normalized:
-            raise RawItemsAdapterError(
+            raise RawOpeningStockAdapterError(
                 "duplicate_normalized_column",
                 (
-                    "More than one raw Items column "
-                    "normalizes to the same header."
+                    "More than one raw Opening Stock "
+                    "column normalizes to the same header."
                 ),
                 details={
                     "normalized_header": (
@@ -68,10 +68,10 @@ def _required_value(
     )
 
     if normalized_header not in row:
-        raise RawItemsAdapterError(
+        raise RawOpeningStockAdapterError(
             "missing_required_column",
             (
-                "The raw Items row is missing "
+                "The raw Opening Stock row is missing "
                 f"the required column {header!r}."
             ),
             details={
@@ -96,7 +96,7 @@ def _optional_value(
     return True, row[normalized_header]
 
 
-def adapt_raw_items_row(
+def adapt_raw_opening_stock_row(
     raw_row: Mapping[object, object],
     *,
     source_truck_code: object,
@@ -104,26 +104,21 @@ def adapt_raw_items_row(
 ) -> dict[str, object]:
     row = _normalized_row(raw_row)
 
-    article = _required_value(
+    designation = _required_value(
         row,
-        "Article",
+        "Désignation",
     )
-
-    quantity = _required_value(
+    source_quantity = _required_value(
         row,
         "Qté",
     )
-
-    client = _required_value(
+    colisage = _required_value(
         row,
-        "Client",
+        "Colisage",
     )
-
-    has_carton_count, carton_count = (
-        _optional_value(
-            row,
-            "Nbre carton",
-        )
+    business_quantity = _required_value(
+        row,
+        "العلبة",
     )
 
     has_barcode, barcode = _optional_value(
@@ -138,17 +133,11 @@ def adapt_raw_items_row(
 
     adapted = {
         "VAN": internal_code,
-        "Article": article,
-        # Keep the existing behaviour for now:
-        # Qté vendue still contains the raw source Qté.
-        "Qté vendue": quantity,
-        "Client": client,
+        "Qté": source_quantity,
+        "Article": designation,
+        "Colisage": colisage,
+        "العلبة": business_quantity,
     }
-
-    if has_carton_count:
-        adapted["Nbre carton"] = (
-            carton_count
-        )
 
     if has_barcode:
         adapted["Barcode"] = barcode
@@ -156,7 +145,7 @@ def adapt_raw_items_row(
     return adapted
 
 
-def adapt_raw_items_rows(
+def adapt_raw_opening_stock_rows(
     raw_rows: Iterable[
         Mapping[object, object]
     ],
@@ -164,29 +153,33 @@ def adapt_raw_items_rows(
     source_truck_code: object,
     truck_mapping: Mapping[object, object],
 ) -> tuple[dict[str, object], ...]:
-    adapted_rows = []
+    adapted_rows: list[
+        dict[str, object]
+    ] = []
 
     for row_number, raw_row in enumerate(
         raw_rows,
         start=1,
     ):
         try:
-            adapted = adapt_raw_items_row(
-                raw_row,
-                source_truck_code=(
-                    source_truck_code
-                ),
-                truck_mapping=truck_mapping,
+            adapted = (
+                adapt_raw_opening_stock_row(
+                    raw_row,
+                    source_truck_code=(
+                        source_truck_code
+                    ),
+                    truck_mapping=truck_mapping,
+                )
             )
         except (
-            RawItemsAdapterError,
+            RawOpeningStockAdapterError,
             SourceTruckMappingError,
         ) as exc:
-            raise RawItemsAdapterError(
+            raise RawOpeningStockAdapterError(
                 "row_adaptation_failed",
                 (
-                    "A raw Items row could not "
-                    "be adapted."
+                    "A raw Opening Stock row could "
+                    "not be adapted."
                 ),
                 details={
                     "row_number": row_number,
@@ -201,6 +194,8 @@ def adapt_raw_items_rows(
                 },
             ) from exc
 
-        adapted_rows.append(adapted)
+        adapted_rows.append(
+            adapted
+        )
 
     return tuple(adapted_rows)

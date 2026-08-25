@@ -23,6 +23,9 @@ from .batch_review import (
 from .derived_batch_review import (
     _persist_derived_import_review,
 )
+from .raw_items_cleaning_enrichment import (
+    enrich_raw_items_cleaning_result,
+)
 from .raw_items_file import (
     RawItemsFileError,
     source_truck_code_from_filename,
@@ -304,18 +307,32 @@ def create_raw_items_derived_import_review(
         review
     )
 
+    source_system = (
+        ImportSourceSystem.objects.get(
+            code__iexact=source_system_code,
+            is_active=True,
+        )
+    )
+
+    cleaning_result = (
+        enrich_raw_items_cleaning_result(
+            review.cleaning_result,
+            source_system=source_system,
+        )
+    )
+
     summary = (
         build_import_review_summary_from_metadata(
             brand_code=brand_code,
             period_start=review.period_start,
             period_end=review.period_end,
             row_result=review.row_result,
-            cleaning_result=review.cleaning_result,
+            cleaning_result=cleaning_result,
         )
     )
 
     prepared_rows = prepare_import_rows(
-        review.cleaning_result
+        cleaning_result
     )
 
     source_upload_result = None

@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
-from django.core.validators import RegexValidator
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Lower
@@ -443,6 +443,228 @@ class SourceTruckMapping(models.Model):
             f"{self.source_code} -> {self.truck}"
         )
 
+
+class SourceProductPackaging(models.Model):
+    source_system = models.ForeignKey(
+        ImportSourceSystem,
+        on_delete=models.PROTECT,
+        related_name="product_packagings",
+    )
+    brand = models.ForeignKey(
+        DistributionBrand,
+        on_delete=models.PROTECT,
+        related_name="source_product_packagings",
+        null=True,
+        blank=True,
+    )
+    source_product_code = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text=(
+            "Product identifier from the source system, "
+            "for example Num from the STOCK reference file."
+        ),
+    )
+    barcode = models.CharField(
+        max_length=120,
+        blank=True,
+        db_index=True,
+    )
+    reference = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+    designation = models.CharField(
+        max_length=255,
+    )
+    normalized_designation = models.CharField(
+        max_length=255,
+        editable=False,
+        db_index=True,
+    )
+    units_per_carton = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        validators=[
+            MinValueValidator(1),
+        ],
+        help_text=(
+            "Number of source units that represent one carton. "
+            "Null means the conversion factor is unknown."
+        ),
+    )
+    needs_review = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text=(
+            "Marks products whose packaging information "
+            "must be confirmed by the accountant."
+        ),
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "source_system__code",
+            "designation",
+            "id",
+        ]
+
+        indexes = [
+            models.Index(
+                fields=[
+                    "source_system",
+                    "normalized_designation",
+                ],
+                name="src_prod_name_idx",
+            ),
+            models.Index(
+                fields=[
+                    "source_system",
+                    "barcode",
+                ],
+                name="src_prod_barcode_idx",
+            ),
+            models.Index(
+                fields=[
+                    "needs_review",
+                    "is_active",
+                ],
+                name="src_prod_review_idx",
+            ),
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "source_system",
+                    "source_product_code",
+                ],
+                condition=~Q(
+                    source_product_code=""
+                ),
+                name="src_product_code_uniq",
+                violation_error_message=(
+                    "A product with the same source code "
+                    "already exists in this source system."
+                ),
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(units_per_carton__isnull=True)
+                    | Q(units_per_carton__gte=1)
+                ),
+                name="src_product_packaging_gte1",
+                violation_error_message=(
+                    "units_per_carton must be at least 1 "
+                    "when it is known."
+                ),
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        if self.source_product_code:
+            self.source_product_code = (
+                " ".join(
+                    self.source_product_code.split()
+                ).upper()
+            )
+
+        if self.barcode:
+            self.barcode = (
+                " ".join(
+                    self.barcode.split()
+                ).upper()
+            )
+
+        if self.reference:
+            self.reference = (
+                " ".join(
+                    self.reference.split()
+                ).upper()
+            )
+
+        if self.designation:
+            self.designation = " ".join(
+                self.designation.split()
+            )
+
+        self.normalized_designation = (
+            self.designation.upper()
+            if self.designation
+            else ""
+        )
+
+        if not self.designation:
+            errors["designation"] = (
+                "Product designation is required."
+            )
+
+        if self.units_per_carton is None:
+            self.needs_review = True
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.source_product_code:
+            self.source_product_code = (
+                " ".join(
+                    self.source_product_code.split()
+                ).upper()
+            )
+
+        if self.barcode:
+            self.barcode = (
+                " ".join(
+                    self.barcode.split()
+                ).upper()
+            )
+
+        if self.reference:
+            self.reference = (
+                " ".join(
+                    self.reference.split()
+                ).upper()
+            )
+
+        if self.designation:
+            self.designation = " ".join(
+                self.designation.split()
+            )
+
+        self.normalized_designation = (
+            self.designation.upper()
+            if self.designation
+            else ""
+        )
+
+        if self.units_per_carton is None:
+            self.needs_review = True
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.source_system.code} - "
+            f"{self.designation}"
+        )
 
 class ImportBatch(models.Model):
     source_upload = models.ForeignKey(

@@ -293,23 +293,450 @@
 
 <section
     class="panel raw-upload-panel"
+    id="raw-opening-stock-import"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                المخزون الافتتاحي
+            </span>
+
+            <h2>
+                رفع المخزون الافتتاحي الشهري
+            </h2>
+        </div>
+
+        <span class="secure-pill">
+            رفع متعدد الملفات
+        </span>
+    </div>
+
+    <p>
+        اختر تاريخ المخزون مرة واحدة،
+        ثم ارفع ملفات BIFA وملفات
+        DELISKY / NITA.
+        يتم التعرف على الشاحنات والعلامات
+        تلقائيًا من إعدادات ربط الشاحنات.
+    </p>
+
+    <style data-opening-stock-ui-style>
+        #raw-opening-stock-form .opening-stock-date-picker {
+            position: relative;
+            width: 100%;
+            min-height: 48px;
+        }
+
+        #raw-opening-stock-form .opening-stock-date-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 48px;
+            pointer-events: none;
+        }
+
+        #raw-opening-stock-form .opening-stock-date-native input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        #raw-opening-stock-form .opening-stock-date-icon {
+            font-size: 1.1rem;
+        }
+
+        #raw-opening-stock-form .opening-stock-file-picker {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        #raw-opening-stock-form [data-opening-stock-file-label] {
+            opacity: 0.85;
+            overflow-wrap: anywhere;
+        }
+    </style>
+
+    <form
+        method="post"
+        action="{% url 'imports:raw_opening_stock_upload' %}"
+        enctype="multipart/form-data"
+        class="upload-form"
+        id="raw-opening-stock-form"
+        novalidate
+    >
+        {% csrf_token %}
+
+        {% if opening_stock_upload_form.non_field_errors %}
+            <div class="form-alert error">
+                {% for error in opening_stock_upload_form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="import-meta-grid">
+            <div class="form-field">
+                <label
+                    for="{{ opening_stock_upload_form.stock_date.id_for_label }}"
+                >
+                    {{ opening_stock_upload_form.stock_date.label }}
+                </label>
+
+                <div class="opening-stock-date-picker">
+                    <div
+                        class="secondary-button opening-stock-date-display"
+                        aria-hidden="true"
+                    >
+                        <span data-opening-stock-date-label>
+                            &#x627;&#x62E;&#x62A;&#x631; &#x627;&#x644;&#x62A;&#x627;&#x631;&#x64A;&#x62E;
+                        </span>
+                        <span class="opening-stock-date-icon">
+                            &#x1F4C5;
+                        </span>
+                    </div>
+
+                    <span class="opening-stock-date-native">
+                        {{ opening_stock_upload_form.stock_date }}
+                    </span>
+                </div>
+
+                {% for error in opening_stock_upload_form.stock_date.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="raw-file-row">
+            <div class="panel-heading">
+                <strong>BIFA</strong>
+
+                <span class="secure-pill">
+                    BIFA_MILA
+                </span>
+            </div>
+
+            <div class="form-field">
+                <label
+                    for="{{ opening_stock_upload_form.bifa_files.id_for_label }}"
+                >
+                    {{ opening_stock_upload_form.bifa_files.label }}
+                </label>
+
+                <div class="opening-stock-file-picker">
+                    <span hidden>
+                        {{ opening_stock_upload_form.bifa_files }}
+                    </span>
+
+                    <label
+                        for="{{ opening_stock_upload_form.bifa_files.id_for_label }}"
+                        class="secondary-button"
+                        style="cursor:pointer;"
+                    >
+                        &#x627;&#x62E;&#x62A;&#x64A;&#x627;&#x631; &#x645;&#x644;&#x641;&#x627;&#x62A; BIFA
+                    </label>
+
+                    <span
+                        data-opening-stock-file-label="{{ opening_stock_upload_form.bifa_files.id_for_label }}"
+                    >
+                        &#x644;&#x645; &#x64A;&#x62A;&#x645; &#x627;&#x62E;&#x62A;&#x64A;&#x627;&#x631; &#x623;&#x64A; &#x645;&#x644;&#x641;
+                    </span>
+                </div>
+
+                {% if opening_stock_upload_form.bifa_files.help_text %}
+                    <small>
+                        {{ opening_stock_upload_form.bifa_files.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in opening_stock_upload_form.bifa_files.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="raw-file-row">
+            <div class="panel-heading">
+                <strong>DELISKY / NITA</strong>
+
+                <span class="secure-pill">
+                    AIO_WEB
+                </span>
+            </div>
+
+            <div class="form-field">
+                <label
+                    for="{{ opening_stock_upload_form.aio_files.id_for_label }}"
+                >
+                    {{ opening_stock_upload_form.aio_files.label }}
+                </label>
+
+                <div class="opening-stock-file-picker">
+                    <span hidden>
+                        {{ opening_stock_upload_form.aio_files }}
+                    </span>
+
+                    <label
+                        for="{{ opening_stock_upload_form.aio_files.id_for_label }}"
+                        class="secondary-button"
+                        style="cursor:pointer;"
+                    >
+                        &#x627;&#x62E;&#x62A;&#x64A;&#x627;&#x631; &#x645;&#x644;&#x641;&#x627;&#x62A; DELISKY / NITA
+                    </label>
+
+                    <span
+                        data-opening-stock-file-label="{{ opening_stock_upload_form.aio_files.id_for_label }}"
+                    >
+                        &#x644;&#x645; &#x64A;&#x62A;&#x645; &#x627;&#x62E;&#x62A;&#x64A;&#x627;&#x631; &#x623;&#x64A; &#x645;&#x644;&#x641;
+                    </span>
+                </div>
+
+                {% if opening_stock_upload_form.aio_files.help_text %}
+                    <small>
+                        {{ opening_stock_upload_form.aio_files.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in opening_stock_upload_form.aio_files.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="upload-actions">
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                فحص ملفات المخزون الافتتاحي
+            </button>
+        </div>
+    </form>
+    <script>
+        (function () {
+            const form = document.getElementById(
+                "raw-opening-stock-form"
+            );
+
+            if (!form) {
+                return;
+            }
+
+            const dateInput = form.querySelector(
+                'input[name="stock_date"]'
+            );
+
+            const dateLabel = form.querySelector(
+                "[data-opening-stock-date-label]"
+            );
+
+            function renderDate() {
+                if (!dateInput || !dateLabel) {
+                    return;
+                }
+
+                if (!dateInput.value) {
+                    dateLabel.textContent =
+                        "\u0627\u062e\u062a\u0631 \u0627\u0644\u062a\u0627\u0631\u064a\u062e";
+                    return;
+                }
+
+                const parts = dateInput.value.split("-");
+
+                if (parts.length === 3) {
+                    dateLabel.textContent =
+                        parts[2]
+                        + "/"
+                        + parts[1]
+                        + "/"
+                        + parts[0];
+                } else {
+                    dateLabel.textContent =
+                        dateInput.value;
+                }
+            }
+
+            if (dateInput) {
+                dateInput.addEventListener(
+                    "change",
+                    renderDate
+                );
+
+                renderDate();
+            }
+
+            form.querySelectorAll(
+                'input[type="file"]'
+            ).forEach(function (input) {
+                const label = form.querySelector(
+                    '[data-opening-stock-file-label="'
+                    + input.id
+                    + '"]'
+                );
+
+                if (!label) {
+                    return;
+                }
+
+                function renderFiles() {
+                    const files = Array.from(
+                        input.files || []
+                    );
+
+                    if (files.length === 0) {
+                        label.textContent =
+                            "\u0644\u0645 \u064a\u062a\u0645 \u0627\u062e\u062a\u064a\u0627\u0631 \u0623\u064a \u0645\u0644\u0641";
+                    } else if (files.length === 1) {
+                        label.textContent =
+                            files[0].name;
+                    } else {
+                        label.textContent =
+                            "\u062a\u0645 \u0627\u062e\u062a\u064a\u0627\u0631 "
+                            + files.length
+                            + " \u0645\u0644\u0641\u0627\u062a";
+                    }
+                }
+
+                input.addEventListener(
+                    "change",
+                    renderFiles
+                );
+
+                renderFiles();
+            });
+        }());
+    </script>
+
+
+    {% if opening_stock_upload_result %}
+        <div class="raw-upload-results">
+            <div class="panel-heading">
+                <strong>
+                    نتيجة فحص ملفات المخزون الافتتاحي
+                </strong>
+
+                <span>
+                    نجح:
+                    {{ opening_stock_upload_result.succeeded_count }}
+                    /
+                    فشل:
+                    {{ opening_stock_upload_result.failed_count }}
+                </span>
+            </div>
+
+            {% for item in opening_stock_upload_result.files %}
+                <article class="raw-file-row">
+                    <div class="panel-heading">
+                        <strong dir="ltr">
+                            {{ item.filename|default:"?" }}
+                        </strong>
+
+                        {% if item.succeeded %}
+                            <span class="status-badge status-reviewed">
+                                ناجح
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-blocked">
+                                مرفوض
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.succeeded %}
+                        {% for batch in item.batches %}
+                            <div class="raw-upload-result">
+                                <p>
+                                    العلامة:
+                                    <strong>
+                                        {{ batch.brand.code }}
+                                    </strong>
+                                </p>
+
+                                <p>
+                                    الحالة:
+                                    <strong>
+                                        {{ batch.status }}
+                                    </strong>
+                                </p>
+
+                                <p>
+                                    الصفوف:
+                                    <strong>
+                                        {{ batch.total_rows }}
+                                    </strong>
+                                    —
+                                    مقبول:
+                                    <strong>
+                                        {{ batch.accepted_rows }}
+                                    </strong>
+                                    —
+                                    مستبعد:
+                                    <strong>
+                                        {{ batch.excluded_rows }}
+                                    </strong>
+                                    —
+                                    أخطاء:
+                                    <strong>
+                                        {{ batch.error_count }}
+                                    </strong>
+                                </p>
+
+                                <a
+                                    href="{% url 'imports:batch_detail' batch.id %}"
+                                    class="table-link"
+                                >
+                                    فتح مراجعة الدفعة
+                                </a>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p>
+                            {{ item.error_message|default:"تعذر معالجة الملف." }}
+                        </p>
+
+                        {% if item.error_code %}
+                            <code dir="ltr">
+                                {{ item.error_code }}
+                            </code>
+                        {% endif %}
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+
+<section
+    class="panel raw-upload-panel"
     id="raw-chargement-import"
 >
     <div class="panel-heading">
         <div>
             <span class="section-kicker">
-                Raw Chargement
+                التحميل
             </span>
 
             <h2>
                 استيراد
-                Chargement
+                التحميل
                 الخام
             </h2>
         </div>
 
         <span class="secure-pill">
-            Multi-file
+            رفع متعدد الملفات
         </span>
     </div>
 
@@ -612,7 +1039,7 @@
     <div class="panel-heading">
         <div>
             <span class="section-kicker">
-                Raw Items
+                المبيعات حسب الصنف والزبون
             </span>
 
             <h2>
@@ -621,14 +1048,14 @@
         </div>
 
         <span class="secure-pill">
-            Multi-file
+            رفع متعدد الملفات
         </span>
     </div>
 
     <p>
         اختر الفترة مرة واحدة،
         ثم ارفع ملفات
-        <strong>Par article/client</strong>
+        <strong>حسب الصنف والزبون</strong>
         الخاصة بـ BIFA و AIO WEB.
         يتعرف النظام على الشاحنة
         تلقائيًا من اسم الملف.
@@ -777,7 +1204,7 @@
                 type="submit"
                 class="primary-button"
             >
-                فحص كل ملفات Items
+                فحص كل ملفات المبيعات حسب الصنف والزبون
             </button>
         </div>
     </form>
@@ -786,7 +1213,7 @@
         <div class="raw-upload-results">
             <div class="panel-heading">
                 <strong>
-                    نتيجة فحص ملفات Items
+                    نتيجة فحص ملفات المبيعات حسب الصنف والزبون
                 </strong>
 
                 <span>
@@ -881,7 +1308,7 @@
     <div class="panel-heading">
         <div>
             <span class="section-kicker">
-                Raw Sales
+                المبيعات
             </span>
 
             <h2>
@@ -893,14 +1320,14 @@
         </div>
 
         <span class="secure-pill">
-            Multi-file
+            رفع متعدد الملفات
         </span>
     </div>
 
     <p>
         ارفع
         ملف
-        Sales
+        المبيعات
         لكل
         شاحنة،
         مع
@@ -1123,7 +1550,7 @@
                 فحص
                 كل
                 ملفات
-                Sales
+                المبيعات
             </button>
         </div>
     </form>
@@ -1134,7 +1561,7 @@
                 <strong>
                     نتيجة
                     فحص
-                    Sales
+                    المبيعات
                 </strong>
 
                 <span>
