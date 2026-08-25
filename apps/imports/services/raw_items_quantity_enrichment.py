@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
@@ -18,15 +18,11 @@ from .source_product_packaging_resolver import (
     resolve_source_product_packaging,
 )
 
+QTY_SOLD_FIELD = "Qt\u00e9 vendue"
+
 
 class ItemsQuantityStatus(StrEnum):
     READY = "READY"
-    SOURCE_QUANTITY_MISMATCH = (
-        "SOURCE_QUANTITY_MISMATCH"
-    )
-    INVALID_SOURCE_QUANTITY = (
-        "INVALID_SOURCE_QUANTITY"
-    )
     MISSING_BUSINESS_QUANTITY = (
         "MISSING_BUSINESS_QUANTITY"
     )
@@ -69,41 +65,6 @@ def _is_blank(value: Any) -> bool:
     return False
 
 
-def _parse_source_total_units(
-    value: Any,
-) -> int | None:
-    if _is_blank(value):
-        return None
-
-    if isinstance(value, bool):
-        raise ValueError(
-            "Source quantity cannot be boolean."
-        )
-
-    if isinstance(value, Decimal):
-        parsed = value
-    else:
-        text = (
-            str(value)
-            .strip()
-            .replace("\xa0", "")
-            .replace(" ", "")
-            .replace(",", ".")
-        )
-
-        try:
-            parsed = Decimal(text)
-        except InvalidOperation as exc:
-            raise ValueError(
-                "Source quantity is not numeric."
-            ) from exc
-
-    if parsed != parsed.to_integral_value():
-        raise ValueError(
-            "Source quantity must represent whole units."
-        )
-
-    return int(parsed)
 
 
 def _without_quantity(
@@ -141,12 +102,20 @@ def enrich_raw_items_quantity(
     *,
     source_system: ImportSourceSystem,
 ) -> ItemsQuantityEnrichment:
+    """
+    Interpret Items Qte as sold CARTONS.
+
+    This rule was verified directly against both real
+    source applications. Product Master packaging is
+    used to convert cartons into exact total units.
+    """
     source_quantity_raw = row.get(
-        "Qté vendue"
+        QTY_SOLD_FIELD
     )
-    business_quantity_raw = row.get(
-        "Nbre carton"
-    )
+
+    # Keep the existing enrichment field name for
+    # compatibility. Qte itself is authoritative.
+    business_quantity_raw = source_quantity_raw
 
     if _is_blank(business_quantity_raw):
         return _without_quantity(
@@ -163,16 +132,14 @@ def enrich_raw_items_quantity(
                 business_quantity_raw
             ),
             error_code=(
-                "missing_nbre_carton"
+                "missing_items_carton_quantity"
             ),
         )
 
-    resolution = (
-        resolve_source_product_packaging(
-            source_system=source_system,
-            barcode=row.get("Barcode"),
-            designation=row.get("Article"),
-        )
+    resolution = resolve_source_product_packaging(
+        source_system=source_system,
+        barcode=row.get("Barcode"),
+        designation=row.get("Article"),
     )
 
     status_map = {
@@ -202,9 +169,7 @@ def enrich_raw_items_quantity(
             business_quantity_raw=(
                 business_quantity_raw
             ),
-            error_code=(
-                resolution.status.value
-            ),
+            error_code=resolution.status.value,
         )
 
     product = resolution.product
@@ -261,60 +226,8 @@ def enrich_raw_items_quantity(
             ),
         )
 
-    try:
-        source_total_units = (
-            _parse_source_total_units(
-                source_quantity_raw
-            )
-        )
-    except ValueError:
-        return ItemsQuantityEnrichment(
-            status=(
-                ItemsQuantityStatus
-                .INVALID_SOURCE_QUANTITY
-            ),
-            product=product,
-            match_method=(
-                resolution.match_method
-            ),
-            source_quantity_raw=(
-                source_quantity_raw
-            ),
-            business_quantity_raw=(
-                business_quantity_raw
-            ),
-            units_per_carton=(
-                quantity.units_per_carton
-            ),
-            total_units=quantity.total_units,
-            carton_quantity=(
-                quantity.carton_quantity
-            ),
-            cartons=quantity.cartons,
-            pieces=quantity.pieces,
-            source_total_units=None,
-            quantity_matches_source=None,
-            error_code=(
-                "invalid_source_quantity"
-            ),
-        )
-
-    quantity_matches_source = (
-        source_total_units is None
-        or source_total_units
-        == quantity.total_units
-    )
-
-    status = ItemsQuantityStatus.READY
-
-    if not quantity_matches_source:
-        status = (
-            ItemsQuantityStatus
-            .SOURCE_QUANTITY_MISMATCH
-        )
-
     return ItemsQuantityEnrichment(
-        status=status,
+        status=ItemsQuantityStatus.READY,
         product=product,
         match_method=resolution.match_method,
         source_quantity_raw=source_quantity_raw,
@@ -330,9 +243,7 @@ def enrich_raw_items_quantity(
         ),
         cartons=quantity.cartons,
         pieces=quantity.pieces,
-        source_total_units=source_total_units,
-        quantity_matches_source=(
-            quantity_matches_source
-        ),
+        source_total_units=quantity.total_units,
+        quantity_matches_source=True,
         error_code=None,
     )

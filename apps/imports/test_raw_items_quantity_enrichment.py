@@ -8,44 +8,37 @@ from apps.imports.models import (
 )
 from apps.imports.services.raw_items_quantity_enrichment import (
     ItemsQuantityStatus,
+    QTY_SOLD_FIELD,
     enrich_raw_items_quantity,
 )
 
 
-class RawItemsQuantityEnrichmentTests(
-    TestCase
-):
+class RawItemsQuantityEnrichmentTests(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.source = (
-            ImportSourceSystem.objects.create(
-                code="BIFA_MILA",
-                name="BIFA Mila",
-                is_active=True,
-            )
+        cls.source = ImportSourceSystem.objects.create(
+            code="BIFA_MILA",
+            name="BIFA Mila",
+            is_active=True,
         )
 
-        cls.product = (
-            SourceProductPackaging.objects.create(
-                source_system=cls.source,
-                source_product_code="100",
-                barcode="BAL-001",
-                designation="BALBON FRUITE",
-                units_per_carton=8,
-                needs_review=False,
-                is_active=True,
-            )
+        cls.product = SourceProductPackaging.objects.create(
+            source_system=cls.source,
+            source_product_code="100",
+            barcode="BAL-001",
+            designation="BALBON FRUITE",
+            normalized_designation="BALBON FRUITE",
+            units_per_carton=8,
+            needs_review=False,
+            is_active=True,
         )
 
-    def test_mixed_carton_piece_is_official_quantity(
-        self,
-    ):
+    def test_qte_cartons_are_authoritative(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
                 "Barcode": "BAL-001",
-                "Qté vendue": 34,
-                "Nbre carton": "4:2",
+                QTY_SOLD_FIELD: 4,
             },
             source_system=self.source,
         )
@@ -54,37 +47,24 @@ class RawItemsQuantityEnrichmentTests(
             result.status,
             ItemsQuantityStatus.READY,
         )
-        self.assertEqual(
-            result.total_units,
-            34,
-        )
-        self.assertEqual(
-            result.units_per_carton,
-            8,
-        )
-        self.assertEqual(
-            result.cartons,
-            4,
-        )
-        self.assertEqual(
-            result.pieces,
-            2,
-        )
+        self.assertEqual(result.total_units, 32)
+        self.assertEqual(result.units_per_carton, 8)
+        self.assertEqual(result.cartons, 4)
+        self.assertEqual(result.pieces, 0)
         self.assertEqual(
             result.carton_quantity,
-            Decimal("4.25"),
+            Decimal("4"),
         )
         self.assertTrue(
             result.quantity_matches_source
         )
 
-    def test_numeric_carton_quantity(self):
+    def test_decimal_cartons_convert_exactly(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
                 "Barcode": "BAL-001",
-                "Qté vendue": 16,
-                "Nbre carton": 2,
+                QTY_SOLD_FIELD: "4.25",
             },
             source_system=self.source,
         )
@@ -93,27 +73,20 @@ class RawItemsQuantityEnrichmentTests(
             result.status,
             ItemsQuantityStatus.READY,
         )
+        self.assertEqual(result.total_units, 34)
+        self.assertEqual(result.cartons, 4)
+        self.assertEqual(result.pieces, 2)
         self.assertEqual(
-            result.total_units,
-            16,
-        )
-        self.assertEqual(
-            result.cartons,
-            2,
-        )
-        self.assertEqual(
-            result.pieces,
-            0,
+            result.carton_quantity,
+            Decimal("4.25"),
         )
 
-    def test_nbre_carton_remains_authoritative_on_mismatch(
-        self,
-    ):
+    def test_nbre_carton_is_not_authoritative(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
                 "Barcode": "BAL-001",
-                "Qté vendue": 33,
+                QTY_SOLD_FIELD: 33,
                 "Nbre carton": "4:2",
             },
             source_system=self.source,
@@ -121,23 +94,16 @@ class RawItemsQuantityEnrichmentTests(
 
         self.assertEqual(
             result.status,
-            (
-                ItemsQuantityStatus
-                .SOURCE_QUANTITY_MISMATCH
-            ),
+            ItemsQuantityStatus.READY,
         )
-
-        # Official business quantity still comes
-        # from Nbre carton, not Qté.
-        self.assertEqual(
-            result.total_units,
-            34,
-        )
+        self.assertEqual(result.total_units, 264)
+        self.assertEqual(result.cartons, 33)
+        self.assertEqual(result.pieces, 0)
         self.assertEqual(
             result.source_total_units,
-            33,
+            264,
         )
-        self.assertFalse(
+        self.assertTrue(
             result.quantity_matches_source
         )
 
@@ -145,8 +111,7 @@ class RawItemsQuantityEnrichmentTests(
         result = enrich_raw_items_quantity(
             {
                 "Article": "NEW PRODUCT",
-                "Qté vendue": 20,
-                "Nbre carton": 1,
+                QTY_SOLD_FIELD: 20,
             },
             source_system=self.source,
         )
@@ -155,18 +120,15 @@ class RawItemsQuantityEnrichmentTests(
             result.status,
             ItemsQuantityStatus.UNKNOWN_PRODUCT,
         )
-        self.assertIsNone(
-            result.total_units
-        )
+        self.assertIsNone(result.total_units)
 
-    def test_unknown_packaging_is_not_guessed(
-        self,
-    ):
+    def test_unknown_packaging_is_not_guessed(self):
         SourceProductPackaging.objects.create(
             source_system=self.source,
             source_product_code="200",
             barcode="UNK-001",
             designation="UNKNOWN PACK",
+            normalized_designation="UNKNOWN PACK",
             units_per_carton=None,
             needs_review=True,
             is_active=True,
@@ -176,8 +138,7 @@ class RawItemsQuantityEnrichmentTests(
             {
                 "Article": "UNKNOWN PACK",
                 "Barcode": "UNK-001",
-                "Qté vendue": 10,
-                "Nbre carton": 1,
+                QTY_SOLD_FIELD: 10,
             },
             source_system=self.source,
         )
@@ -186,95 +147,73 @@ class RawItemsQuantityEnrichmentTests(
             result.status,
             ItemsQuantityStatus.UNKNOWN_PACKAGING,
         )
-        self.assertIsNone(
-            result.total_units
-        )
+        self.assertIsNone(result.total_units)
 
-    def test_missing_nbre_carton_is_reported(
-        self,
-    ):
+    def test_missing_qte_is_reported(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
                 "Barcode": "BAL-001",
-                "Qté vendue": 34,
             },
             source_system=self.source,
         )
 
         self.assertEqual(
             result.status,
-            (
-                ItemsQuantityStatus
-                .MISSING_BUSINESS_QUANTITY
-            ),
+            ItemsQuantityStatus.MISSING_BUSINESS_QUANTITY,
         )
-        self.assertIsNone(
-            result.total_units
-        )
-
-    def test_invalid_mixed_quantity_is_reported(
-        self,
-    ):
-        result = enrich_raw_items_quantity(
-            {
-                "Article": "BALBON FRUITE",
-                "Barcode": "BAL-001",
-                "Qté vendue": 40,
-                "Nbre carton": "4:8",
-            },
-            source_system=self.source,
-        )
-
-        self.assertEqual(
-            result.status,
-            (
-                ItemsQuantityStatus
-                .INVALID_BUSINESS_QUANTITY
-            ),
-        )
+        self.assertIsNone(result.total_units)
         self.assertEqual(
             result.error_code,
-            "pieces_exceed_carton_size",
+            "missing_items_carton_quantity",
         )
 
-    def test_invalid_source_quantity_does_not_replace_business_quantity(
-        self,
-    ):
+    def test_invalid_qte_is_reported(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
                 "Barcode": "BAL-001",
-                "Qté vendue": "BAD",
-                "Nbre carton": "4:2",
+                QTY_SOLD_FIELD: "BAD",
             },
             source_system=self.source,
         )
 
         self.assertEqual(
             result.status,
-            (
-                ItemsQuantityStatus
-                .INVALID_SOURCE_QUANTITY
-            ),
+            ItemsQuantityStatus.INVALID_BUSINESS_QUANTITY,
         )
+        self.assertIsNone(result.total_units)
         self.assertEqual(
-            result.total_units,
-            34,
-        )
-        self.assertIsNone(
-            result.source_total_units
+            result.error_code,
+            "invalid_quantity",
         )
 
-    def test_barcode_resolution_is_used(
-        self,
-    ):
+    def test_negative_qte_is_rejected(self):
+        result = enrich_raw_items_quantity(
+            {
+                "Article": "BALBON FRUITE",
+                "Barcode": "BAL-001",
+                QTY_SOLD_FIELD: -2,
+            },
+            source_system=self.source,
+        )
+
+        self.assertEqual(
+            result.status,
+            ItemsQuantityStatus.INVALID_BUSINESS_QUANTITY,
+        )
+        self.assertIsNone(result.total_units)
+        self.assertEqual(
+            result.error_code,
+            "negative_business_quantity",
+        )
+
+    def test_barcode_resolution_is_used(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "DIFFERENT NAME",
                 "Barcode": "BAL-001",
-                "Qté vendue": 8,
-                "Nbre carton": 1,
+                QTY_SOLD_FIELD: 1,
             },
             source_system=self.source,
         )
@@ -283,11 +222,9 @@ class RawItemsQuantityEnrichmentTests(
             result.status,
             ItemsQuantityStatus.READY,
         )
-        self.assertEqual(
-            result.product,
-            self.product,
-        )
+        self.assertEqual(result.product, self.product)
         self.assertEqual(
             result.match_method,
             "barcode",
         )
+        self.assertEqual(result.total_units, 8)

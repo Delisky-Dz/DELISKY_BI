@@ -113,7 +113,7 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["total_units"],
-            34,
+            272,
         )
         self.assertEqual(
             cleaned["units_per_carton"],
@@ -121,31 +121,36 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["cartons"],
-            4,
+            34,
         )
         self.assertEqual(
             cleaned["pieces"],
-            2,
+            0,
         )
         self.assertEqual(
             cleaned["carton_quantity"],
-            "4.25",
+            "34",
         )
         self.assertEqual(
             cleaned["product_packaging_id"],
             self.product.pk,
         )
+        self.assertEqual(
+            cleaned["source_quantity"],
+            272,
+        )
         self.assertTrue(
             cleaned["quantity_matches_source"]
         )
 
-        # Legacy field remains untouched for now.
+        # Legacy cleaner value remains the source Qte
+        # carton count; Analytics uses total_units.
         self.assertEqual(
             cleaned["quantity_sold"],
             34,
         )
 
-    def test_mismatch_is_warning_not_exclusion(
+    def test_nbre_carton_is_ignored_for_items_quantity(
         self,
     ):
         result = (
@@ -167,22 +172,26 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["total_units"],
-            34,
+            264,
+        )
+        self.assertEqual(
+            cleaned["cartons"],
+            33,
+        )
+        self.assertEqual(
+            cleaned["pieces"],
+            0,
         )
         self.assertEqual(
             cleaned["source_quantity"],
-            33,
+            264,
         )
-        self.assertFalse(
+        self.assertTrue(
             cleaned["quantity_matches_source"]
         )
         self.assertEqual(
-            row.issues[-1].code,
-            "items_source_quantity_mismatch",
-        )
-        self.assertEqual(
-            row.issues[-1].severity,
-            "WARNING",
+            cleaned["packaging_status"],
+            "READY",
         )
 
     def test_unknown_product_is_blocked(
@@ -219,7 +228,7 @@ class RawItemsCleaningEnrichmentTests(
             "ERROR",
         )
 
-    def test_missing_nbre_carton_is_blocked(
+    def test_missing_nbre_carton_does_not_block_qte(
         self,
     ):
         result = (
@@ -232,16 +241,27 @@ class RawItemsCleaningEnrichmentTests(
         )
 
         row = result.rows[0]
+        cleaned = row.cleaned_dict()
 
         self.assertEqual(
             row.status,
-            STATUS_EXCLUDED,
+            STATUS_ACCEPTED,
         )
         self.assertEqual(
-            row.cleaned_dict()[
-                "packaging_status"
-            ],
-            "MISSING_BUSINESS_QUANTITY",
+            cleaned["packaging_status"],
+            "READY",
+        )
+        self.assertEqual(
+            cleaned["total_units"],
+            272,
+        )
+        self.assertEqual(
+            cleaned["cartons"],
+            34,
+        )
+        self.assertEqual(
+            cleaned["pieces"],
+            0,
         )
 
     def test_stopped_row_is_left_untouched(

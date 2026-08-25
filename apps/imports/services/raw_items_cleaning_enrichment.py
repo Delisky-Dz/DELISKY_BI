@@ -2,6 +2,7 @@ from apps.imports.models import ImportSourceSystem
 
 from .raw_items_quantity_enrichment import (
     ItemsQuantityStatus,
+    QTY_SOLD_FIELD,
     enrich_raw_items_quantity,
 )
 from .report_row_cleaner import (
@@ -9,7 +10,6 @@ from .report_row_cleaner import (
     ReportCleaningResult,
     RowCleaningIssue,
     SEVERITY_ERROR,
-    SEVERITY_WARNING,
     STATUS_EXCLUDED,
     STATUS_STOPPED,
 )
@@ -32,69 +32,13 @@ def _quantity_issue(
     if status == ItemsQuantityStatus.READY:
         return None
 
-    if (
-        status
-        == ItemsQuantityStatus.SOURCE_QUANTITY_MISMATCH
-    ):
-        return RowCleaningIssue(
-            code="items_source_quantity_mismatch",
-            severity=SEVERITY_WARNING,
-            message=(
-                "Items Qté does not match the official "
-                "Nbre carton quantity."
-            ),
-            field="Nbre carton",
-            raw_value=(
-                enrichment.business_quantity_raw
-            ),
-            details={
-                "source_total_units": (
-                    enrichment.source_total_units
-                ),
-                "official_total_units": (
-                    enrichment.total_units
-                ),
-                "units_per_carton": (
-                    enrichment.units_per_carton
-                ),
-                "authoritative_field": "Nbre carton",
-            },
-        )
-
-    if (
-        status
-        == ItemsQuantityStatus.INVALID_SOURCE_QUANTITY
-    ):
-        return RowCleaningIssue(
-            code="invalid_items_source_quantity",
-            severity=SEVERITY_WARNING,
-            message=(
-                "Items Qté could not be validated, but "
-                "Nbre carton remains the authoritative "
-                "business quantity."
-            ),
-            field="Qté vendue",
-            raw_value=(
-                enrichment.source_quantity_raw
-            ),
-            details={
-                "official_total_units": (
-                    enrichment.total_units
-                ),
-                "units_per_carton": (
-                    enrichment.units_per_carton
-                ),
-                "authoritative_field": "Nbre carton",
-            },
-        )
-
     messages = {
         ItemsQuantityStatus.MISSING_BUSINESS_QUANTITY: (
-            "The official Items Nbre carton quantity "
+            "The official Items Qte carton quantity "
             "is missing."
         ),
         ItemsQuantityStatus.INVALID_BUSINESS_QUANTITY: (
-            "The official Items Nbre carton quantity "
+            "The official Items Qte carton quantity "
             "is invalid."
         ),
         ItemsQuantityStatus.UNKNOWN_PRODUCT: (
@@ -114,7 +58,7 @@ def _quantity_issue(
         code=f"items_{status.value.lower()}",
         severity=SEVERITY_ERROR,
         message=messages[status],
-        field="Nbre carton",
+        field=QTY_SOLD_FIELD,
         raw_value=(
             enrichment.business_quantity_raw
         ),
@@ -129,9 +73,9 @@ def _quantity_issue(
                 if enrichment.product is not None
                 else None
             ),
+            "authoritative_field": QTY_SOLD_FIELD,
         },
     )
-
 
 def _enriched_cleaned_values(
     row: CleanedReportRow,
@@ -202,16 +146,13 @@ def enrich_raw_items_cleaning_result(
 
         enrichment = enrich_raw_items_quantity(
             {
-                "Article": cleaned.get(
-                    "article"
-                )
-                or raw.get("Article"),
-                "Barcode": raw.get("Barcode"),
-                "Qté vendue": raw.get(
-                    "Qté vendue"
+                "Article": (
+                    cleaned.get("article")
+                    or raw.get("Article")
                 ),
-                "Nbre carton": raw.get(
-                    "Nbre carton"
+                "Barcode": raw.get("Barcode"),
+                QTY_SOLD_FIELD: raw.get(
+                    QTY_SOLD_FIELD
                 ),
             },
             source_system=source_system,
