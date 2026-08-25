@@ -256,12 +256,12 @@ def parse_opening_stock_row(
     try:
         quantity = read_required_decimal(
             row.cleaned_data,
-            "quantity",
+            "total_units",
         )
         _require_non_negative(
             row,
             quantity,
-            "quantity",
+            "total_units",
         )
 
         return OpeningStockAnalyticalRow(
@@ -294,7 +294,7 @@ def parse_chargement_row(
     try:
         quantity = read_required_decimal(
             row.cleaned_data,
-            "quantity",
+            "total_units",
         )
         chargement_datetime = read_optional_datetime(
             row.cleaned_data,
@@ -389,12 +389,12 @@ def parse_item_row(
     try:
         quantity_sold = read_required_decimal(
             row.cleaned_data,
-            "quantity_sold",
+            "total_units",
         )
         _require_non_negative(
             row,
             quantity_sold,
-            "quantity_sold",
+            "total_units",
         )
 
         return ItemAnalyticalRow(

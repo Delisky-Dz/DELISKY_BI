@@ -124,7 +124,7 @@ class ItemsAggregationTests(TestCase):
                 "van_normalized": van.casefold(),
                 "article": article,
                 "article_normalized": article_normalized,
-                "quantity_sold": quantity_sold,
+                "total_units": quantity_sold,
                 "client": f"Test Client {sequence}",
                 "client_normalized": (
                     f"test client {sequence}"

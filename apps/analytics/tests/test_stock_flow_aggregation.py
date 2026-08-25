@@ -130,7 +130,7 @@ class StockFlowAggregationTests(TestCase):
                 "van_normalized": van.casefold(),
                 "article": article,
                 "article_normalized": article_normalized,
-                "quantity": quantity,
+                "total_units": quantity,
             },
             issues=[],
             row_sha256=f"{sequence + 30000:064x}",

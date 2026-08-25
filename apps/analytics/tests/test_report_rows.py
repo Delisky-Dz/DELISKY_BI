@@ -114,7 +114,8 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Test Product",
                 "article_normalized": "test product",
-                "quantity": "125.50",
+                "quantity": "999",
+                "total_units": "125",
             },
         )
 
@@ -126,7 +127,7 @@ class ReportRowsTests(TestCase):
         )
         self.assertEqual(
             result.quantity,
-            Decimal("125.50"),
+            Decimal("125"),
         )
         self.assertEqual(
             result.article_normalized,
@@ -149,7 +150,8 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Loaded Product",
                 "article_normalized": "loaded product",
-                "quantity": "80",
+                "quantity": "999",
+                "total_units": "80",
             },
         )
 
@@ -177,7 +179,7 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Loaded Product",
                 "article_normalized": "loaded product",
-                "quantity": "20",
+                "total_units": "20",
                 "chargement_datetime": (
                     "2026-07-04T10:30:45"
                 ),
@@ -205,7 +207,7 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Returned Product",
                 "article_normalized": "returned product",
-                "quantity": "-20",
+                "total_units": "-20",
             },
         )
 
@@ -274,7 +276,8 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Sold Product",
                 "article_normalized": "sold product",
-                "quantity_sold": "12.5",
+                "quantity_sold": "999",
+                "total_units": "12",
                 "client": "Item Client",
                 "client_normalized": "item client",
             },
@@ -288,7 +291,7 @@ class ReportRowsTests(TestCase):
         )
         self.assertEqual(
             result.quantity_sold,
-            Decimal("12.5"),
+            Decimal("12"),
         )
         self.assertEqual(
             result.period_start,
@@ -347,7 +350,7 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Dispatch Product",
                 "article_normalized": "dispatch product",
-                "quantity_sold": "3",
+                "total_units": "3",
                 "client": "Dispatch Client",
                 "client_normalized": "dispatch client",
             },
@@ -404,7 +407,7 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Excluded Product",
                 "article_normalized": "excluded product",
-                "quantity_sold": "-2",
+                "total_units": "-2",
                 "client": "Test Client",
                 "client_normalized": "test client",
             },
@@ -433,7 +436,7 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Test Product",
                 "article_normalized": "test product",
-                "quantity_sold": "2",
+                "total_units": "2",
                 "client": "Test Client",
                 "client_normalized": "test client",
             },
@@ -461,7 +464,7 @@ class ReportRowsTests(TestCase):
                 **self.base_cleaned_data(),
                 "article": "Invalid Product",
                 "article_normalized": "invalid product",
-                "quantity_sold": "-1",
+                "total_units": "-1",
                 "client": "Test Client",
                 "client_normalized": "test client",
             },
@@ -480,7 +483,7 @@ class ReportRowsTests(TestCase):
         )
         self.assertEqual(
             error.field_name,
-            "quantity_sold",
+            "total_units",
         )
 
     def test_rejects_date_outside_batch_period(self):
