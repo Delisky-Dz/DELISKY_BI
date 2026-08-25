@@ -40,6 +40,21 @@ def normalize_product_text(value) -> str:
     ).upper()
 
 
+def _designation_token_signature(
+    value,
+) -> tuple[str, ...]:
+    normalized = normalize_product_text(value)
+
+    if not normalized:
+        return ()
+
+    return tuple(
+        sorted(
+            normalized.split()
+        )
+    )
+
+
 def _resolved(
     product: SourceProductPackaging,
     *,
@@ -156,6 +171,45 @@ def resolve_source_product_packaging(
                 match_method="designation",
                 candidates_count=len(
                     name_candidates
+                ),
+            )
+
+        target_signature = (
+            _designation_token_signature(
+                normalized_designation
+            )
+        )
+
+        token_candidates = [
+            product
+            for product in products
+            if (
+                _designation_token_signature(
+                    (
+                        product.normalized_designation
+                        or product.designation
+                    )
+                )
+                == target_signature
+            )
+        ]
+
+        if len(token_candidates) == 1:
+            return _resolved(
+                token_candidates[0],
+                match_method="designation_tokens",
+            )
+
+        if len(token_candidates) > 1:
+            return PackagingResolution(
+                status=(
+                    PackagingResolutionStatus
+                    .AMBIGUOUS_PRODUCT
+                ),
+                product=None,
+                match_method="designation_tokens",
+                candidates_count=len(
+                    token_candidates
                 ),
             )
 
