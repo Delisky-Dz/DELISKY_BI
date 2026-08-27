@@ -22,6 +22,7 @@ class ProductQuantityContext:
     opening_quantity: Decimal
     chargement_quantity: Decimal
     sold_quantity: Decimal
+    has_sales_coverage: bool = True
 
     @property
     def supplied_quantity(self) -> Decimal:
@@ -47,7 +48,8 @@ class ProductQuantityContext:
     @property
     def is_not_sold(self) -> bool:
         return (
-            self.supplied_quantity > 0
+            self.has_sales_coverage
+            and self.supplied_quantity > 0
             and self.sold_quantity == 0
         )
 
@@ -270,11 +272,16 @@ class _ProductAccumulator:
             self.display_name = display_name
             self.display_priority = priority
 
-    def freeze(self) -> ProductQuantityContext:
+    def freeze(
+        self,
+        *,
+        has_sales_coverage: bool = True,
+    ) -> ProductQuantityContext:
         return ProductQuantityContext(
             opening_quantity=self.opening_quantity,
             chargement_quantity=self.chargement_quantity,
             sold_quantity=self.sold_quantity,
+            has_sales_coverage=has_sales_coverage,
         )
 
 
@@ -385,6 +392,28 @@ def combine_product_performance(
         tuple[int, int, str],
         _ProductAccumulator,
     ] = {}
+
+    worker_sales_coverage = {
+        (
+            item.brand_id,
+            item.worker_id,
+        )
+        for item in (
+            items_result
+            .by_brand_worker_product
+        )
+    }
+
+    truck_sales_coverage = {
+        (
+            item.brand_id,
+            item.truck_id,
+        )
+        for item in (
+            items_result
+            .by_brand_truck_product
+        )
+    }
 
     for item in (
         opening_stock_result
@@ -498,7 +527,12 @@ def combine_product_performance(
             worker_id=key[1],
             article=value.display_name,
             article_normalized=key[2],
-            quantities=value.freeze(),
+            quantities=value.freeze(
+                has_sales_coverage=(
+                    (key[0], key[1])
+                    in worker_sales_coverage
+                ),
+            ),
         )
         for key, value in sorted(
             worker_buckets.items()
@@ -511,7 +545,12 @@ def combine_product_performance(
             truck_id=key[1],
             article=value.display_name,
             article_normalized=key[2],
-            quantities=value.freeze(),
+            quantities=value.freeze(
+                has_sales_coverage=(
+                    (key[0], key[1])
+                    in truck_sales_coverage
+                ),
+            ),
         )
         for key, value in sorted(
             truck_buckets.items()

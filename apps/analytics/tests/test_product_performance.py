@@ -441,7 +441,18 @@ class ProductPerformanceTests(SimpleTestCase):
             ),
         )
 
+        items = self.make_items_result(
+            worker_products=(
+                self.worker_item(
+                    "Coverage Product",
+                    "coverage product",
+                    "1",
+                ),
+            ),
+        )
+
         result = self.combine(
+            items=items,
             opening=opening,
             chargement=chargement,
         )
@@ -460,6 +471,59 @@ class ProductPerformanceTests(SimpleTestCase):
         self.assertEqual(
             result.worker_not_sold_count,
             2,
+        )
+
+    def test_supply_without_items_coverage_is_not_not_sold(self):
+        opening = self.make_stock_result(
+            ImportReportType.OPENING_STOCK,
+            worker_products=(
+                self.worker_stock(
+                    "Supply Only Product",
+                    "supply only product",
+                    "10",
+                ),
+            ),
+            truck_products=(
+                self.truck_stock(
+                    "Supply Only Product",
+                    "supply only product",
+                    "10",
+                ),
+            ),
+        )
+
+        result = self.combine(
+            opening=opening,
+        )
+
+        self.assertEqual(
+            list(
+                result.not_sold_for_worker(
+                    worker_id=10,
+                )
+            ),
+            [],
+        )
+
+        self.assertEqual(
+            list(
+                result.not_sold_for_truck(
+                    truck_id=20,
+                )
+            ),
+            [],
+        )
+
+        self.assertFalse(
+            result.worker_products[
+                0
+            ].quantities.has_sales_coverage
+        )
+
+        self.assertFalse(
+            result.truck_products[
+                0
+            ].quantities.has_sales_coverage
         )
 
     def test_least_sold_excludes_zero_sales(self):
@@ -612,7 +676,19 @@ class ProductPerformanceTests(SimpleTestCase):
             ),
         )
 
+        items = self.make_items_result(
+            truck_products=(
+                self.truck_item(
+                    "Coverage Product",
+                    "coverage product",
+                    "1",
+                    truck_id=30,
+                ),
+            ),
+        )
+
         result = self.combine(
+            items=items,
             opening=opening,
         )
 
