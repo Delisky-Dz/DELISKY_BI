@@ -64,6 +64,24 @@ class WorkerSalesTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class BrandVanClientSalesTotal:
+    brand_id: int
+    van: str
+    van_normalized: str
+    client: str
+    client_normalized: str
+    metrics: SalesMetrics
+
+
+@dataclass(frozen=True, slots=True)
+class BrandClientSalesTotal:
+    brand_id: int
+    client: str
+    client_normalized: str
+    metrics: SalesMetrics
+
+
+@dataclass(frozen=True, slots=True)
 class BrandTruckSalesTotal:
     brand_id: int
     truck_id: int
@@ -130,6 +148,14 @@ class SalesAggregationResult:
         DailyBrandTruckWorkerSalesTotal,
         ...,
     ] = ()
+    by_brand_client: tuple[
+        BrandClientSalesTotal,
+        ...,
+    ] = ()
+    by_brand_van_client: tuple[
+        BrandVanClientSalesTotal,
+        ...,
+    ] = ()
 
     @property
     def has_attribution_issues(self) -> bool:
@@ -167,6 +193,14 @@ class _SalesAccumulator:
         )
 
 
+@dataclass(slots=True)
+class _NamedSalesAccumulator:
+    display_name: str
+    accumulator: _SalesAccumulator = field(
+        default_factory=_SalesAccumulator
+    )
+
+
 def _get_accumulator(
     buckets: dict,
     key,
@@ -178,6 +212,22 @@ def _get_accumulator(
         buckets[key] = accumulator
 
     return accumulator
+
+
+def _get_named_accumulator(
+    buckets: dict,
+    key,
+    display_name: str,
+) -> _NamedSalesAccumulator:
+    value = buckets.get(key)
+
+    if value is None:
+        value = _NamedSalesAccumulator(
+            display_name=display_name,
+        )
+        buckets[key] = value
+
+    return value
 
 
 def aggregate_sales(
@@ -222,6 +272,15 @@ def aggregate_sales(
     overall = _SalesAccumulator()
 
     brand_buckets: dict[int, _SalesAccumulator] = {}
+    brand_van_client_buckets: dict[
+        tuple[int, str, str],
+        _NamedSalesAccumulator,
+    ] = {}
+
+    brand_client_buckets: dict[
+        tuple[int, str],
+        _NamedSalesAccumulator,
+    ] = {}
     date_buckets: dict[date, _SalesAccumulator] = {}
     truck_buckets: dict[int, _SalesAccumulator] = {}
     worker_buckets: dict[int, _SalesAccumulator] = {}
@@ -278,6 +337,31 @@ def aggregate_sales(
             brand_buckets,
             sale.brand_id,
         ).add(sale.total)
+
+        brand_van_client = _get_named_accumulator(
+            brand_van_client_buckets,
+            (
+                sale.brand_id,
+                sale.van_normalized,
+                sale.client_normalized,
+            ),
+            sale.client,
+        )
+        brand_van_client.accumulator.add(
+            sale.total
+        )
+
+        brand_client = _get_named_accumulator(
+            brand_client_buckets,
+            (
+                sale.brand_id,
+                sale.client_normalized,
+            ),
+            sale.client,
+        )
+        brand_client.accumulator.add(
+            sale.total
+        )
 
         truck_resolution = resolve_truck_by_van(
             sale.van_normalized,
@@ -393,6 +477,30 @@ def aggregate_sales(
             )
             for key, value in sorted(
                 brand_buckets.items()
+            )
+        ),
+        by_brand_van_client=tuple(
+            BrandVanClientSalesTotal(
+                brand_id=key[0],
+                van=key[1],
+                van_normalized=key[1],
+                client=value.display_name,
+                client_normalized=key[2],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_van_client_buckets.items()
+            )
+        ),
+        by_brand_client=tuple(
+            BrandClientSalesTotal(
+                brand_id=key[0],
+                client=value.display_name,
+                client_normalized=key[1],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_client_buckets.items()
             )
         ),
         by_truck=tuple(

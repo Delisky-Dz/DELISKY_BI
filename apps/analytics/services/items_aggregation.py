@@ -68,6 +68,46 @@ class BrandProductItemTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class BrandVanClientItemTotal:
+    brand_id: int
+    van: str
+    van_normalized: str
+    client: str
+    client_normalized: str
+    metrics: ItemMetrics
+
+
+@dataclass(frozen=True, slots=True)
+class BrandVanClientProductItemTotal:
+    brand_id: int
+    van: str
+    van_normalized: str
+    client: str
+    client_normalized: str
+    article: str
+    article_normalized: str
+    metrics: ItemMetrics
+
+
+@dataclass(frozen=True, slots=True)
+class BrandClientItemTotal:
+    brand_id: int
+    client: str
+    client_normalized: str
+    metrics: ItemMetrics
+
+
+@dataclass(frozen=True, slots=True)
+class BrandClientProductItemTotal:
+    brand_id: int
+    client: str
+    client_normalized: str
+    article: str
+    article_normalized: str
+    metrics: ItemMetrics
+
+
+@dataclass(frozen=True, slots=True)
 class BrandTruckProductItemTotal:
     brand_id: int
     truck_id: int
@@ -122,6 +162,22 @@ class ItemsAggregationResult:
         ...,
     ]
     attribution_issues: tuple[ItemsAttributionIssue, ...]
+    by_brand_client: tuple[
+        BrandClientItemTotal,
+        ...,
+    ] = ()
+    by_brand_client_product: tuple[
+        BrandClientProductItemTotal,
+        ...,
+    ] = ()
+    by_brand_van_client: tuple[
+        BrandVanClientItemTotal,
+        ...,
+    ] = ()
+    by_brand_van_client_product: tuple[
+        BrandVanClientProductItemTotal,
+        ...,
+    ] = ()
 
     @property
     def has_attribution_issues(self) -> bool:
@@ -171,6 +227,15 @@ class _NamedItemAccumulator:
     )
 
 
+@dataclass(slots=True)
+class _ClientProductItemAccumulator:
+    client_display_name: str
+    article_display_name: str
+    accumulator: _ItemAccumulator = field(
+        default_factory=_ItemAccumulator
+    )
+
+
 def _get_accumulator(
     buckets: dict,
     key,
@@ -198,6 +263,24 @@ def _get_named_accumulator(
         buckets[key] = named
 
     return named
+
+
+def _get_client_product_accumulator(
+    buckets: dict,
+    key,
+    client_display_name: str,
+    article_display_name: str,
+) -> _ClientProductItemAccumulator:
+    value = buckets.get(key)
+
+    if value is None:
+        value = _ClientProductItemAccumulator(
+            client_display_name=client_display_name,
+            article_display_name=article_display_name,
+        )
+        buckets[key] = value
+
+    return value
 
 
 def _period_status(
@@ -285,6 +368,26 @@ def aggregate_items(
         _NamedItemAccumulator,
     ] = {}
 
+    brand_van_client_buckets: dict[
+        tuple[int, str, str],
+        _NamedItemAccumulator,
+    ] = {}
+
+    brand_van_client_product_buckets: dict[
+        tuple[int, str, str, str],
+        _ClientProductItemAccumulator,
+    ] = {}
+
+    brand_client_buckets: dict[
+        tuple[int, str],
+        _NamedItemAccumulator,
+    ] = {}
+
+    brand_client_product_buckets: dict[
+        tuple[int, str, str],
+        _ClientProductItemAccumulator,
+    ] = {}
+
     brand_truck_product_buckets: dict[
         tuple[int, int, str],
         _NamedItemAccumulator,
@@ -336,6 +439,64 @@ def aggregate_items(
             item.article,
         )
         brand_product.accumulator.add(
+            item.quantity_sold
+        )
+
+        brand_van_client = _get_named_accumulator(
+            brand_van_client_buckets,
+            (
+                item.brand_id,
+                item.van_normalized,
+                item.client_normalized,
+            ),
+            item.client,
+        )
+        brand_van_client.accumulator.add(
+            item.quantity_sold
+        )
+
+        brand_van_client_product = (
+            _get_client_product_accumulator(
+                brand_van_client_product_buckets,
+                (
+                    item.brand_id,
+                    item.van_normalized,
+                    item.client_normalized,
+                    item.article_normalized,
+                ),
+                item.client,
+                item.article,
+            )
+        )
+        brand_van_client_product.accumulator.add(
+            item.quantity_sold
+        )
+
+        brand_client = _get_named_accumulator(
+            brand_client_buckets,
+            (
+                item.brand_id,
+                item.client_normalized,
+            ),
+            item.client,
+        )
+        brand_client.accumulator.add(
+            item.quantity_sold
+        )
+
+        brand_client_product = (
+            _get_client_product_accumulator(
+                brand_client_product_buckets,
+                (
+                    item.brand_id,
+                    item.client_normalized,
+                    item.article_normalized,
+                ),
+                item.client,
+                item.article,
+            )
+        )
+        brand_client_product.accumulator.add(
             item.quantity_sold
         )
 
@@ -481,6 +642,58 @@ def aggregate_items(
             )
             for key, value in sorted(
                 brand_product_buckets.items()
+            )
+        ),
+        by_brand_van_client=tuple(
+            BrandVanClientItemTotal(
+                brand_id=key[0],
+                van=key[1],
+                van_normalized=key[1],
+                client=value.display_name,
+                client_normalized=key[2],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_van_client_buckets.items()
+            )
+        ),
+        by_brand_van_client_product=tuple(
+            BrandVanClientProductItemTotal(
+                brand_id=key[0],
+                van=key[1],
+                van_normalized=key[1],
+                client=value.client_display_name,
+                client_normalized=key[2],
+                article=value.article_display_name,
+                article_normalized=key[3],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_van_client_product_buckets.items()
+            )
+        ),
+        by_brand_client=tuple(
+            BrandClientItemTotal(
+                brand_id=key[0],
+                client=value.display_name,
+                client_normalized=key[1],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_client_buckets.items()
+            )
+        ),
+        by_brand_client_product=tuple(
+            BrandClientProductItemTotal(
+                brand_id=key[0],
+                client=value.client_display_name,
+                client_normalized=key[1],
+                article=value.article_display_name,
+                article_normalized=key[2],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_client_product_buckets.items()
             )
         ),
         by_brand_truck_product=tuple(
