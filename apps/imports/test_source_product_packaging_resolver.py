@@ -2,6 +2,7 @@ from django.test import TestCase
 
 from apps.imports.models import (
     ImportSourceSystem,
+    SourceProductAlias,
     SourceProductPackaging,
 )
 from apps.imports.services.source_product_packaging_resolver import (
@@ -166,6 +167,43 @@ class SourceProductPackagingResolverTests(
             result.candidates_count,
             2,
         )
+        self.assertEqual(
+            result.consensus_units_per_carton,
+            20,
+        )
+
+    def test_duplicate_designation_with_different_packaging_has_no_consensus(
+        self,
+    ):
+        self.create_product(
+            code="12",
+            designation="MIXED PACK",
+            barcode="BAR-12",
+            units=6,
+        )
+        self.create_product(
+            code="13",
+            designation="MIXED PACK",
+            barcode="BAR-13",
+            units=8,
+        )
+
+        result = resolve_source_product_packaging(
+            source_system=self.source,
+            designation="MIXED PACK",
+        )
+
+        self.assertEqual(
+            result.status,
+            PackagingResolutionStatus.AMBIGUOUS_PRODUCT,
+        )
+        self.assertEqual(
+            result.candidates_count,
+            2,
+        )
+        self.assertIsNone(
+            result.consensus_units_per_carton
+        )
 
     def test_barcode_and_name_disambiguate(
         self,
@@ -200,6 +238,158 @@ class SourceProductPackagingResolverTests(
             result.match_method,
             "barcode+designation",
         )
+
+    def test_resolves_explicit_product_alias(
+        self,
+    ):
+        product = self.create_product(
+            code="40",
+            designation=(
+                "NITA DOPPIO VANILLE FRAISE"
+            ),
+            barcode="GAU-00049",
+            units=1,
+        )
+
+        alias = SourceProductAlias.objects.create(
+            source_system=self.source,
+            product=product,
+            alias=(
+                "  nita doppio vanilla strawberry  "
+            ),
+        )
+
+        self.assertEqual(
+            alias.normalized_alias,
+            "NITA DOPPIO VANILLA STRAWBERRY",
+        )
+
+        result = resolve_source_product_packaging(
+            source_system=self.source,
+            designation=(
+                "NITA DOPPIO VANILLA STRAWBERRY"
+            ),
+        )
+
+        self.assertEqual(
+            result.status,
+            PackagingResolutionStatus.READY,
+        )
+        self.assertEqual(
+            result.product,
+            product,
+        )
+        self.assertEqual(
+            result.match_method,
+            "alias",
+        )
+        self.assertEqual(
+            result.units_per_carton,
+            1,
+        )
+
+    def test_inactive_alias_is_not_resolved(
+        self,
+    ):
+        product = self.create_product(
+            code="41",
+            designation="CURRENT NAME",
+            units=6,
+        )
+
+        SourceProductAlias.objects.create(
+            source_system=self.source,
+            product=product,
+            alias="OLD NAME",
+            is_active=False,
+        )
+
+        result = resolve_source_product_packaging(
+            source_system=self.source,
+            designation="OLD NAME",
+        )
+
+        self.assertEqual(
+            result.status,
+            PackagingResolutionStatus.UNKNOWN_PRODUCT,
+        )
+
+    def test_exact_designation_precedes_alias(
+        self,
+    ):
+        exact_product = self.create_product(
+            code="42",
+            designation="SHARED NAME",
+            units=4,
+        )
+
+        alias_product = self.create_product(
+            code="43",
+            designation="OTHER PRODUCT",
+            units=8,
+        )
+
+        SourceProductAlias.objects.create(
+            source_system=self.source,
+            product=alias_product,
+            alias="SHARED NAME",
+        )
+
+        result = resolve_source_product_packaging(
+            source_system=self.source,
+            designation="SHARED NAME",
+        )
+
+        self.assertEqual(
+            result.status,
+            PackagingResolutionStatus.READY,
+        )
+        self.assertEqual(
+            result.product,
+            exact_product,
+        )
+        self.assertEqual(
+            result.match_method,
+            "designation",
+        )
+
+    def test_alias_rejects_product_from_other_source(
+        self,
+    ):
+        other_source = (
+            ImportSourceSystem.objects.create(
+                code="OTHER",
+                name="Other",
+                is_active=True,
+            )
+        )
+
+        other_product = (
+            SourceProductPackaging.objects.create(
+                source_system=other_source,
+                source_product_code="44",
+                designation="OTHER PRODUCT",
+                normalized_designation=(
+                    "OTHER PRODUCT"
+                ),
+                units_per_carton=1,
+                needs_review=False,
+                is_active=True,
+            )
+        )
+
+        with self.assertRaisesMessage(
+            Exception,
+            (
+                "Alias and product must belong "
+                "to the same source system."
+            ),
+        ):
+            SourceProductAlias.objects.create(
+                source_system=self.source,
+                product=other_product,
+                alias="BAD ALIAS",
+            )
 
     def test_inactive_product_is_not_resolved(
         self,

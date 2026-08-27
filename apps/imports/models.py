@@ -666,6 +666,169 @@ class SourceProductPackaging(models.Model):
             f"{self.designation}"
         )
 
+
+
+class SourceProductAlias(models.Model):
+    source_system = models.ForeignKey(
+        ImportSourceSystem,
+        on_delete=models.PROTECT,
+        related_name="product_aliases",
+    )
+    product = models.ForeignKey(
+        SourceProductPackaging,
+        on_delete=models.PROTECT,
+        related_name="aliases",
+    )
+    alias = models.CharField(
+        max_length=255,
+        help_text=(
+            "Alternative or historical product designation "
+            "used by the source system."
+        ),
+    )
+    normalized_alias = models.CharField(
+        max_length=255,
+        editable=False,
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "source_system__code",
+            "normalized_alias",
+            "id",
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "source_system",
+                    "normalized_alias",
+                ],
+                name="src_prod_alias_uniq",
+                violation_error_message=(
+                    "The same product alias already exists "
+                    "in this source system."
+                ),
+            ),
+        ]
+
+    @staticmethod
+    def normalize_alias(value) -> str:
+        if value is None:
+            return ""
+
+        return (
+            " ".join(
+                str(value)
+                .replace("\xa0", " ")
+                .split()
+            )
+            .upper()
+        )
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        self.alias = (
+            " ".join(
+                self.alias
+                .replace("\xa0", " ")
+                .split()
+            )
+            if self.alias
+            else ""
+        )
+
+        self.normalized_alias = (
+            self.normalize_alias(
+                self.alias
+            )
+        )
+
+        if not self.alias:
+            errors["alias"] = (
+                "Product alias is required."
+            )
+
+        if (
+            self.product_id
+            and self.source_system_id
+            and self.product.source_system_id
+            != self.source_system_id
+        ):
+            errors["product"] = (
+                "Alias and product must belong to "
+                "the same source system."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.alias = (
+            " ".join(
+                self.alias
+                .replace("\xa0", " ")
+                .split()
+            )
+            if self.alias
+            else ""
+        )
+
+        self.normalized_alias = (
+            self.normalize_alias(
+                self.alias
+            )
+        )
+
+        if not self.alias:
+            raise ValidationError(
+                {
+                    "alias": (
+                        "Product alias is required."
+                    )
+                }
+            )
+
+        if (
+            self.product_id
+            and self.source_system_id
+            and self.product.source_system_id
+            != self.source_system_id
+        ):
+            raise ValidationError(
+                {
+                    "product": (
+                        "Alias and product must belong "
+                        "to the same source system."
+                    )
+                }
+            )
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.source_system.code} - "
+            f"{self.alias} -> "
+            f"{self.product.designation}"
+        )
+
 class ImportBatch(models.Model):
     source_upload = models.ForeignKey(
         ImportSourceUpload,

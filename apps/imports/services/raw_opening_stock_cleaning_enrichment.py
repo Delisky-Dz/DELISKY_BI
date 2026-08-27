@@ -29,6 +29,100 @@ def _quantity_issue(
 ) -> RowCleaningIssue | None:
     status = enrichment.status
 
+    if enrichment.source_quantity_authoritative:
+        if status == OpeningStockQuantityStatus.READY:
+            return None
+
+        if (
+            status
+            == OpeningStockQuantityStatus
+            .AMBIGUOUS_PRODUCT
+            and enrichment.packaging_consensus_used
+        ):
+            return RowCleaningIssue(
+                code=(
+                    "opening_stock_ambiguous_product_"
+                    "packaging_consensus"
+                ),
+                severity=SEVERITY_WARNING,
+                message=(
+                    "The Opening Stock product identity "
+                    "is ambiguous, but all matching Product "
+                    "Master records agree on the packaging."
+                ),
+                field="Article",
+                raw_value=None,
+                details={
+                    "identity_ambiguous": True,
+                    "packaging_consensus_used": True,
+                    "units_per_carton": (
+                        enrichment.units_per_carton
+                    ),
+                    "match_method": (
+                        enrichment.match_method
+                    ),
+                    "authoritative_field": "Qt\u00e9",
+                },
+            )
+
+        if (
+            status
+            == OpeningStockQuantityStatus.INVALID_SOURCE_QUANTITY
+        ):
+            return RowCleaningIssue(
+                code="invalid_opening_stock_total_units",
+                severity=SEVERITY_ERROR,
+                message=(
+                    "Opening Stock Qt\u00e9 must be a "
+                    "non-negative whole-number total unit "
+                    "quantity."
+                ),
+                field="Qt\u00e9",
+                raw_value=enrichment.source_quantity_raw,
+                details={
+                    "authoritative_field": "Qt\u00e9",
+                    "error_code": enrichment.error_code,
+                },
+            )
+
+        canonical_messages = {
+            OpeningStockQuantityStatus.UNKNOWN_PRODUCT: (
+                "The Opening Stock product does not exist "
+                "in the source Product Master."
+            ),
+            OpeningStockQuantityStatus.UNKNOWN_PACKAGING: (
+                "The Opening Stock product packaging "
+                "is unknown."
+            ),
+            OpeningStockQuantityStatus.AMBIGUOUS_PRODUCT: (
+                "The Opening Stock product matches more "
+                "than one source product."
+            ),
+        }
+
+        if status in canonical_messages:
+            return RowCleaningIssue(
+                code=(
+                    "opening_stock_"
+                    + status.value.lower()
+                ),
+                severity=SEVERITY_ERROR,
+                message=canonical_messages[status],
+                field="Article",
+                raw_value=None,
+                details={
+                    "authoritative_field": "Qt\u00e9",
+                    "packaging_status": status.value,
+                    "error_code": enrichment.error_code,
+                    "match_method": enrichment.match_method,
+                    "product_packaging_id": (
+                        enrichment.product.pk
+                        if enrichment.product is not None
+                        else None
+                    ),
+                },
+            )
+
     if status == OpeningStockQuantityStatus.READY:
         return None
 
@@ -263,6 +357,9 @@ def _enriched_cleaned_values(
             "packaging_matches_product": (
                 enrichment.packaging_matches_product
             ),
+            "packaging_consensus_used": (
+                enrichment.packaging_consensus_used
+            ),
         }
     )
 
@@ -290,6 +387,11 @@ def enrich_raw_opening_stock_cleaning_result(
         raw = row.raw_dict()
         cleaned = row.cleaned_dict()
 
+        source_quantity_is_authoritative = (
+            "Colisage" not in raw
+            and "\u0627\u0644\u0639\u0644\u0628\u0629" not in raw
+        )
+
         enrichment = enrich_raw_opening_stock_quantity(
             {
                 "Article": (
@@ -302,6 +404,9 @@ def enrich_raw_opening_stock_cleaning_result(
                 "العلبة": raw.get("العلبة"),
             },
             source_system=source_system,
+            source_quantity_is_authoritative=(
+                source_quantity_is_authoritative
+            ),
         )
 
         issue = _quantity_issue(
@@ -315,9 +420,26 @@ def enrich_raw_opening_stock_cleaning_result(
 
         status = row.status
 
+        consensus_ambiguity = (
+            enrichment.source_quantity_authoritative
+            and enrichment.status
+            == OpeningStockQuantityStatus
+            .AMBIGUOUS_PRODUCT
+            and enrichment.packaging_consensus_used
+        )
+
         if (
-            enrichment.status
-            in _BLOCKING_STATUSES
+            (
+                enrichment.status
+                in _BLOCKING_STATUSES
+                and not consensus_ambiguity
+            )
+            or (
+                enrichment.source_quantity_authoritative
+                and enrichment.status
+                == OpeningStockQuantityStatus
+                .INVALID_SOURCE_QUANTITY
+            )
         ):
             status = STATUS_EXCLUDED
 

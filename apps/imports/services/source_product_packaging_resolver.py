@@ -3,6 +3,7 @@ from enum import StrEnum
 
 from apps.imports.models import (
     ImportSourceSystem,
+    SourceProductAlias,
     SourceProductPackaging,
 )
 
@@ -20,6 +21,7 @@ class PackagingResolution:
     product: SourceProductPackaging | None
     match_method: str | None
     candidates_count: int = 0
+    consensus_units_per_carton: int | None = None
 
     @property
     def units_per_carton(self) -> int | None:
@@ -52,6 +54,58 @@ def _designation_token_signature(
         sorted(
             normalized.split()
         )
+    )
+
+
+
+def _consensus_units_per_carton(
+    candidates: list[SourceProductPackaging],
+) -> int | None:
+    if not candidates:
+        return None
+
+    values: set[int] = set()
+
+    for product in candidates:
+        units = product.units_per_carton
+
+        if (
+            product.needs_review
+            or units is None
+            or units <= 0
+        ):
+            return None
+
+        values.add(
+            int(units)
+        )
+
+    if len(values) != 1:
+        return None
+
+    return next(
+        iter(values)
+    )
+
+
+def _ambiguous(
+    candidates: list[SourceProductPackaging],
+    *,
+    match_method: str,
+) -> PackagingResolution:
+    return PackagingResolution(
+        status=(
+            PackagingResolutionStatus
+            .AMBIGUOUS_PRODUCT
+        ),
+        product=None,
+        match_method=match_method,
+        candidates_count=len(candidates),
+        consensus_units_per_carton=(
+            _consensus_units_per_carton(
+                candidates
+            )
+        ),
     )
 
 
@@ -134,16 +188,9 @@ def resolve_source_product_packaging(
                         ),
                     )
 
-            return PackagingResolution(
-                status=(
-                    PackagingResolutionStatus
-                    .AMBIGUOUS_PRODUCT
-                ),
-                product=None,
+            return _ambiguous(
+                barcode_candidates,
                 match_method="barcode",
-                candidates_count=len(
-                    barcode_candidates
-                ),
             )
 
     if normalized_designation:
@@ -162,16 +209,29 @@ def resolve_source_product_packaging(
             )
 
         if len(name_candidates) > 1:
-            return PackagingResolution(
-                status=(
-                    PackagingResolutionStatus
-                    .AMBIGUOUS_PRODUCT
-                ),
-                product=None,
+            return _ambiguous(
+                name_candidates,
                 match_method="designation",
-                candidates_count=len(
-                    name_candidates
+            )
+
+        alias_candidate = (
+            SourceProductAlias.objects
+            .select_related("product")
+            .filter(
+                source_system=source_system,
+                normalized_alias=(
+                    normalized_designation
                 ),
+                is_active=True,
+                product__is_active=True,
+            )
+            .first()
+        )
+
+        if alias_candidate is not None:
+            return _resolved(
+                alias_candidate.product,
+                match_method="alias",
             )
 
         target_signature = (
@@ -201,16 +261,9 @@ def resolve_source_product_packaging(
             )
 
         if len(token_candidates) > 1:
-            return PackagingResolution(
-                status=(
-                    PackagingResolutionStatus
-                    .AMBIGUOUS_PRODUCT
-                ),
-                product=None,
+            return _ambiguous(
+                token_candidates,
                 match_method="designation_tokens",
-                candidates_count=len(
-                    token_candidates
-                ),
             )
 
     return PackagingResolution(

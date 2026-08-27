@@ -12,6 +12,7 @@ from .product_quantity import (
     ProductQuantity,
     ProductQuantityError,
     quantity_from_carton_value,
+    quantity_from_total_units,
 )
 from .source_product_packaging_resolver import (
     PackagingResolutionStatus,
@@ -74,6 +75,8 @@ class OpeningStockQuantityEnrichment:
     quantity_matches_source: bool | None
     packaging_matches_product: bool | None
 
+    source_quantity_authoritative: bool = False
+    packaging_consensus_used: bool = False
     error_code: str | None = None
 
 
@@ -134,6 +137,7 @@ def _without_quantity(
     source_quantity_raw: Any,
     source_packaging_raw: Any,
     business_quantity_raw: Any,
+    source_quantity_authoritative: bool = False,
     error_code: str | None = None,
 ) -> OpeningStockQuantityEnrichment:
     return OpeningStockQuantityEnrichment(
@@ -156,6 +160,9 @@ def _without_quantity(
         source_units_per_carton=None,
         quantity_matches_source=None,
         packaging_matches_product=None,
+        source_quantity_authoritative=(
+            source_quantity_authoritative
+        ),
         error_code=error_code,
     )
 
@@ -173,6 +180,7 @@ def _with_business_quantity(
     source_units_per_carton: int | None,
     quantity_matches_source: bool | None,
     packaging_matches_product: bool | None,
+    source_quantity_authoritative: bool = False,
     error_code: str | None = None,
 ) -> OpeningStockQuantityEnrichment:
     return OpeningStockQuantityEnrichment(
@@ -191,7 +199,179 @@ def _with_business_quantity(
         source_units_per_carton=source_units_per_carton,
         quantity_matches_source=quantity_matches_source,
         packaging_matches_product=packaging_matches_product,
+        source_quantity_authoritative=(
+            source_quantity_authoritative
+        ),
         error_code=error_code,
+    )
+
+
+
+def _enrich_from_source_total_units(
+    row: dict[str, object],
+    *,
+    source_system: ImportSourceSystem,
+) -> OpeningStockQuantityEnrichment:
+    source_quantity_raw = row.get("Qt\u00e9")
+
+    resolution = resolve_source_product_packaging(
+        source_system=source_system,
+        barcode=row.get("Barcode"),
+        designation=row.get("Article"),
+    )
+
+    status_map = {
+        PackagingResolutionStatus.UNKNOWN_PRODUCT:
+            OpeningStockQuantityStatus.UNKNOWN_PRODUCT,
+        PackagingResolutionStatus.UNKNOWN_PACKAGING:
+            OpeningStockQuantityStatus.UNKNOWN_PACKAGING,
+        PackagingResolutionStatus.AMBIGUOUS_PRODUCT:
+            OpeningStockQuantityStatus.AMBIGUOUS_PRODUCT,
+    }
+
+    consensus_units = (
+        resolution.consensus_units_per_carton
+        if (
+            resolution.status
+            == PackagingResolutionStatus
+            .AMBIGUOUS_PRODUCT
+        )
+        else None
+    )
+
+    can_use_consensus = (
+        consensus_units is not None
+    )
+
+    if (
+        resolution.status
+        != PackagingResolutionStatus.READY
+        and not can_use_consensus
+    ):
+        return _without_quantity(
+            status=status_map[
+                resolution.status
+            ],
+            product=resolution.product,
+            match_method=resolution.match_method,
+            source_quantity_raw=source_quantity_raw,
+            source_packaging_raw=None,
+            business_quantity_raw=None,
+            source_quantity_authoritative=True,
+            error_code=resolution.status.value,
+        )
+
+    if can_use_consensus:
+        units_per_carton = consensus_units
+        product = None
+        result_status = (
+            OpeningStockQuantityStatus
+            .AMBIGUOUS_PRODUCT
+        )
+    else:
+        product = resolution.product
+
+        assert product is not None
+        assert product.units_per_carton is not None
+
+        units_per_carton = (
+            product.units_per_carton
+        )
+        result_status = (
+            OpeningStockQuantityStatus.READY
+        )
+
+    try:
+        source_total_units = _parse_whole_number(
+            source_quantity_raw,
+            field_name="source_quantity",
+        )
+
+        if (
+            source_total_units is None
+            or source_total_units < 0
+        ):
+            raise ValueError(
+                "Total units must be non-negative."
+            )
+    except ValueError:
+        return _without_quantity(
+            status=(
+                OpeningStockQuantityStatus
+                .INVALID_SOURCE_QUANTITY
+            ),
+            product=product,
+            match_method=resolution.match_method,
+            source_quantity_raw=source_quantity_raw,
+            source_packaging_raw=None,
+            business_quantity_raw=None,
+            source_quantity_authoritative=True,
+            error_code="invalid_total_units",
+        )
+
+    try:
+        quantity = quantity_from_total_units(
+            source_total_units,
+            units_per_carton=units_per_carton,
+        )
+    except ProductQuantityError as exc:
+        return _without_quantity(
+            status=(
+                OpeningStockQuantityStatus
+                .INVALID_SOURCE_QUANTITY
+            ),
+            product=product,
+            match_method=resolution.match_method,
+            source_quantity_raw=source_quantity_raw,
+            source_packaging_raw=None,
+            business_quantity_raw=None,
+            source_quantity_authoritative=True,
+            error_code=exc.code,
+        )
+
+    if can_use_consensus:
+        return OpeningStockQuantityEnrichment(
+            status=result_status,
+            product=None,
+            match_method=resolution.match_method,
+            source_quantity_raw=source_quantity_raw,
+            source_packaging_raw=None,
+            business_quantity_raw=None,
+            units_per_carton=(
+                quantity.units_per_carton
+            ),
+            total_units=quantity.total_units,
+            carton_quantity=(
+                quantity.carton_quantity
+            ),
+            cartons=quantity.cartons,
+            pieces=quantity.pieces,
+            source_total_units=(
+                source_total_units
+            ),
+            source_units_per_carton=None,
+            quantity_matches_source=True,
+            packaging_matches_product=None,
+            source_quantity_authoritative=True,
+            packaging_consensus_used=True,
+            error_code=None,
+        )
+
+    assert product is not None
+
+    return _with_business_quantity(
+        status=result_status,
+        product=product,
+        match_method=resolution.match_method,
+        source_quantity_raw=source_quantity_raw,
+        source_packaging_raw=None,
+        business_quantity_raw=None,
+        quantity=quantity,
+        source_total_units=source_total_units,
+        source_units_per_carton=None,
+        quantity_matches_source=True,
+        packaging_matches_product=None,
+        source_quantity_authoritative=True,
     )
 
 
@@ -199,10 +379,17 @@ def enrich_raw_opening_stock_quantity(
     row: dict[str, object],
     *,
     source_system: ImportSourceSystem,
+    source_quantity_is_authoritative: bool = False,
 ) -> OpeningStockQuantityEnrichment:
     source_quantity_raw = row.get("Qté")
     source_packaging_raw = row.get("Colisage")
     business_quantity_raw = row.get("العلبة")
+
+    if source_quantity_is_authoritative:
+        return _enrich_from_source_total_units(
+            row,
+            source_system=source_system,
+        )
 
     if _is_blank(business_quantity_raw):
         return _without_quantity(

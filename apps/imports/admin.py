@@ -10,6 +10,8 @@ from .models import (
     ImportBatch,
     ImportBatchStatus,
     ImportRow,
+    SourceProductAlias,
+    SourceProductPackaging,
 )
 
 from .services import (
@@ -79,6 +81,109 @@ class DistributionBrandAdmin(admin.ModelAdmin):
             url,
             LABEL_EDIT,
         )
+
+
+@admin.register(SourceProductPackaging)
+class SourceProductPackagingAdmin(admin.ModelAdmin):
+    list_display = (
+        "designation",
+        "source_system",
+        "brand",
+        "source_product_code",
+        "barcode",
+        "units_per_carton",
+        "needs_review",
+        "is_active",
+    )
+
+    list_filter = (
+        "source_system",
+        "brand",
+        "needs_review",
+        "is_active",
+    )
+
+    search_fields = (
+        "designation",
+        "normalized_designation",
+        "source_product_code",
+        "barcode",
+        "reference",
+    )
+
+    ordering = (
+        "source_system__code",
+        "designation",
+        "id",
+    )
+
+    list_select_related = (
+        "source_system",
+        "brand",
+    )
+
+    readonly_fields = (
+        "normalized_designation",
+        "created_at",
+        "updated_at",
+    )
+
+
+@admin.register(SourceProductAlias)
+class SourceProductAliasAdmin(admin.ModelAdmin):
+    list_display = (
+        "alias",
+        "source_system",
+        "product",
+        "is_active",
+        "created_at",
+    )
+
+    list_filter = (
+        "source_system",
+        "is_active",
+        "created_at",
+    )
+
+    search_fields = (
+        "alias",
+        "normalized_alias",
+        "product__designation",
+        "product__source_product_code",
+        "product__barcode",
+    )
+
+    ordering = (
+        "source_system__code",
+        "normalized_alias",
+        "id",
+    )
+
+    list_select_related = (
+        "source_system",
+        "product",
+    )
+
+    autocomplete_fields = (
+        "product",
+    )
+
+    readonly_fields = (
+        "normalized_alias",
+        "created_at",
+        "updated_at",
+    )
+
+    fields = (
+        "source_system",
+        "product",
+        "alias",
+        "normalized_alias",
+        "is_active",
+        "notes",
+        "created_at",
+        "updated_at",
+    )
 
 
 @admin.register(ImportBatch)

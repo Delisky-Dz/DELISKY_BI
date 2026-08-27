@@ -104,13 +104,45 @@ def adapt_raw_opening_stock_row(
 ) -> dict[str, object]:
     row = _normalized_row(raw_row)
 
+    canonical_headers = {
+        normalize_header("VAN"),
+        normalize_header("Qt\u00e9"),
+        normalize_header("Article"),
+    }
+
+    if canonical_headers.issubset(row):
+        adapted = {
+            "VAN": _required_value(
+                row,
+                "VAN",
+            ),
+            "Qt\u00e9": _required_value(
+                row,
+                "Qt\u00e9",
+            ),
+            "Article": _required_value(
+                row,
+                "Article",
+            ),
+        }
+
+        has_barcode, barcode = _optional_value(
+            row,
+            "Barcode",
+        )
+
+        if has_barcode:
+            adapted["Barcode"] = barcode
+
+        return adapted
+
     designation = _required_value(
         row,
-        "Désignation",
+        "D\u00e9signation",
     )
     source_quantity = _required_value(
         row,
-        "Qté",
+        "Qt\u00e9",
     )
     colisage = _required_value(
         row,
@@ -118,7 +150,7 @@ def adapt_raw_opening_stock_row(
     )
     business_quantity = _required_value(
         row,
-        "العلبة",
+        "\u0627\u0644\u0639\u0644\u0628\u0629",
     )
 
     has_barcode, barcode = _optional_value(
@@ -133,10 +165,10 @@ def adapt_raw_opening_stock_row(
 
     adapted = {
         "VAN": internal_code,
-        "Qté": source_quantity,
+        "Qt\u00e9": source_quantity,
         "Article": designation,
         "Colisage": colisage,
-        "العلبة": business_quantity,
+        "\u0627\u0644\u0639\u0644\u0628\u0629": business_quantity,
     }
 
     if has_barcode:
