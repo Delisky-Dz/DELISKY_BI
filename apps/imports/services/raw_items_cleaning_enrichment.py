@@ -32,6 +32,18 @@ def _quantity_issue(
     if status == ItemsQuantityStatus.READY:
         return None
 
+    # Negative Items quantities are intentionally
+    # excluded from calculations by the base cleaner.
+    # They must remain auditable, but must not turn
+    # the entire batch into a blocking error.
+    if (
+        status
+        == ItemsQuantityStatus.INVALID_BUSINESS_QUANTITY
+        and enrichment.error_code
+        == "negative_business_quantity"
+    ):
+        return None
+
     messages = {
         ItemsQuantityStatus.MISSING_BUSINESS_QUANTITY: (
             "The official Items Qte total-unit quantity "

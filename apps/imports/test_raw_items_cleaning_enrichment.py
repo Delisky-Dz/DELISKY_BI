@@ -282,3 +282,61 @@ class RawItemsCleaningEnrichmentTests(
             result.rows[0],
             original.rows[0],
         )
+
+    def test_negative_qte_is_excluded_without_blocking_error(
+        self,
+    ):
+        original = self.cleaning_result(
+            quantity=-2,
+            status=STATUS_EXCLUDED,
+        )
+
+        original_row = original.rows[0]
+
+        original = ReportCleaningResult(
+            filename=original.filename,
+            report_type=original.report_type,
+            rows=(
+                CleanedReportRow(
+                    row_number=original_row.row_number,
+                    status=STATUS_EXCLUDED,
+                    raw_values=original_row.raw_values,
+                    cleaned_values=(
+                        original_row.cleaned_values
+                    ),
+                    issues=(),
+                ),
+            ),
+        )
+
+        result = (
+            enrich_raw_items_cleaning_result(
+                original,
+                source_system=self.source,
+            )
+        )
+
+        row = result.rows[0]
+        cleaned = row.cleaned_dict()
+
+        self.assertEqual(
+            row.status,
+            STATUS_EXCLUDED,
+        )
+
+        self.assertEqual(
+            cleaned["packaging_status"],
+            "INVALID_BUSINESS_QUANTITY",
+        )
+
+        self.assertIsNone(
+            cleaned["total_units"],
+        )
+
+        self.assertFalse(
+            any(
+                issue.code
+                == "items_invalid_business_quantity"
+                for issue in row.issues
+            )
+        )
