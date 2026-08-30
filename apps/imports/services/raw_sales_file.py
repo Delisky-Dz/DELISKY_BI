@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import re
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,28 @@ def source_truck_code_from_filename(
     filename: str,
 ) -> str:
     stem = Path(filename).stem.strip().upper()
+
+    match = re.fullmatch(
+        (
+            r"(?P<source>.+?)"
+            r"[\s_-]+SALES"
+            r"(?:"
+            r"[\s_-]+"
+            r"\d{4}-\d{2}-\d{2}"
+            r"[\s_-]+TO[\s_-]+"
+            r"\d{4}-\d{2}-\d{2}"
+            r")?"
+        ),
+        stem,
+        flags=re.IGNORECASE,
+    )
+
+    if match is not None:
+        stem = (
+            match.group("source")
+            .strip()
+            .upper()
+        )
 
     if not stem:
         raise RawSalesFileError(

@@ -19,6 +19,7 @@ from apps.imports.services.batch_approval import (
     approve_import_batch,
 )
 from apps.imports.services.raw_sales_derived_review import (
+    RawSalesDerivedReviewError,
     create_raw_sales_derived_import_review,
 )
 from apps.imports.services.raw_sales_review import (
@@ -517,4 +518,369 @@ class RawSalesDerivedReviewTests(TestCase):
         self.assertEqual(
             old_batch.status,
             ImportBatchStatus.APPROVED,
+        )
+
+    def test_wider_period_creates_safe_sales_replacement(
+        self,
+    ):
+        old_payload = self.make_payload(
+            filename="DCV-03.xlsx",
+            rows=[
+                [
+                    "VDD-OLD",
+                    "18/08/2026 10:00:00",
+                    "Client Old",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+            ],
+        )
+
+        old = create_raw_sales_derived_import_review(
+            self.make_upload(
+                "DCV-03.xlsx",
+                old_payload,
+            ),
+            source_system_code="BIFA_MILA",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-18",
+        )
+
+        approve_import_batch(
+            old.batch.pk,
+            approved_by=self.user,
+        )
+
+        historical_payload = self.make_payload(
+            filename=(
+                "DCV-03 "
+                "sales_2026-04-04_to_2026-08-26.xlsx"
+            ),
+            rows=[
+                [
+                    "VDD-EARLY",
+                    "04/04/2026 09:00:00",
+                    "Client Early",
+                    50,
+                    50,
+                    "MILA",
+                    50,
+                ],
+                [
+                    "VDD-OLD",
+                    "18/08/2026 10:00:00",
+                    "Client Old",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+            ],
+        )
+
+        historical = (
+            create_raw_sales_derived_import_review(
+                self.make_upload(
+                    (
+                        "DCV-03 "
+                        "sales_2026-04-04_to_2026-08-26.xlsx"
+                    ),
+                    historical_payload,
+                ),
+                source_system_code="BIFA_MILA",
+                uploaded_by=self.user,
+                period_start="2026-04-04",
+                period_end="2026-08-26",
+            )
+        )
+
+        self.assertNotEqual(
+            historical.batch.pk,
+            old.batch.pk,
+        )
+        self.assertEqual(
+            historical.batch.status,
+            ImportBatchStatus.REVIEWED,
+        )
+        self.assertEqual(
+            historical.batch.replaces_batch_id,
+            old.batch.pk,
+        )
+
+        approve_import_batch(
+            historical.batch.pk,
+            approved_by=self.user,
+        )
+
+        old.batch.refresh_from_db()
+        historical.batch.refresh_from_db()
+
+        self.assertEqual(
+            old.batch.status,
+            ImportBatchStatus.SUPERSEDED,
+        )
+        self.assertEqual(
+            historical.batch.status,
+            ImportBatchStatus.APPROVED,
+        )
+
+    def test_partial_sales_overlap_is_blocked(
+        self,
+    ):
+        old_payload = self.make_payload(
+            filename="DCV-03.xlsx",
+            rows=[
+                [
+                    "VDD-OLD",
+                    "18/08/2026 10:00:00",
+                    "Client Old",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+            ],
+        )
+
+        old = create_raw_sales_derived_import_review(
+            self.make_upload(
+                "DCV-03.xlsx",
+                old_payload,
+            ),
+            source_system_code="BIFA_MILA",
+            uploaded_by=self.user,
+            period_start="2026-08-10",
+            period_end="2026-08-18",
+        )
+
+        approve_import_batch(
+            old.batch.pk,
+            approved_by=self.user,
+        )
+
+        new_payload = self.make_payload(
+            filename=(
+                "DCV-03 "
+                "sales_2026-08-15_to_2026-08-26.xlsx"
+            ),
+            rows=[
+                [
+                    "VDD-OLD",
+                    "18/08/2026 10:00:00",
+                    "Client Old",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+            ],
+        )
+
+        with self.assertRaises(
+            RawSalesDerivedReviewError
+        ) as context:
+            create_raw_sales_derived_import_review(
+                self.make_upload(
+                    (
+                        "DCV-03 "
+                        "sales_2026-08-15_to_2026-08-26.xlsx"
+                    ),
+                    new_payload,
+                ),
+                source_system_code="BIFA_MILA",
+                uploaded_by=self.user,
+                period_start="2026-08-15",
+                period_end="2026-08-26",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "sales_approved_period_overlap_conflict",
+        )
+
+    def test_non_exact_mutable_sales_overlap_is_blocked(
+        self,
+    ):
+        first_payload = self.make_payload(
+            filename="DCV-03.xlsx",
+            rows=[
+                [
+                    "VDD-FIRST",
+                    "10/08/2026 10:00:00",
+                    "Client First",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+            ],
+        )
+
+        create_raw_sales_derived_import_review(
+            self.make_upload(
+                "DCV-03.xlsx",
+                first_payload,
+            ),
+            source_system_code="BIFA_MILA",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-10",
+        )
+
+        second_payload = self.make_payload(
+            filename=(
+                "DCV-03 "
+                "sales_2026-08-05_to_2026-08-15.xlsx"
+            ),
+            rows=[
+                [
+                    "VDD-SECOND",
+                    "12/08/2026 10:00:00",
+                    "Client Second",
+                    200,
+                    200,
+                    "MILA",
+                    200,
+                ],
+            ],
+        )
+
+        with self.assertRaises(
+            RawSalesDerivedReviewError
+        ) as context:
+            create_raw_sales_derived_import_review(
+                self.make_upload(
+                    (
+                        "DCV-03 "
+                        "sales_2026-08-05_to_2026-08-15.xlsx"
+                    ),
+                    second_payload,
+                ),
+                source_system_code="BIFA_MILA",
+                uploaded_by=self.user,
+                period_start="2026-08-05",
+                period_end="2026-08-15",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "sales_mutable_period_overlap_conflict",
+        )
+
+    def test_multiple_approved_sales_overlaps_are_blocked(
+        self,
+    ):
+        first_payload = self.make_payload(
+            filename="DCV-03.xlsx",
+            rows=[
+                [
+                    "VDD-FIRST",
+                    "05/08/2026 10:00:00",
+                    "Client First",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+            ],
+        )
+
+        first = create_raw_sales_derived_import_review(
+            self.make_upload(
+                "DCV-03.xlsx",
+                first_payload,
+            ),
+            source_system_code="BIFA_MILA",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-10",
+        )
+
+        approve_import_batch(
+            first.batch.pk,
+            approved_by=self.user,
+        )
+
+        second_payload = self.make_payload(
+            filename="DCV-03.xlsx",
+            rows=[
+                [
+                    "VDD-SECOND",
+                    "15/08/2026 10:00:00",
+                    "Client Second",
+                    200,
+                    200,
+                    "MILA",
+                    200,
+                ],
+            ],
+        )
+
+        second = create_raw_sales_derived_import_review(
+            self.make_upload(
+                "DCV-03-second.xlsx",
+                second_payload,
+            ),
+            source_system_code="BIFA_MILA",
+            uploaded_by=self.user,
+            period_start="2026-08-11",
+            period_end="2026-08-20",
+            original_filename="DCV-03.xlsx",
+        )
+
+        approve_import_batch(
+            second.batch.pk,
+            approved_by=self.user,
+        )
+
+        wider_payload = self.make_payload(
+            filename=(
+                "DCV-03 "
+                "sales_2026-08-01_to_2026-08-20.xlsx"
+            ),
+            rows=[
+                [
+                    "VDD-FIRST",
+                    "05/08/2026 10:00:00",
+                    "Client First",
+                    100,
+                    100,
+                    "MILA",
+                    100,
+                ],
+                [
+                    "VDD-SECOND",
+                    "15/08/2026 10:00:00",
+                    "Client Second",
+                    200,
+                    200,
+                    "MILA",
+                    200,
+                ],
+            ],
+        )
+
+        with self.assertRaises(
+            RawSalesDerivedReviewError
+        ) as context:
+            create_raw_sales_derived_import_review(
+                self.make_upload(
+                    (
+                        "DCV-03 "
+                        "sales_2026-08-01_to_2026-08-20.xlsx"
+                    ),
+                    wider_payload,
+                ),
+                source_system_code="BIFA_MILA",
+                uploaded_by=self.user,
+                period_start="2026-08-01",
+                period_end="2026-08-20",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "sales_multiple_approved_period_overlap",
         )

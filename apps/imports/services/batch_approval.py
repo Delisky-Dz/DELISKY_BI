@@ -17,7 +17,11 @@ from apps.imports.models import (
 
 from .raw_items_file import (
     RawItemsFileError,
-    source_truck_code_from_filename,
+    source_truck_code_from_filename as source_items_truck_code_from_filename,
+)
+from .raw_sales_file import (
+    RawSalesFileError,
+    source_truck_code_from_filename as source_sales_truck_code_from_filename,
 )
 
 
@@ -180,9 +184,12 @@ def _validate_replacement_scope(
         == replacement.period_end
     )
 
-    wider_items_period = (
+    wider_supported_period = (
         replacement.report_type
-        == ImportReportType.ITEMS
+        in {
+            ImportReportType.ITEMS,
+            ImportReportType.SALES,
+        }
         and replacement.period_start is not None
         and replacement.period_end is not None
         and replaced.period_start is not None
@@ -195,21 +202,28 @@ def _validate_replacement_scope(
 
     if not (
         same_period
-        or wider_items_period
+        or wider_supported_period
     ):
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
                 "A replacement must use the same "
-                "period. An ITEMS replacement may "
+                "period. An ITEMS or SALES replacement may "
                 "fully contain the old period."
             ),
         )
 
-    if (
+    requires_source_identity = (
         replacement.report_type
-        != ImportReportType.ITEMS
-    ):
+        == ImportReportType.ITEMS
+        or (
+            replacement.report_type
+            == ImportReportType.SALES
+            and not same_period
+        )
+    )
+
+    if not requires_source_identity:
         return
 
     if (
@@ -219,7 +233,7 @@ def _validate_replacement_scope(
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
-                "An ITEMS replacement requires "
+                "An ITEMS or SALES replacement requires "
                 "source upload identity on both batches."
             ),
         )
@@ -231,33 +245,43 @@ def _validate_replacement_scope(
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
-                "An ITEMS replacement must use "
+                "An ITEMS or SALES replacement must use "
                 "the same source system."
             ),
         )
 
+    if (
+        replacement.report_type
+        == ImportReportType.ITEMS
+    ):
+        truck_parser = (
+            source_items_truck_code_from_filename
+        )
+        truck_error = RawItemsFileError
+    else:
+        truck_parser = (
+            source_sales_truck_code_from_filename
+        )
+        truck_error = RawSalesFileError
+
     try:
-        replacement_truck = (
-            source_truck_code_from_filename(
-                replacement
-                .source_upload
-                .original_filename
-            )
+        replacement_truck = truck_parser(
+            replacement
+            .source_upload
+            .original_filename
         )
 
-        replaced_truck = (
-            source_truck_code_from_filename(
-                replaced
-                .source_upload
-                .original_filename
-            )
+        replaced_truck = truck_parser(
+            replaced
+            .source_upload
+            .original_filename
         )
-    except RawItemsFileError as exc:
+    except truck_error as exc:
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
                 "The source truck identity could not "
-                "be verified for the ITEMS replacement."
+                "be verified for the replacement."
             ),
             details={
                 "source_error": exc.code,
@@ -268,7 +292,7 @@ def _validate_replacement_scope(
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
-                "An ITEMS replacement must belong "
+                "An ITEMS or SALES replacement must belong "
                 "to the same source truck."
             ),
             details={

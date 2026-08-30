@@ -68,6 +68,29 @@ class RawSalesFileTests(SimpleTestCase):
             "VAN1-NITA",
         )
 
+    def test_extracts_source_truck_from_historical_filename(
+        self,
+    ):
+        self.assertEqual(
+            source_truck_code_from_filename(
+                (
+                    "DCV-03 "
+                    "sales_2026-04-04_to_2026-08-26.xlsx"
+                )
+            ),
+            "DCV-03",
+        )
+
+        self.assertEqual(
+            source_truck_code_from_filename(
+                (
+                    "VAN2-DELISKY "
+                    "Sales_2026-04-04_to_2026-08-26.xlsx"
+                )
+            ),
+            "VAN2-DELISKY",
+        )
+
     def test_rejects_dpv_filename(self):
         with self.assertRaises(
             RawSalesFileError

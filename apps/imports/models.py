@@ -1306,9 +1306,12 @@ class ImportBatch(models.Model):
                     == self.period_end
                 )
 
-                items_period_contains_replaced = (
+                wider_period_contains_replaced = (
                     self.report_type
-                    == ImportReportType.ITEMS
+                    in {
+                        ImportReportType.ITEMS,
+                        ImportReportType.SALES,
+                    }
                     and (
                         self.replaces_batch
                         .period_start
@@ -1327,11 +1330,11 @@ class ImportBatch(models.Model):
 
                 if not (
                     replaced_period_matches
-                    or items_period_contains_replaced
+                    or wider_period_contains_replaced
                 ):
                     errors["replaces_batch"] = (
                         "A replacement must use the same "
-                        "period. An ITEMS replacement may "
+                        "period. An ITEMS or SALES replacement may "
                         "instead fully contain the period "
                         "of the batch it replaces."
                     )

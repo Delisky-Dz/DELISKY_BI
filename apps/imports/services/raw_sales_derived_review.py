@@ -84,8 +84,8 @@ def _logical_sales_scope_batches(
             ),
             brand__code__iexact=brand_code,
             report_type="SALES",
-            period_start=period_start,
-            period_end=period_end,
+            period_start__lte=period_end,
+            period_end__gte=period_start,
         )
         .order_by("-id")
     )
@@ -356,25 +356,162 @@ def create_raw_sales_derived_import_review(
                 )
             )
 
-            mutable_batch = next(
-                (
-                    candidate
-                    for candidate in logical_scope_batches
-                    if candidate.status
-                    in MUTABLE_BATCH_STATUSES
-                ),
-                None,
+            mutable_batches = [
+                candidate
+                for candidate in logical_scope_batches
+                if candidate.status
+                in MUTABLE_BATCH_STATUSES
+            ]
+
+            approved_batches = [
+                candidate
+                for candidate in logical_scope_batches
+                if candidate.status
+                == ImportBatchStatus.APPROVED
+            ]
+
+            exact_mutable_batches = [
+                candidate
+                for candidate in mutable_batches
+                if (
+                    candidate.period_start
+                    == review.period_start
+                    and candidate.period_end
+                    == review.period_end
+                )
+            ]
+
+            non_exact_mutable_batches = [
+                candidate
+                for candidate in mutable_batches
+                if candidate
+                not in exact_mutable_batches
+            ]
+
+            if non_exact_mutable_batches:
+                raise RawSalesDerivedReviewError(
+                    "sales_mutable_period_overlap_conflict",
+                    (
+                        "A mutable Sales batch already "
+                        "overlaps the requested period "
+                        "for this source truck."
+                    ),
+                    details={
+                        "batch_ids": [
+                            candidate.pk
+                            for candidate
+                            in non_exact_mutable_batches
+                        ],
+                    },
+                )
+
+            if len(exact_mutable_batches) > 1:
+                raise RawSalesDerivedReviewError(
+                    "sales_multiple_mutable_batches",
+                    (
+                        "More than one mutable Sales "
+                        "batch exists for the same "
+                        "source truck and period."
+                    ),
+                    details={
+                        "batch_ids": [
+                            candidate.pk
+                            for candidate
+                            in exact_mutable_batches
+                        ],
+                    },
+                )
+
+            if len(approved_batches) > 1:
+                raise RawSalesDerivedReviewError(
+                    "sales_multiple_approved_period_overlap",
+                    (
+                        "More than one approved Sales "
+                        "batch overlaps the requested "
+                        "period for this source truck."
+                    ),
+                    details={
+                        "batch_ids": [
+                            candidate.pk
+                            for candidate
+                            in approved_batches
+                        ],
+                    },
+                )
+
+            mutable_batch = (
+                exact_mutable_batches[0]
+                if exact_mutable_batches
+                else None
             )
 
-            approved_batch = next(
-                (
-                    candidate
-                    for candidate in logical_scope_batches
-                    if candidate.status
-                    == ImportBatchStatus.APPROVED
-                ),
-                None,
+            approved_batch = (
+                approved_batches[0]
+                if approved_batches
+                else None
             )
+
+            approved_same_period = False
+            approved_fully_contained = False
+
+            if approved_batch is not None:
+                approved_same_period = (
+                    approved_batch.period_start
+                    == review.period_start
+                    and approved_batch.period_end
+                    == review.period_end
+                )
+
+                approved_fully_contained = (
+                    review.period_start is not None
+                    and review.period_end is not None
+                    and approved_batch.period_start
+                    is not None
+                    and approved_batch.period_end
+                    is not None
+                    and review.period_start
+                    <= approved_batch.period_start
+                    and review.period_end
+                    >= approved_batch.period_end
+                )
+
+                if not (
+                    approved_same_period
+                    or approved_fully_contained
+                ):
+                    raise RawSalesDerivedReviewError(
+                        "sales_approved_period_overlap_conflict",
+                        (
+                            "An approved Sales batch "
+                            "overlaps the requested "
+                            "period but is not fully "
+                            "contained by it."
+                        ),
+                        details={
+                            "approved_batch_id":
+                                approved_batch.pk,
+                            "approved_period_start":
+                                str(
+                                    approved_batch
+                                    .period_start
+                                ),
+                            "approved_period_end":
+                                str(
+                                    approved_batch
+                                    .period_end
+                                ),
+                            "requested_period_start":
+                                str(
+                                    review.period_start
+                                ),
+                            "requested_period_end":
+                                str(
+                                    review.period_end
+                                ),
+                        },
+                    )
+
+            replacement_target = approved_batch
 
             if mutable_batch is not None:
                 review_result = (
@@ -397,16 +534,52 @@ def create_raw_sales_derived_import_review(
 
                 batch = review_result.batch
 
+                if replacement_target is not None:
+                    if (
+                        batch.replaces_batch_id
+                        not in {
+                            None,
+                            replacement_target.pk,
+                        }
+                    ):
+                        raise RawSalesDerivedReviewError(
+                            "sales_replacement_target_conflict",
+                            (
+                                "The mutable Sales batch "
+                                "already points to a "
+                                "different replacement "
+                                "target."
+                            ),
+                            details={
+                                "batch_id": batch.pk,
+                                "current_replaces_batch_id":
+                                    batch.replaces_batch_id,
+                                "expected_replaces_batch_id":
+                                    replacement_target.pk,
+                            },
+                        )
+
+                    if batch.replaces_batch_id is None:
+                        batch.replaces_batch = (
+                            replacement_target
+                        )
+                        batch.full_clean()
+                        batch.save(
+                            update_fields=[
+                                "replaces_batch",
+                                "updated_at",
+                            ]
+                        )
+
             elif (
                 approved_batch is not None
+                and approved_same_period
                 and approved_batch.content_sha256
                 == prepared_rows.content_sha256
             ):
                 batch = approved_batch
 
             else:
-                replacement_target = approved_batch
-
                 review_result = (
                     _persist_derived_import_review(
                         source_upload=source_upload,
