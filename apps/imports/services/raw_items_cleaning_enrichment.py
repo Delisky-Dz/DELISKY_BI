@@ -10,6 +10,7 @@ from .report_row_cleaner import (
     ReportCleaningResult,
     RowCleaningIssue,
     SEVERITY_ERROR,
+    SEVERITY_WARNING,
     STATUS_EXCLUDED,
     STATUS_STOPPED,
 )
@@ -43,6 +44,40 @@ def _quantity_issue(
         == "negative_business_quantity"
     ):
         return None
+
+    if (
+        status
+        == ItemsQuantityStatus.AMBIGUOUS_PRODUCT
+        and enrichment.total_units is not None
+        and enrichment.units_per_carton is not None
+    ):
+        return RowCleaningIssue(
+            code="items_ambiguous_product",
+            severity=SEVERITY_WARNING,
+            message=(
+                "The Items product matches multiple "
+                "source products with the same confirmed "
+                "packaging. Quantity was accepted using "
+                "packaging consensus without selecting "
+                "a product record."
+            ),
+            field=QTY_SOLD_FIELD,
+            raw_value=(
+                enrichment.business_quantity_raw
+            ),
+            details={
+                "packaging_status":
+                    status.value,
+                "match_method":
+                    enrichment.match_method,
+                "product_packaging_id":
+                    None,
+                "consensus_units_per_carton":
+                    enrichment.units_per_carton,
+                "authoritative_field":
+                    QTY_SOLD_FIELD,
+            },
+        )
 
     messages = {
         ItemsQuantityStatus.MISSING_BUSINESS_QUANTITY: (
@@ -184,6 +219,13 @@ def enrich_raw_items_cleaning_result(
         if (
             enrichment.status
             in _BLOCKING_STATUSES
+            and not (
+                enrichment.status
+                == ItemsQuantityStatus
+                .AMBIGUOUS_PRODUCT
+                and enrichment.total_units
+                is not None
+            )
         ):
             status = STATUS_EXCLUDED
 

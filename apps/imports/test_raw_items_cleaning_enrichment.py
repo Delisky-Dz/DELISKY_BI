@@ -340,3 +340,134 @@ class RawItemsCleaningEnrichmentTests(
                 for issue in row.issues
             )
         )
+
+    def test_ambiguous_product_consensus_is_accepted_with_warning(
+        self,
+    ):
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="CONS-001",
+            barcode="CONS-A",
+            designation="CONSENSUS PRODUCT",
+            units_per_carton=8,
+            needs_review=False,
+            is_active=True,
+        )
+
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="CONS-002",
+            barcode="CONS-B",
+            designation="CONSENSUS PRODUCT",
+            units_per_carton=8,
+            needs_review=False,
+            is_active=True,
+        )
+
+        result = (
+            enrich_raw_items_cleaning_result(
+                self.cleaning_result(
+                    article="CONSENSUS PRODUCT",
+                    barcode="",
+                    quantity=18,
+                    nbre_carton="2:2",
+                ),
+                source_system=self.source,
+            )
+        )
+
+        row = result.rows[0]
+        cleaned = row.cleaned_dict()
+
+        self.assertEqual(
+            row.status,
+            STATUS_ACCEPTED,
+        )
+        self.assertEqual(
+            cleaned["packaging_status"],
+            "AMBIGUOUS_PRODUCT",
+        )
+        self.assertEqual(
+            cleaned["total_units"],
+            18,
+        )
+        self.assertEqual(
+            cleaned["units_per_carton"],
+            8,
+        )
+        self.assertEqual(
+            cleaned["cartons"],
+            2,
+        )
+        self.assertEqual(
+            cleaned["pieces"],
+            2,
+        )
+        self.assertIsNone(
+            cleaned["product_packaging_id"],
+        )
+        self.assertEqual(
+            cleaned["product_match_method"],
+            "designation",
+        )
+
+        self.assertTrue(
+            any(
+                issue.code
+                == "items_ambiguous_product"
+                and issue.severity
+                == "WARNING"
+                for issue in row.issues
+            )
+        )
+
+    def test_ambiguous_product_without_consensus_remains_excluded(
+        self,
+    ):
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="NO-CONS-001",
+            barcode="NO-CONS-A",
+            designation="NO CONSENSUS PRODUCT",
+            units_per_carton=8,
+            needs_review=False,
+            is_active=True,
+        )
+
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="NO-CONS-002",
+            barcode="NO-CONS-B",
+            designation="NO CONSENSUS PRODUCT",
+            units_per_carton=10,
+            needs_review=False,
+            is_active=True,
+        )
+
+        result = (
+            enrich_raw_items_cleaning_result(
+                self.cleaning_result(
+                    article="NO CONSENSUS PRODUCT",
+                    barcode="",
+                    quantity=20,
+                ),
+                source_system=self.source,
+            )
+        )
+
+        row = result.rows[0]
+
+        self.assertEqual(
+            row.status,
+            STATUS_EXCLUDED,
+        )
+
+        self.assertTrue(
+            any(
+                issue.code
+                == "items_ambiguous_product"
+                and issue.severity
+                == "ERROR"
+                for issue in row.issues
+            )
+        )

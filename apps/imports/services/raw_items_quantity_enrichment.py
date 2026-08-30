@@ -151,9 +151,24 @@ def enrich_raw_items_quantity(
             ItemsQuantityStatus.AMBIGUOUS_PRODUCT,
     }
 
+    consensus_units = (
+        resolution.consensus_units_per_carton
+        if (
+            resolution.status
+            == PackagingResolutionStatus
+            .AMBIGUOUS_PRODUCT
+        )
+        else None
+    )
+
+    can_use_consensus = (
+        consensus_units is not None
+    )
+
     if (
         resolution.status
         != PackagingResolutionStatus.READY
+        and not can_use_consensus
     ):
         return _without_quantity(
             status=status_map[
@@ -172,17 +187,35 @@ def enrich_raw_items_quantity(
             error_code=resolution.status.value,
         )
 
-    product = resolution.product
+    if can_use_consensus:
+        product = None
+        units_per_carton = consensus_units
+        result_status = (
+            ItemsQuantityStatus
+            .AMBIGUOUS_PRODUCT
+        )
+    else:
+        product = resolution.product
 
-    assert product is not None
-    assert product.units_per_carton is not None
+        assert product is not None
+        assert (
+            product.units_per_carton
+            is not None
+        )
+
+        units_per_carton = (
+            product.units_per_carton
+        )
+        result_status = (
+            ItemsQuantityStatus.READY
+        )
 
     try:
         quantity: ProductQuantity = (
             quantity_from_total_units(
                 business_quantity_raw,
                 units_per_carton=(
-                    product.units_per_carton
+                    units_per_carton
                 ),
             )
         )
@@ -227,7 +260,7 @@ def enrich_raw_items_quantity(
         )
 
     return ItemsQuantityEnrichment(
-        status=ItemsQuantityStatus.READY,
+        status=result_status,
         product=product,
         match_method=resolution.match_method,
         source_quantity_raw=source_quantity_raw,

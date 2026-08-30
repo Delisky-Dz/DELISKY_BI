@@ -309,3 +309,127 @@ class RawItemsQuantityEnrichmentTests(TestCase):
             quantity_54.pieces,
             0,
         )
+
+    def test_ambiguous_product_with_packaging_consensus_is_usable(
+        self,
+    ):
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="AMB-001",
+            barcode="AMB-001-A",
+            designation="AMBIGUOUS SAME PACK",
+            units_per_carton=28,
+            needs_review=False,
+            is_active=True,
+        )
+
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="AMB-002",
+            barcode="AMB-001-B",
+            designation="AMBIGUOUS SAME PACK",
+            units_per_carton=28,
+            needs_review=False,
+            is_active=True,
+        )
+
+        result = enrich_raw_items_quantity(
+            {
+                "Article":
+                    "AMBIGUOUS SAME PACK",
+                QTY_SOLD_FIELD: 42,
+            },
+            source_system=self.source,
+        )
+
+        self.assertEqual(
+            result.status,
+            ItemsQuantityStatus.AMBIGUOUS_PRODUCT,
+        )
+        self.assertIsNone(
+            result.product,
+        )
+        self.assertEqual(
+            result.match_method,
+            "designation",
+        )
+        self.assertEqual(
+            result.units_per_carton,
+            28,
+        )
+        self.assertEqual(
+            result.total_units,
+            42,
+        )
+        self.assertEqual(
+            result.cartons,
+            1,
+        )
+        self.assertEqual(
+            result.pieces,
+            14,
+        )
+        self.assertEqual(
+            result.carton_quantity,
+            Decimal("1.5"),
+        )
+        self.assertEqual(
+            result.source_total_units,
+            42,
+        )
+        self.assertTrue(
+            result.quantity_matches_source
+        )
+        self.assertIsNone(
+            result.error_code,
+        )
+
+    def test_ambiguous_product_without_packaging_consensus_stays_blocked(
+        self,
+    ):
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="AMB-101",
+            barcode="AMB-101-A",
+            designation="AMBIGUOUS DIFFERENT PACK",
+            units_per_carton=8,
+            needs_review=False,
+            is_active=True,
+        )
+
+        SourceProductPackaging.objects.create(
+            source_system=self.source,
+            source_product_code="AMB-102",
+            barcode="AMB-101-B",
+            designation="AMBIGUOUS DIFFERENT PACK",
+            units_per_carton=10,
+            needs_review=False,
+            is_active=True,
+        )
+
+        result = enrich_raw_items_quantity(
+            {
+                "Article":
+                    "AMBIGUOUS DIFFERENT PACK",
+                QTY_SOLD_FIELD: 20,
+            },
+            source_system=self.source,
+        )
+
+        self.assertEqual(
+            result.status,
+            ItemsQuantityStatus.AMBIGUOUS_PRODUCT,
+        )
+        self.assertIsNone(
+            result.product,
+        )
+        self.assertIsNone(
+            result.total_units,
+        )
+        self.assertIsNone(
+            result.units_per_carton,
+        )
+        self.assertEqual(
+            result.error_code,
+            "AMBIGUOUS_PRODUCT",
+        )
