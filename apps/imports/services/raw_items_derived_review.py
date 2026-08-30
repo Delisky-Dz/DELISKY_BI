@@ -87,8 +87,8 @@ def _logical_items_scope_batches(
             ),
             brand__code__iexact=brand_code,
             report_type="ITEMS",
-            period_start=period_start,
-            period_end=period_end,
+            period_start__lte=period_end,
+            period_end__gte=period_start,
         )
         .order_by("-id")
     )
@@ -373,25 +373,138 @@ def create_raw_items_derived_import_review(
                 )
             )
 
+            mutable_batches = [
+                candidate
+                for candidate
+                in logical_scope_batches
+                if candidate.status
+                in MUTABLE_BATCH_STATUSES
+            ]
+
             mutable_batch = next(
                 (
                     candidate
-                    for candidate in logical_scope_batches
-                    if candidate.status
-                    in MUTABLE_BATCH_STATUSES
+                    for candidate
+                    in mutable_batches
+                    if (
+                        candidate.period_start
+                        == review.period_start
+                        and candidate.period_end
+                        == review.period_end
+                    )
                 ),
                 None,
             )
 
-            approved_batch = next(
-                (
-                    candidate
-                    for candidate in logical_scope_batches
-                    if candidate.status
-                    == ImportBatchStatus.APPROVED
-                ),
-                None,
-            )
+            non_exact_mutable = [
+                candidate
+                for candidate
+                in mutable_batches
+                if candidate.pk
+                != (
+                    mutable_batch.pk
+                    if mutable_batch is not None
+                    else None
+                )
+            ]
+
+            if non_exact_mutable:
+                raise RawItemsDerivedReviewError(
+                    "items_mutable_period_overlap_conflict",
+                    (
+                        "Another mutable Items batch "
+                        "overlaps this period for the "
+                        "same source truck."
+                    ),
+                    details={
+                        "batch_ids": [
+                            candidate.pk
+                            for candidate
+                            in non_exact_mutable
+                        ],
+                    },
+                )
+
+            approved_overlaps = [
+                candidate
+                for candidate
+                in logical_scope_batches
+                if candidate.status
+                == ImportBatchStatus.APPROVED
+            ]
+
+            if len(approved_overlaps) > 1:
+                raise RawItemsDerivedReviewError(
+                    "multiple_approved_items_overlaps",
+                    (
+                        "More than one approved Items "
+                        "batch overlaps the requested "
+                        "period for the same source truck. "
+                        "A single replacement cannot "
+                        "supersede them safely."
+                    ),
+                    details={
+                        "batch_ids": [
+                            candidate.pk
+                            for candidate
+                            in approved_overlaps
+                        ],
+                    },
+                )
+
+            approved_batch = None
+
+            if approved_overlaps:
+                candidate = approved_overlaps[0]
+
+                same_period = (
+                    candidate.period_start
+                    == review.period_start
+                    and candidate.period_end
+                    == review.period_end
+                )
+
+                new_period_contains_old = (
+                    review.period_start
+                    <= candidate.period_start
+                    and review.period_end
+                    >= candidate.period_end
+                )
+
+                if not (
+                    same_period
+                    or new_period_contains_old
+                ):
+                    raise RawItemsDerivedReviewError(
+                        "items_period_overlap_conflict",
+                        (
+                            "The requested Items period "
+                            "overlaps an approved batch "
+                            "without fully containing it."
+                        ),
+                        details={
+                            "approved_batch_id":
+                                candidate.pk,
+                            "approved_period_start":
+                                str(
+                                    candidate.period_start
+                                ),
+                            "approved_period_end":
+                                str(
+                                    candidate.period_end
+                                ),
+                            "requested_period_start":
+                                str(
+                                    review.period_start
+                                ),
+                            "requested_period_end":
+                                str(
+                                    review.period_end
+                                ),
+                        },
+                    )
+
+                approved_batch = candidate
 
             if mutable_batch is not None:
                 review_result = (
@@ -416,6 +529,7 @@ def create_raw_items_derived_import_review(
 
             elif (
                 approved_batch is not None
+                and same_period
                 and approved_batch.content_sha256
                 == prepared_rows.content_sha256
             ):

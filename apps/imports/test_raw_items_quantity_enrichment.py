@@ -33,7 +33,7 @@ class RawItemsQuantityEnrichmentTests(TestCase):
             is_active=True,
         )
 
-    def test_qte_cartons_are_authoritative(self):
+    def test_qte_total_units_are_authoritative(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
@@ -47,19 +47,19 @@ class RawItemsQuantityEnrichmentTests(TestCase):
             result.status,
             ItemsQuantityStatus.READY,
         )
-        self.assertEqual(result.total_units, 32)
+        self.assertEqual(result.total_units, 4)
         self.assertEqual(result.units_per_carton, 8)
-        self.assertEqual(result.cartons, 4)
-        self.assertEqual(result.pieces, 0)
+        self.assertEqual(result.cartons, 0)
+        self.assertEqual(result.pieces, 4)
         self.assertEqual(
             result.carton_quantity,
-            Decimal("4"),
+            Decimal("0.5"),
         )
         self.assertTrue(
             result.quantity_matches_source
         )
 
-    def test_decimal_cartons_convert_exactly(self):
+    def test_fractional_total_units_are_rejected(self):
         result = enrich_raw_items_quantity(
             {
                 "Article": "BALBON FRUITE",
@@ -71,14 +71,12 @@ class RawItemsQuantityEnrichmentTests(TestCase):
 
         self.assertEqual(
             result.status,
-            ItemsQuantityStatus.READY,
+            ItemsQuantityStatus.INVALID_BUSINESS_QUANTITY,
         )
-        self.assertEqual(result.total_units, 34)
-        self.assertEqual(result.cartons, 4)
-        self.assertEqual(result.pieces, 2)
+        self.assertIsNone(result.total_units)
         self.assertEqual(
-            result.carton_quantity,
-            Decimal("4.25"),
+            result.error_code,
+            "fractional_total_units",
         )
 
     def test_nbre_carton_is_not_authoritative(self):
@@ -96,12 +94,12 @@ class RawItemsQuantityEnrichmentTests(TestCase):
             result.status,
             ItemsQuantityStatus.READY,
         )
-        self.assertEqual(result.total_units, 264)
-        self.assertEqual(result.cartons, 33)
-        self.assertEqual(result.pieces, 0)
+        self.assertEqual(result.total_units, 33)
+        self.assertEqual(result.cartons, 4)
+        self.assertEqual(result.pieces, 1)
         self.assertEqual(
             result.source_total_units,
-            264,
+            33,
         )
         self.assertTrue(
             result.quantity_matches_source
@@ -165,7 +163,7 @@ class RawItemsQuantityEnrichmentTests(TestCase):
         self.assertIsNone(result.total_units)
         self.assertEqual(
             result.error_code,
-            "missing_items_carton_quantity",
+            "missing_items_total_units",
         )
 
     def test_invalid_qte_is_reported(self):
@@ -227,4 +225,87 @@ class RawItemsQuantityEnrichmentTests(TestCase):
             result.match_method,
             "barcode",
         )
-        self.assertEqual(result.total_units, 8)
+        self.assertEqual(result.total_units, 1)
+
+    def test_real_items_total_unit_regression_examples(
+        self,
+    ):
+        product_48 = (
+            SourceProductPackaging.objects.create(
+                source_system=self.source,
+                source_product_code="REAL-48",
+                barcode="REAL-UPC-48",
+                designation="REAL PRODUCT UPC 48",
+                units_per_carton=48,
+                needs_review=False,
+                is_active=True,
+            )
+        )
+
+        product_18 = (
+            SourceProductPackaging.objects.create(
+                source_system=self.source,
+                source_product_code="REAL-18",
+                barcode="REAL-UPC-18",
+                designation="REAL PRODUCT UPC 18",
+                units_per_carton=18,
+                needs_review=False,
+                is_active=True,
+            )
+        )
+
+        quantity_144 = enrich_raw_items_quantity(
+            {
+                "Article":
+                    product_48.designation,
+                "Barcode":
+                    product_48.barcode,
+                QTY_SOLD_FIELD: 144,
+            },
+            source_system=self.source,
+        )
+
+        self.assertEqual(
+            quantity_144.status,
+            ItemsQuantityStatus.READY,
+        )
+        self.assertEqual(
+            quantity_144.total_units,
+            144,
+        )
+        self.assertEqual(
+            quantity_144.cartons,
+            3,
+        )
+        self.assertEqual(
+            quantity_144.pieces,
+            0,
+        )
+
+        quantity_54 = enrich_raw_items_quantity(
+            {
+                "Article":
+                    product_18.designation,
+                "Barcode":
+                    product_18.barcode,
+                QTY_SOLD_FIELD: 54,
+            },
+            source_system=self.source,
+        )
+
+        self.assertEqual(
+            quantity_54.status,
+            ItemsQuantityStatus.READY,
+        )
+        self.assertEqual(
+            quantity_54.total_units,
+            54,
+        )
+        self.assertEqual(
+            quantity_54.cartons,
+            3,
+        )
+        self.assertEqual(
+            quantity_54.pieces,
+            0,
+        )

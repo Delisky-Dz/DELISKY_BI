@@ -34,11 +34,11 @@ def _quantity_issue(
 
     messages = {
         ItemsQuantityStatus.MISSING_BUSINESS_QUANTITY: (
-            "The official Items Qte carton quantity "
+            "The official Items Qte total-unit quantity "
             "is missing."
         ),
         ItemsQuantityStatus.INVALID_BUSINESS_QUANTITY: (
-            "The official Items Qte carton quantity "
+            "The official Items Qte total-unit quantity "
             "is invalid."
         ),
         ItemsQuantityStatus.UNKNOWN_PRODUCT: (

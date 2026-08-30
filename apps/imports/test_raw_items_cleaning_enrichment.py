@@ -113,7 +113,7 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["total_units"],
-            272,
+            34,
         )
         self.assertEqual(
             cleaned["units_per_carton"],
@@ -121,15 +121,15 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["cartons"],
-            34,
+            4,
         )
         self.assertEqual(
             cleaned["pieces"],
-            0,
+            2,
         )
         self.assertEqual(
             cleaned["carton_quantity"],
-            "34",
+            "4.25",
         )
         self.assertEqual(
             cleaned["product_packaging_id"],
@@ -137,14 +137,14 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["source_quantity"],
-            272,
+            34,
         )
         self.assertTrue(
             cleaned["quantity_matches_source"]
         )
 
-        # Legacy cleaner value remains the source Qte
-        # carton count; Analytics uses total_units.
+        # Legacy cleaner value remains the source Qte.
+        # Qte and total_units represent the same units.
         self.assertEqual(
             cleaned["quantity_sold"],
             34,
@@ -172,19 +172,19 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["total_units"],
-            264,
-        )
-        self.assertEqual(
-            cleaned["cartons"],
             33,
         )
         self.assertEqual(
+            cleaned["cartons"],
+            4,
+        )
+        self.assertEqual(
             cleaned["pieces"],
-            0,
+            1,
         )
         self.assertEqual(
             cleaned["source_quantity"],
-            264,
+            33,
         )
         self.assertTrue(
             cleaned["quantity_matches_source"]
@@ -253,15 +253,15 @@ class RawItemsCleaningEnrichmentTests(
         )
         self.assertEqual(
             cleaned["total_units"],
-            272,
-        )
-        self.assertEqual(
-            cleaned["cartons"],
             34,
         )
         self.assertEqual(
+            cleaned["cartons"],
+            4,
+        )
+        self.assertEqual(
             cleaned["pieces"],
-            0,
+            2,
         )
 
     def test_stopped_row_is_left_untouched(

@@ -11,7 +11,7 @@ from apps.imports.models import (
 from .product_quantity import (
     ProductQuantity,
     ProductQuantityError,
-    quantity_from_carton_value,
+    quantity_from_total_units,
 )
 from .source_product_packaging_resolver import (
     PackagingResolutionStatus,
@@ -103,11 +103,11 @@ def enrich_raw_items_quantity(
     source_system: ImportSourceSystem,
 ) -> ItemsQuantityEnrichment:
     """
-    Interpret Items Qte as sold CARTONS.
+    Interpret Items Qte as sold TOTAL UNITS.
 
-    This rule was verified directly against both real
-    source applications. Product Master packaging is
-    used to convert cartons into exact total units.
+    Qte is the authoritative source quantity.
+    Product Master packaging is used only to derive
+    carton and piece presentation from total units.
     """
     source_quantity_raw = row.get(
         QTY_SOLD_FIELD
@@ -132,7 +132,7 @@ def enrich_raw_items_quantity(
                 business_quantity_raw
             ),
             error_code=(
-                "missing_items_carton_quantity"
+                "missing_items_total_units"
             ),
         )
 
@@ -179,7 +179,7 @@ def enrich_raw_items_quantity(
 
     try:
         quantity: ProductQuantity = (
-            quantity_from_carton_value(
+            quantity_from_total_units(
                 business_quantity_raw,
                 units_per_carton=(
                     product.units_per_carton

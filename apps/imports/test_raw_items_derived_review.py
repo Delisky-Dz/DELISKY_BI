@@ -19,9 +19,11 @@ from apps.imports.models import (
     SourceTruckMapping,
 )
 from apps.imports.services.batch_approval import (
+    ImportBatchApprovalError,
     approve_import_batch,
 )
 from apps.imports.services.raw_items_derived_review import (
+    RawItemsDerivedReviewError,
     create_raw_items_derived_import_review,
 )
 
@@ -194,6 +196,8 @@ class RawItemsDerivedReviewTests(TestCase):
         filename,
         payload,
         source_system_code,
+        period_start="2026-08-01",
+        period_end="2026-08-18",
     ):
         return (
             create_raw_items_derived_import_review(
@@ -205,8 +209,8 @@ class RawItemsDerivedReviewTests(TestCase):
                     source_system_code
                 ),
                 uploaded_by=self.user,
-                period_start="2026-08-01",
-                period_end="2026-08-18",
+                period_start=period_start,
+                period_end=period_end,
             )
         )
 
@@ -445,4 +449,446 @@ class RawItemsDerivedReviewTests(TestCase):
         self.assertEqual(
             ImportBatch.objects.count(),
             2,
+        )
+
+    def test_wider_historical_items_period_replaces_contained_batch(
+        self,
+    ):
+        first_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    10,
+                    1000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        historical_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    12,
+                    1200,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        first = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=first_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-08-01",
+            period_end="2026-08-18",
+        )
+
+        approve_import_batch(
+            first.batch,
+            approved_by=self.user,
+        )
+
+        historical = self.create_review(
+            filename=(
+                "DCV-03 "
+                "items_2026-04-04_to_2026-08-26.xlsx"
+            ),
+            payload=historical_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-04-04",
+            period_end="2026-08-26",
+        )
+
+        self.assertEqual(
+            historical.batch.status,
+            ImportBatchStatus.REVIEWED,
+        )
+        self.assertEqual(
+            historical.batch.replaces_batch_id,
+            first.batch.pk,
+        )
+
+        approve_import_batch(
+            historical.batch,
+            approved_by=self.user,
+        )
+
+        first.batch.refresh_from_db()
+        historical.batch.refresh_from_db()
+
+        self.assertEqual(
+            first.batch.status,
+            ImportBatchStatus.SUPERSEDED,
+        )
+        self.assertEqual(
+            historical.batch.status,
+            ImportBatchStatus.APPROVED,
+        )
+
+    def test_rejects_partial_items_period_overlap(
+        self,
+    ):
+        first_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    10,
+                    1000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        overlap_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    13,
+                    1300,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        first = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=first_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-08-01",
+            period_end="2026-08-18",
+        )
+
+        approve_import_batch(
+            first.batch,
+            approved_by=self.user,
+        )
+
+        with self.assertRaises(
+            RawItemsDerivedReviewError,
+        ) as context:
+            self.create_review(
+                filename=(
+                    "DCV-03 "
+                    "items_2026-08-10_to_2026-08-26.xlsx"
+                ),
+                payload=overlap_payload,
+                source_system_code="BIFA_MILA",
+                period_start="2026-08-10",
+                period_end="2026-08-26",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "items_period_overlap_conflict",
+        )
+
+    def test_rejects_multiple_approved_items_overlaps(
+        self,
+    ):
+        first_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    20,
+                    2000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        second_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    21,
+                    2100,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        wider_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    22,
+                    2200,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        first = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=first_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-04-04",
+            period_end="2026-05-31",
+        )
+
+        approve_import_batch(
+            first.batch,
+            approved_by=self.user,
+        )
+
+        second = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=second_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-06-01",
+            period_end="2026-07-31",
+        )
+
+        approve_import_batch(
+            second.batch,
+            approved_by=self.user,
+        )
+
+        with self.assertRaises(
+            RawItemsDerivedReviewError,
+        ) as context:
+            self.create_review(
+                filename=(
+                    "DCV-03 "
+                    "items_2026-04-04_to_2026-08-26.xlsx"
+                ),
+                payload=wider_payload,
+                source_system_code="BIFA_MILA",
+                period_start="2026-04-04",
+                period_end="2026-08-26",
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "multiple_approved_items_overlaps",
+        )
+
+    def test_approval_rechecks_source_truck_for_wider_items_replacement(
+        self,
+    ):
+        first_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    30,
+                    3000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        historical_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    31,
+                    3100,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        first = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=first_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-08-01",
+            period_end="2026-08-18",
+        )
+
+        approve_import_batch(
+            first.batch,
+            approved_by=self.user,
+        )
+
+        historical = self.create_review(
+            filename=(
+                "DCV-03 "
+                "items_2026-04-04_to_2026-08-26.xlsx"
+            ),
+            payload=historical_payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-04-04",
+            period_end="2026-08-26",
+        )
+
+        historical.source_upload.original_filename = (
+            "DCV-07 "
+            "items_2026-04-04_to_2026-08-26.xlsx"
+        )
+        historical.source_upload.save(
+            update_fields=[
+                "original_filename",
+                "updated_at",
+            ]
+        )
+
+        with self.assertRaises(
+            ImportBatchApprovalError,
+        ) as context:
+            approve_import_batch(
+                historical.batch,
+                approved_by=self.user,
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "replacement_scope_mismatch",
+        )
+
+        first.batch.refresh_from_db()
+        historical.batch.refresh_from_db()
+
+        self.assertEqual(
+            first.batch.status,
+            ImportBatchStatus.APPROVED,
+        )
+        self.assertEqual(
+            historical.batch.status,
+            ImportBatchStatus.REVIEWED,
+        )
+
+    def test_wider_same_content_still_creates_replacement(
+        self,
+    ):
+        payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    40,
+                    4000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        first = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-08-01",
+            period_end="2026-08-18",
+        )
+
+        approve_import_batch(
+            first.batch,
+            approved_by=self.user,
+        )
+
+        historical = self.create_review(
+            filename=(
+                "DCV-03 "
+                "items_2026-04-04_to_2026-08-26.xlsx"
+            ),
+            payload=payload,
+            source_system_code="BIFA_MILA",
+            period_start="2026-04-04",
+            period_end="2026-08-26",
+        )
+
+        self.assertNotEqual(
+            historical.batch.pk,
+            first.batch.pk,
+        )
+
+        self.assertEqual(
+            historical.batch.replaces_batch_id,
+            first.batch.pk,
+        )
+
+        self.assertEqual(
+            historical.batch.status,
+            ImportBatchStatus.REVIEWED,
+        )
+
+    def test_approval_rechecks_source_truck_for_exact_items_replacement(
+        self,
+    ):
+        first_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    50,
+                    5000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        replacement_payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    51,
+                    5100,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        first = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=first_payload,
+            source_system_code="BIFA_MILA",
+        )
+
+        approve_import_batch(
+            first.batch,
+            approved_by=self.user,
+        )
+
+        replacement = self.create_review(
+            filename="DCV-03 items.xlsx",
+            payload=replacement_payload,
+            source_system_code="BIFA_MILA",
+        )
+
+        replacement.source_upload.original_filename = (
+            "DCV-07 items.xlsx"
+        )
+
+        replacement.source_upload.save(
+            update_fields=[
+                "original_filename",
+                "updated_at",
+            ]
+        )
+
+        with self.assertRaises(
+            ImportBatchApprovalError,
+        ) as context:
+            approve_import_batch(
+                replacement.batch,
+                approved_by=self.user,
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "replacement_scope_mismatch",
+        )
+
+        first.batch.refresh_from_db()
+        replacement.batch.refresh_from_db()
+
+        self.assertEqual(
+            first.batch.status,
+            ImportBatchStatus.APPROVED,
+        )
+
+        self.assertEqual(
+            replacement.batch.status,
+            ImportBatchStatus.REVIEWED,
         )

@@ -10,7 +10,14 @@ from django.utils import timezone
 from apps.imports.models import (
     ImportBatch,
     ImportBatchStatus,
+    ImportReportType,
     ImportRowStatus,
+)
+
+
+from .raw_items_file import (
+    RawItemsFileError,
+    source_truck_code_from_filename,
 )
 
 
@@ -146,6 +153,134 @@ def _validate_staged_rows(
         )
 
 
+def _validate_replacement_scope(
+    replacement: ImportBatch,
+    replaced: ImportBatch,
+) -> None:
+    same_identity = (
+        replaced.brand_id
+        == replacement.brand_id
+        and replaced.report_type
+        == replacement.report_type
+    )
+
+    if not same_identity:
+        raise ImportBatchApprovalError(
+            "replacement_scope_mismatch",
+            (
+                "The replacement batch must match "
+                "the original brand and report type."
+            ),
+        )
+
+    same_period = (
+        replaced.period_start
+        == replacement.period_start
+        and replaced.period_end
+        == replacement.period_end
+    )
+
+    wider_items_period = (
+        replacement.report_type
+        == ImportReportType.ITEMS
+        and replacement.period_start is not None
+        and replacement.period_end is not None
+        and replaced.period_start is not None
+        and replaced.period_end is not None
+        and replacement.period_start
+        <= replaced.period_start
+        and replacement.period_end
+        >= replaced.period_end
+    )
+
+    if not (
+        same_period
+        or wider_items_period
+    ):
+        raise ImportBatchApprovalError(
+            "replacement_scope_mismatch",
+            (
+                "A replacement must use the same "
+                "period. An ITEMS replacement may "
+                "fully contain the old period."
+            ),
+        )
+
+    if (
+        replacement.report_type
+        != ImportReportType.ITEMS
+    ):
+        return
+
+    if (
+        replacement.source_upload_id is None
+        or replaced.source_upload_id is None
+    ):
+        raise ImportBatchApprovalError(
+            "replacement_scope_mismatch",
+            (
+                "An ITEMS replacement requires "
+                "source upload identity on both batches."
+            ),
+        )
+
+    if (
+        replacement.source_upload.source_system_id
+        != replaced.source_upload.source_system_id
+    ):
+        raise ImportBatchApprovalError(
+            "replacement_scope_mismatch",
+            (
+                "An ITEMS replacement must use "
+                "the same source system."
+            ),
+        )
+
+    try:
+        replacement_truck = (
+            source_truck_code_from_filename(
+                replacement
+                .source_upload
+                .original_filename
+            )
+        )
+
+        replaced_truck = (
+            source_truck_code_from_filename(
+                replaced
+                .source_upload
+                .original_filename
+            )
+        )
+    except RawItemsFileError as exc:
+        raise ImportBatchApprovalError(
+            "replacement_scope_mismatch",
+            (
+                "The source truck identity could not "
+                "be verified for the ITEMS replacement."
+            ),
+            details={
+                "source_error": exc.code,
+            },
+        ) from exc
+
+    if replacement_truck != replaced_truck:
+        raise ImportBatchApprovalError(
+            "replacement_scope_mismatch",
+            (
+                "An ITEMS replacement must belong "
+                "to the same source truck."
+            ),
+            details={
+                "replacement_source_truck":
+                    replacement_truck,
+                "replaced_source_truck":
+                    replaced_truck,
+            },
+        )
+
+
+
 def approve_import_batch(
     batch: ImportBatch | int,
     *,
@@ -278,30 +413,10 @@ def approve_import_batch(
                         },
                     )
 
-                if (
-                    superseded_batch.brand_id
-                    != locked_batch.brand_id
-                    or (
-                        superseded_batch.report_type
-                        != locked_batch.report_type
-                    )
-                    or (
-                        superseded_batch.period_start
-                        != locked_batch.period_start
-                    )
-                    or (
-                        superseded_batch.period_end
-                        != locked_batch.period_end
-                    )
-                ):
-                    raise ImportBatchApprovalError(
-                        "replacement_scope_mismatch",
-                        (
-                            "The replacement batch must "
-                            "match the original brand, "
-                            "report type and period."
-                        ),
-                    )
+                _validate_replacement_scope(
+                    locked_batch,
+                    superseded_batch,
+                )
 
                 superseded_batch.status = (
                     ImportBatchStatus.SUPERSEDED

@@ -1298,16 +1298,43 @@ class ImportBatch(models.Model):
             elif (
                 self.period_start
                 and self.period_end
-                and (
-                    self.replaces_batch.period_start != self.period_start
-                    or self.replaces_batch.period_end != self.period_end
-                )
             ):
-                errors["replaces_batch"] = (
-                    "\u064a\u062c\u0628 \u0623\u0646 \u062a\u062e\u0635 "
-                    "\u0627\u0644\u062f\u0641\u0639\u0629 \u0627\u0644\u0645\u0635\u062d\u062d\u0629 "
-                    "\u0646\u0641\u0633 \u0627\u0644\u0641\u062a\u0631\u0629."
+                replaced_period_matches = (
+                    self.replaces_batch.period_start
+                    == self.period_start
+                    and self.replaces_batch.period_end
+                    == self.period_end
                 )
+
+                items_period_contains_replaced = (
+                    self.report_type
+                    == ImportReportType.ITEMS
+                    and (
+                        self.replaces_batch
+                        .period_start
+                        is not None
+                    )
+                    and (
+                        self.replaces_batch
+                        .period_end
+                        is not None
+                    )
+                    and self.period_start
+                    <= self.replaces_batch.period_start
+                    and self.period_end
+                    >= self.replaces_batch.period_end
+                )
+
+                if not (
+                    replaced_period_matches
+                    or items_period_contains_replaced
+                ):
+                    errors["replaces_batch"] = (
+                        "A replacement must use the same "
+                        "period. An ITEMS replacement may "
+                        "instead fully contain the period "
+                        "of the batch it replaces."
+                    )
 
         if (
             self.status == ImportBatchStatus.APPROVED

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -132,10 +133,27 @@ def source_truck_code_from_filename(
 ) -> str:
     stem = Path(filename).stem.strip().upper()
 
-    suffix = " ITEMS"
+    match = re.fullmatch(
+        (
+            r"(?P<source>.+?)"
+            r"[\s_-]+ITEMS"
+            r"(?:"
+            r"[\s_-]+"
+            r"\d{4}-\d{2}-\d{2}"
+            r"[\s_-]+TO[\s_-]+"
+            r"\d{4}-\d{2}-\d{2}"
+            r")?"
+        ),
+        stem,
+        flags=re.IGNORECASE,
+    )
 
-    if stem.endswith(suffix):
-        stem = stem[:-len(suffix)].strip()
+    if match is not None:
+        stem = (
+            match.group("source")
+            .strip()
+            .upper()
+        )
 
     if not stem:
         raise RawItemsFileError(
@@ -147,6 +165,7 @@ def source_truck_code_from_filename(
         )
 
     return stem
+
 
 def _is_export_summary_footer(
     raw_row: dict[object, object],
