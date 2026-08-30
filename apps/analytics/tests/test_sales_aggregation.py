@@ -508,6 +508,41 @@ class SalesAggregationTests(TestCase):
             "NO_ASSIGNMENT",
         )
 
+    def test_negative_sale_is_not_counted_as_zero(
+        self,
+    ):
+        from apps.analytics.services.sales_aggregation import (
+            _SalesAccumulator,
+        )
+
+        accumulator = _SalesAccumulator()
+
+        accumulator.add(
+            Decimal("-1946.67")
+        )
+
+        metrics = accumulator.freeze()
+
+        self.assertEqual(
+            metrics.total_sales,
+            Decimal("-1946.67"),
+        )
+
+        self.assertEqual(
+            metrics.sale_record_count,
+            1,
+        )
+
+        self.assertEqual(
+            metrics.positive_sale_record_count,
+            0,
+        )
+
+        self.assertEqual(
+            metrics.zero_total_record_count,
+            0,
+        )
+
     def test_zero_total_sale_is_counted_separately(self):
         truck = self.create_truck(
             5,

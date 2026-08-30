@@ -644,8 +644,8 @@ def _clean_sales(
             issues.append(
                 _issue(
                     "negative_total",
-                    SEVERITY_ERROR,
-                    "Negative sale totals are not allowed.",
+                    SEVERITY_WARNING,
+                    "The sale total is negative.",
                     field_name="Total",
                     raw_value=raw.get("Total"),
                 )

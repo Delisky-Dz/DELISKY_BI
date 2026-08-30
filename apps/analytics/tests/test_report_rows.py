@@ -264,6 +264,38 @@ class ReportRowsTests(TestCase):
             "test region",
         )
 
+    def test_parses_negative_sales_return_row(self):
+        batch = self.create_batch(
+            103,
+            ImportReportType.SALES,
+        )
+
+        row = self.create_row(
+            batch,
+            103,
+            {
+                **self.base_cleaned_data(),
+                "sale_datetime": "2026-07-04T10:30:45",
+                "client": "Return Client",
+                "client_normalized": "return client",
+                "total": "-1946.67",
+                "region": "Test Region",
+                "region_normalized": "test region",
+            },
+        )
+
+        result = parse_sales_row(row)
+
+        self.assertIsInstance(
+            result,
+            SalesAnalyticalRow,
+        )
+
+        self.assertEqual(
+            result.total,
+            Decimal("-1946.67"),
+        )
+
     def test_parses_item_row_at_period_level(self):
         batch = self.create_batch(
             4,

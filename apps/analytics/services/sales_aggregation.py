@@ -177,7 +177,7 @@ class _SalesAccumulator:
 
         if total > 0:
             self.positive_sale_record_count += 1
-        else:
+        elif total == 0:
             self.zero_total_record_count += 1
 
     def freeze(self) -> SalesMetrics:

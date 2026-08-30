@@ -339,11 +339,6 @@ def parse_sales_row(
             "total",
         )
 
-        _require_non_negative(
-            row,
-            total,
-            "total",
-        )
         _require_date_inside_batch(
             row,
             sale_datetime.date(),

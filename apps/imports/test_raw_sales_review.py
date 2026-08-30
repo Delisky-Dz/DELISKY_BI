@@ -247,6 +247,49 @@ class RawSalesReviewTests(SimpleTestCase):
             "invalid_period_range",
         )
 
+    def test_negative_sales_total_is_accepted_with_warning(
+        self,
+    ):
+        source = build_sales_excel(
+            [
+                [
+                    "VDD-RETURN",
+                    "18/08/2026 10:00:00",
+                    "Client Return",
+                    -1946.67,
+                    -1946.67,
+                    "MILA",
+                    -1946.67,
+                ],
+            ],
+            filename="DCV-03.xlsx",
+        )
+
+        result = prepare_raw_sales_review(
+            source,
+            truck_mapping=self.mapping,
+            period_start="2026-08-18",
+            period_end="2026-08-18",
+        )
+
+        row = result.cleaning_result.rows[0]
+
+        self.assertEqual(
+            row.status,
+            "ACCEPTED",
+        )
+
+        negative_issue = next(
+            issue
+            for issue in row.issues
+            if issue.code == "negative_total"
+        )
+
+        self.assertEqual(
+            negative_issue.severity,
+            "WARNING",
+        )
+
     def test_missing_datetime_is_rejected(self):
         source = build_sales_excel(
             [
