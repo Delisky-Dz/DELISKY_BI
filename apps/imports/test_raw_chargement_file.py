@@ -680,3 +680,194 @@ class RawChargementFileTests(SimpleTestCase):
             ],
             "source_truck_not_mapped",
         )
+
+    def test_explicit_source_exclusion_skips_row_and_preserves_footer_detection(
+        self,
+    ):
+        from io import BytesIO
+
+        from openpyxl import Workbook
+
+        from apps.imports.services.raw_chargement_file import (
+            adapt_raw_chargement_file,
+        )
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Barcode",
+                "Qt\u00e9",
+                "De l'emplacement",
+                "Vers l'emplacement",
+                "Cl\u00e9",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "04/04/2026 10:00:00",
+                "ARTICLE DELISKY",
+                None,
+                10,
+                "DEPOT DELISKY",
+                "VAN1-DELISKY",
+                "CH-1",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "04/04/2026 11:00:00",
+                "ARTICLE ABIA",
+                None,
+                -2,
+                "DEPOT ABIA FOOD",
+                "VAN1-ABIA",
+                "CH-2",
+            ]
+        )
+
+        # Export summary footer:
+        # Article contains the number of real source rows.
+        worksheet.append(
+            [
+                None,
+                2,
+                None,
+                "8,000",
+                None,
+                None,
+                None,
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+        output.seek(0)
+
+        result = adapt_raw_chargement_file(
+            output,
+            truck_mapping={
+                "VAN1-DELISKY": "DELISKY LIV01",
+            },
+            source_exclusions={
+                "VAN1-ABIA": "OUT_OF_SCOPE",
+            },
+            original_filename="chargement.xlsx",
+        )
+
+        self.assertEqual(
+            len(result.rows),
+            1,
+        )
+
+        self.assertEqual(
+            result.rows[0].values["VAN"],
+            "DELISKY LIV01",
+        )
+
+        self.assertEqual(
+            len(result.excluded_source_rows),
+            1,
+        )
+
+        excluded = result.excluded_source_rows[0]
+
+        self.assertEqual(
+            excluded.excel_row_number,
+            3,
+        )
+        self.assertEqual(
+            excluded.source_code,
+            "VAN1-ABIA",
+        )
+        self.assertEqual(
+            excluded.reason,
+            "OUT_OF_SCOPE",
+        )
+        self.assertEqual(
+            excluded.article,
+            "ARTICLE ABIA",
+        )
+        self.assertEqual(
+            excluded.quantity_raw,
+            -2,
+        )
+        self.assertEqual(
+            excluded.document_key,
+            "CH-2",
+        )
+
+    def test_unknown_source_code_is_not_silently_excluded(
+        self,
+    ):
+        from io import BytesIO
+
+        from openpyxl import Workbook
+
+        from apps.imports.services.raw_chargement_file import (
+            RawChargementFileError,
+            adapt_raw_chargement_file,
+        )
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Qt\u00e9",
+                "Vers l'emplacement",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "04/04/2026 10:00:00",
+                "ARTICLE TEST",
+                10,
+                "VAN4-DELISKY",
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+        output.seek(0)
+
+        with self.assertRaises(
+            RawChargementFileError
+        ) as context:
+            adapt_raw_chargement_file(
+                output,
+                truck_mapping={
+                    "VAN1-DELISKY":
+                        "DELISKY LIV01",
+                },
+                source_exclusions={
+                    "VAN1-ABIA":
+                        "OUT_OF_SCOPE",
+                },
+                original_filename=(
+                    "chargement.xlsx"
+                ),
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "row_adaptation_failed",
+        )
+        self.assertEqual(
+            context.exception.details[
+                "cause_code"
+            ],
+            "source_truck_not_mapped",
+        )

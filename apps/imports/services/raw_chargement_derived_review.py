@@ -41,6 +41,7 @@ from .review_summary import (
 )
 from .row_staging import prepare_import_rows
 from .source_truck_mapping_store import (
+    build_source_truck_exclusions,
     build_source_truck_mapping,
 )
 from .source_upload_store import (
@@ -177,6 +178,33 @@ def _validate_raw_chargement_period(
             )
 
 
+def _logical_chargement_scope_batches(
+    *,
+    source_system_code: str,
+    brand_code: str,
+    period_start: Any,
+    period_end: Any,
+) -> tuple[ImportBatch, ...]:
+    return tuple(
+        ImportBatch.objects
+        .select_related(
+            "source_upload",
+            "source_upload__source_system",
+        )
+        .filter(
+            source_upload__isnull=False,
+            source_upload__source_system__code__iexact=(
+                source_system_code
+            ),
+            brand__code__iexact=brand_code,
+            report_type="CHARGEMENT",
+            period_start__lte=period_end,
+            period_end__gte=period_start,
+        )
+        .order_by("-id")
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class RawChargementDerivedReviewResult:
     source_upload: ImportSourceUpload
@@ -227,6 +255,12 @@ def create_raw_chargement_derived_import_reviews(
         source_system_code
     )
 
+    source_exclusions = (
+        build_source_truck_exclusions(
+            source_system_code
+        )
+    )
+
     source_system = (
         ImportSourceSystem.objects.get(
             code__iexact=source_system_code,
@@ -237,6 +271,7 @@ def create_raw_chargement_derived_import_reviews(
     adapted = adapt_raw_chargement_file(
         source,
         truck_mapping=truck_mapping,
+        source_exclusions=source_exclusions,
         original_filename=original_filename,
     )
 
@@ -269,6 +304,77 @@ def create_raw_chargement_derived_import_reviews(
 
             source_upload = (
                 source_upload_result.source_upload
+            )
+
+            def _json_safe_audit_value(value):
+                if value is None:
+                    return None
+
+                if isinstance(
+                    value,
+                    (str, int, float, bool),
+                ):
+                    return value
+
+                return str(value)
+
+            audit_metadata = dict(
+                source_upload.audit_metadata
+                or {}
+            )
+
+            audit_metadata[
+                "chargement_source_exclusions"
+            ] = {
+                "count": len(
+                    adapted.excluded_source_rows
+                ),
+                "rows": [
+                    {
+                        "excel_row_number": (
+                            excluded.excel_row_number
+                        ),
+                        "source_code": (
+                            excluded.source_code
+                        ),
+                        "reason": (
+                            excluded.reason
+                        ),
+                        "date_time": (
+                            _json_safe_audit_value(
+                                excluded.raw_datetime
+                            )
+                        ),
+                        "article": (
+                            _json_safe_audit_value(
+                                excluded.article
+                            )
+                        ),
+                        "quantity": (
+                            _json_safe_audit_value(
+                                excluded.quantity_raw
+                            )
+                        ),
+                        "document_key": (
+                            _json_safe_audit_value(
+                                excluded.document_key
+                            )
+                        ),
+                    }
+                    for excluded
+                    in adapted.excluded_source_rows
+                ],
+            }
+
+            source_upload.audit_metadata = (
+                audit_metadata
+            )
+
+            source_upload.save(
+                update_fields=[
+                    "audit_metadata",
+                    "updated_at",
+                ]
             )
 
             for brand_code in sorted(rows_by_brand):
@@ -313,6 +419,133 @@ def create_raw_chargement_derived_import_reviews(
                     cleaning_result
                 )
 
+                logical_scope_batches = (
+                    _logical_chargement_scope_batches(
+                        source_system_code=source_system_code,
+                        brand_code=brand_code,
+                        period_start=normalized_period_start,
+                        period_end=normalized_period_end,
+                    )
+                )
+
+                conflicting_mutable_batches = [
+                    candidate
+                    for candidate in logical_scope_batches
+                    if (
+                        candidate.status
+                        in MUTABLE_BATCH_STATUSES
+                        and not (
+                            candidate.source_upload_id
+                            == source_upload.pk
+                            and candidate.period_start
+                            == normalized_period_start
+                            and candidate.period_end
+                            == normalized_period_end
+                        )
+                    )
+                ]
+
+                if conflicting_mutable_batches:
+                    raise RawChargementImportReviewError(
+                        "chargement_mutable_period_overlap_conflict",
+                        (
+                            "Another mutable Chargement batch "
+                            "overlaps the requested period for "
+                            "the same source system and brand."
+                        ),
+                        details={
+                            "brand_code": brand_code,
+                            "batch_ids": [
+                                candidate.pk
+                                for candidate
+                                in conflicting_mutable_batches
+                            ],
+                        },
+                    )
+
+                approved_overlaps = [
+                    candidate
+                    for candidate in logical_scope_batches
+                    if (
+                        candidate.status
+                        == ImportBatchStatus.APPROVED
+                    )
+                ]
+
+                if len(approved_overlaps) > 1:
+                    raise RawChargementImportReviewError(
+                        "multiple_approved_chargement_overlaps",
+                        (
+                            "More than one approved Chargement "
+                            "batch overlaps the requested period "
+                            "for the same source system and brand."
+                        ),
+                        details={
+                            "brand_code": brand_code,
+                            "batch_ids": [
+                                candidate.pk
+                                for candidate
+                                in approved_overlaps
+                            ],
+                        },
+                    )
+
+                approved_overlap = (
+                    approved_overlaps[0]
+                    if approved_overlaps
+                    else None
+                )
+
+                if approved_overlap is not None:
+                    approved_same_period = (
+                        approved_overlap.period_start
+                        == normalized_period_start
+                        and approved_overlap.period_end
+                        == normalized_period_end
+                    )
+
+                    approved_fully_contained = (
+                        approved_overlap.period_start
+                        is not None
+                        and approved_overlap.period_end
+                        is not None
+                        and normalized_period_start
+                        <= approved_overlap.period_start
+                        and normalized_period_end
+                        >= approved_overlap.period_end
+                    )
+
+                    if not (
+                        approved_same_period
+                        or approved_fully_contained
+                    ):
+                        raise RawChargementImportReviewError(
+                            "chargement_period_overlap_conflict",
+                            (
+                                "An approved Chargement batch "
+                                "overlaps the requested period "
+                                "but is not fully contained by it."
+                            ),
+                            details={
+                                "brand_code": brand_code,
+                                "approved_batch_id": (
+                                    approved_overlap.pk
+                                ),
+                                "approved_period_start": str(
+                                    approved_overlap.period_start
+                                ),
+                                "approved_period_end": str(
+                                    approved_overlap.period_end
+                                ),
+                                "requested_period_start": str(
+                                    normalized_period_start
+                                ),
+                                "requested_period_end": str(
+                                    normalized_period_end
+                                ),
+                            },
+                        )
+
                 scoped_batches = (
                     ImportBatch.objects
                     .filter(
@@ -351,6 +584,19 @@ def create_raw_chargement_derived_import_reviews(
                         )
                         existing_batch = None
 
+                if (
+                    replacement_target is None
+                    and approved_overlap is not None
+                    and (
+                        existing_batch is None
+                        or existing_batch.status
+                        in MUTABLE_BATCH_STATUSES
+                    )
+                ):
+                    replacement_target = (
+                        approved_overlap
+                    )
+
                 review_result = (
                     _persist_derived_import_review(
                         source_upload=source_upload,
@@ -371,16 +617,49 @@ def create_raw_chargement_derived_import_reviews(
                     replacement_batch = (
                         review_result.batch
                     )
-                    replacement_batch.replaces_batch = (
-                        replacement_target
-                    )
-                    replacement_batch.full_clean()
-                    replacement_batch.save(
-                        update_fields=[
-                            "replaces_batch",
-                            "updated_at",
-                        ]
-                    )
+
+                    if (
+                        replacement_batch.replaces_batch_id
+                        not in {
+                            None,
+                            replacement_target.pk,
+                        }
+                    ):
+                        raise RawChargementImportReviewError(
+                            "chargement_replacement_target_conflict",
+                            (
+                                "The mutable Chargement batch "
+                                "already points to a different "
+                                "replacement target."
+                            ),
+                            details={
+                                "batch_id": (
+                                    replacement_batch.pk
+                                ),
+                                "current_replaces_batch_id": (
+                                    replacement_batch
+                                    .replaces_batch_id
+                                ),
+                                "expected_replaces_batch_id": (
+                                    replacement_target.pk
+                                ),
+                            },
+                        )
+
+                    if (
+                        replacement_batch.replaces_batch_id
+                        is None
+                    ):
+                        replacement_batch.replaces_batch = (
+                            replacement_target
+                        )
+                        replacement_batch.full_clean()
+                        replacement_batch.save(
+                            update_fields=[
+                                "replaces_batch",
+                                "updated_at",
+                            ]
+                        )
 
                 batches.append(
                     review_result.batch

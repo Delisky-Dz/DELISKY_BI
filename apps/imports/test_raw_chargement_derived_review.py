@@ -1094,6 +1094,316 @@ class RawChargementDerivedReviewTests(TestCase):
             4,
         )
 
+    def test_wider_period_creates_replacements_and_approval_supersedes_old_batch(
+        self,
+    ):
+        from apps.imports.services.batch_approval import (
+            approve_import_batch,
+        )
+
+        first = create_raw_chargement_derived_import_reviews(
+            self.make_upload(),
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        originals = {
+            batch.brand.code: batch
+            for batch in first.batches
+        }
+
+        for batch in first.batches:
+            approve_import_batch(
+                batch,
+                approved_by=self.user,
+            )
+
+        second = create_raw_chargement_derived_import_reviews(
+            self.make_upload(),
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-04-04",
+            period_end="2026-08-26",
+            original_filename=(
+                "AIO_Chargement_"
+                "2026-04-04_to_2026-08-26.xlsx"
+            ),
+        )
+
+        replacements = {
+            batch.brand.code: batch
+            for batch in second.batches
+        }
+
+        self.assertEqual(
+            set(replacements),
+            {"DELISKY", "NITA"},
+        )
+
+        for brand_code, replacement in (
+            replacements.items()
+        ):
+            original = originals[
+                brand_code
+            ]
+            original.refresh_from_db()
+
+            self.assertEqual(
+                original.status,
+                "APPROVED",
+            )
+            self.assertEqual(
+                replacement.status,
+                "REVIEWED",
+            )
+            self.assertEqual(
+                replacement.replaces_batch_id,
+                original.pk,
+            )
+            self.assertEqual(
+                str(replacement.period_start),
+                "2026-04-04",
+            )
+            self.assertEqual(
+                str(replacement.period_end),
+                "2026-08-26",
+            )
+
+        delisky_replacement = replacements[
+            "DELISKY"
+        ]
+
+        approval_result = approve_import_batch(
+            delisky_replacement,
+            approved_by=self.user,
+        )
+
+        originals["DELISKY"].refresh_from_db()
+        delisky_replacement.refresh_from_db()
+        originals["NITA"].refresh_from_db()
+
+        self.assertEqual(
+            originals["DELISKY"].status,
+            "SUPERSEDED",
+        )
+        self.assertEqual(
+            delisky_replacement.status,
+            "APPROVED",
+        )
+        self.assertEqual(
+            approval_result.superseded_batch_id,
+            originals["DELISKY"].pk,
+        )
+
+        self.assertEqual(
+            originals["NITA"].status,
+            "APPROVED",
+        )
+        self.assertEqual(
+            replacements["NITA"].status,
+            "REVIEWED",
+        )
+
+    def test_rejects_partial_overlap_with_approved_chargement_batch(
+        self,
+    ):
+        first = create_raw_chargement_derived_import_reviews(
+            self.make_upload(),
+            source_system_code="AIO_WEB",
+            uploaded_by=self.user,
+            period_start="2026-08-01",
+            period_end="2026-08-17",
+            original_filename="aio_mixed_raw.xlsx",
+        )
+
+        for batch in first.batches:
+            batch.status = "APPROVED"
+            batch.save(
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
+            )
+
+        with self.assertRaises(
+            RawChargementImportReviewError
+        ) as context:
+            create_raw_chargement_derived_import_reviews(
+                self.make_upload(),
+                source_system_code="AIO_WEB",
+                uploaded_by=self.user,
+                period_start="2026-08-10",
+                period_end="2026-08-26",
+                original_filename=(
+                    "AIO_Chargement_"
+                    "2026-08-10_to_2026-08-26.xlsx"
+                ),
+            )
+
+        self.assertEqual(
+            context.exception.code,
+            "chargement_period_overlap_conflict",
+        )
+
+        for batch in first.batches:
+            batch.refresh_from_db()
+            self.assertEqual(
+                batch.status,
+                "APPROVED",
+            )
+
+    def test_explicit_out_of_scope_destination_is_audited_without_creating_batch_row(
+        self,
+    ):
+        from apps.imports.models import (
+            SourceTruckExclusion,
+        )
+
+        SourceTruckExclusion.objects.create(
+            source_system=self.source_system,
+            source_code="VAN1-ABIA",
+            reason="OUT_OF_SCOPE",
+            is_active=True,
+            notes=(
+                "External distribution scope."
+            ),
+        )
+
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Transferts"
+
+        worksheet.append(
+            [
+                "Date&Heure",
+                "Article",
+                "Qt\u00e9",
+                "Vers l'emplacement",
+                "Cl\u00e9",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "04/04/2026 10:00:00",
+                "ARTICLE DELISKY",
+                10,
+                "VAN1-DELISKY",
+                "CH-1",
+            ]
+        )
+
+        worksheet.append(
+            [
+                "04/04/2026 11:00:00",
+                "ARTICLE ABIA",
+                -2,
+                "VAN1-ABIA",
+                "CH-2",
+            ]
+        )
+
+        worksheet.append(
+            [
+                None,
+                2,
+                "8,000",
+                None,
+                None,
+            ]
+        )
+
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+
+        upload = SimpleUploadedFile(
+            "aio_chargement_scope.xlsx",
+            output.getvalue(),
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            ),
+        )
+
+        result = (
+            create_raw_chargement_derived_import_reviews(
+                upload,
+                source_system_code="AIO_WEB",
+                uploaded_by=self.user,
+                period_start="2026-04-04",
+                period_end="2026-08-26",
+                original_filename=(
+                    "aio_chargement_scope.xlsx"
+                ),
+            )
+        )
+
+        self.assertEqual(
+            len(result.batches),
+            1,
+        )
+
+        batch = result.batches[0]
+
+        self.assertEqual(
+            batch.brand.code,
+            "DELISKY",
+        )
+        self.assertEqual(
+            batch.total_rows,
+            1,
+        )
+
+        result.source_upload.refresh_from_db()
+
+        audit = (
+            result.source_upload
+            .audit_metadata[
+                "chargement_source_exclusions"
+            ]
+        )
+
+        self.assertEqual(
+            audit["count"],
+            1,
+        )
+
+        self.assertEqual(
+            len(audit["rows"]),
+            1,
+        )
+
+        row = audit["rows"][0]
+
+        self.assertEqual(
+            row["excel_row_number"],
+            3,
+        )
+        self.assertEqual(
+            row["source_code"],
+            "VAN1-ABIA",
+        )
+        self.assertEqual(
+            row["reason"],
+            "OUT_OF_SCOPE",
+        )
+        self.assertEqual(
+            row["article"],
+            "ARTICLE ABIA",
+        )
+        self.assertEqual(
+            row["quantity"],
+            -2,
+        )
+        self.assertEqual(
+            row["document_key"],
+            "CH-2",
+        )
+
     def test_source_scope_rejects_second_mutable_derived_batch(
         self,
     ):

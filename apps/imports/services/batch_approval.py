@@ -189,6 +189,7 @@ def _validate_replacement_scope(
         in {
             ImportReportType.ITEMS,
             ImportReportType.SALES,
+            ImportReportType.CHARGEMENT,
         }
         and replacement.period_start is not None
         and replacement.period_end is not None
@@ -208,8 +209,8 @@ def _validate_replacement_scope(
             "replacement_scope_mismatch",
             (
                 "A replacement must use the same "
-                "period. An ITEMS or SALES replacement may "
-                "fully contain the old period."
+                "period. An ITEMS, SALES, or CHARGEMENT "
+                "replacement may fully contain the old period."
             ),
         )
 
@@ -218,7 +219,10 @@ def _validate_replacement_scope(
         == ImportReportType.ITEMS
         or (
             replacement.report_type
-            == ImportReportType.SALES
+            in {
+                ImportReportType.SALES,
+                ImportReportType.CHARGEMENT,
+            }
             and not same_period
         )
     )
@@ -233,8 +237,8 @@ def _validate_replacement_scope(
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
-                "An ITEMS or SALES replacement requires "
-                "source upload identity on both batches."
+                "An ITEMS, SALES, or CHARGEMENT replacement "
+                "requires source upload identity on both batches."
             ),
         )
 
@@ -245,10 +249,16 @@ def _validate_replacement_scope(
         raise ImportBatchApprovalError(
             "replacement_scope_mismatch",
             (
-                "An ITEMS or SALES replacement must use "
-                "the same source system."
+                "An ITEMS, SALES, or CHARGEMENT replacement "
+                "must use the same source system."
             ),
         )
+
+    if (
+        replacement.report_type
+        == ImportReportType.CHARGEMENT
+    ):
+        return
 
     if (
         replacement.report_type

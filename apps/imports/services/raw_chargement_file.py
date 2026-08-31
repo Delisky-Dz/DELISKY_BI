@@ -41,10 +41,25 @@ class AdaptedChargementRow:
 
 
 @dataclass(frozen=True, slots=True)
+class ExcludedChargementSourceRow:
+    excel_row_number: int
+    source_code: str
+    reason: str
+    raw_datetime: object
+    article: object
+    quantity_raw: object
+    document_key: object
+
+
+@dataclass(frozen=True, slots=True)
 class RawChargementFileResult:
     filename: str
     worksheet_name: str
     rows: tuple[AdaptedChargementRow, ...]
+    excluded_source_rows: tuple[
+        ExcludedChargementSourceRow,
+        ...,
+    ] = ()
 
 
 def _is_blank_value(value: object) -> bool:
@@ -134,6 +149,7 @@ def adapt_raw_chargement_file(
     source: Any,
     *,
     truck_mapping: Mapping[object, object],
+    source_exclusions: Mapping[object, object] | None = None,
     original_filename: str | None = None,
 ) -> RawChargementFileResult:
     try:
@@ -152,6 +168,20 @@ def adapt_raw_chargement_file(
         ) from exc
 
     adapted_rows: list[AdaptedChargementRow] = []
+    excluded_source_rows: list[
+        ExcludedChargementSourceRow
+    ] = []
+
+    normalized_exclusions = {
+        " ".join(
+            str(source_code or "").split()
+        ).upper(): str(
+            reason or "OUT_OF_SCOPE"
+        ).strip().upper()
+        for source_code, reason
+        in (source_exclusions or {}).items()
+    }
+
     raw_rows = raw_result.rows
 
     for index, raw_row in enumerate(raw_rows):
@@ -159,11 +189,70 @@ def adapt_raw_chargement_file(
 
         if _is_export_summary_footer(
             raw_values,
-            adapted_row_count=len(adapted_rows),
+            adapted_row_count=(
+                len(adapted_rows)
+                + len(excluded_source_rows)
+            ),
             is_last_row=(
                 index == len(raw_rows) - 1
             ),
         ):
+            continue
+
+        normalized_raw = {
+            normalize_header(header): value
+            for header, value
+            in raw_values.items()
+        }
+
+        raw_source_code = normalized_raw.get(
+            normalize_header(
+                "Vers l'emplacement"
+            )
+        )
+
+        canonical_source_code = " ".join(
+            str(raw_source_code or "").split()
+        ).upper()
+
+        exclusion_reason = (
+            normalized_exclusions.get(
+                canonical_source_code
+            )
+        )
+
+        if exclusion_reason is not None:
+            excluded_source_rows.append(
+                ExcludedChargementSourceRow(
+                    excel_row_number=(
+                        raw_row.row_number
+                    ),
+                    source_code=(
+                        canonical_source_code
+                    ),
+                    reason=exclusion_reason,
+                    raw_datetime=normalized_raw.get(
+                        normalize_header(
+                            "Date&Heure"
+                        )
+                    ),
+                    article=normalized_raw.get(
+                        normalize_header(
+                            "Article"
+                        )
+                    ),
+                    quantity_raw=normalized_raw.get(
+                        normalize_header(
+                            "Qté"
+                        )
+                    ),
+                    document_key=normalized_raw.get(
+                        normalize_header(
+                            "Clé"
+                        )
+                    ),
+                )
+            )
             continue
 
         try:
@@ -201,6 +290,9 @@ def adapt_raw_chargement_file(
         filename=raw_result.filename,
         worksheet_name=raw_result.worksheet_name,
         rows=tuple(adapted_rows),
+        excluded_source_rows=tuple(
+            excluded_source_rows
+        ),
     )
 
 CANONICAL_CHARGEMENT_HEADERS = (

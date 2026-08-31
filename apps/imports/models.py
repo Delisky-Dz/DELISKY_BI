@@ -312,6 +312,10 @@ class ImportSourceUpload(models.Model):
     updated_at = models.DateTimeField(
         auto_now=True,
     )
+    audit_metadata = models.JSONField(
+        default=dict,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["-uploaded_at", "-id"]
@@ -441,6 +445,99 @@ class SourceTruckMapping(models.Model):
         return (
             f"{self.source_system.code}: "
             f"{self.source_code} -> {self.truck}"
+        )
+
+
+class SourceTruckExclusion(models.Model):
+    source_system = models.ForeignKey(
+        ImportSourceSystem,
+        on_delete=models.PROTECT,
+        related_name="truck_exclusions",
+    )
+    source_code = models.CharField(
+        max_length=120,
+    )
+    reason = models.CharField(
+        max_length=120,
+        default="OUT_OF_SCOPE",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+    )
+    notes = models.TextField(
+        blank=True,
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "source_system__code",
+            "source_code",
+        ]
+
+        constraints = [
+            models.UniqueConstraint(
+                F("source_system"),
+                Lower("source_code"),
+                name="source_truck_exclusion_code_ci_uniq",
+                violation_error_message=(
+                    "An exclusion already exists for this "
+                    "source code and source system."
+                ),
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        errors = {}
+
+        if self.source_code:
+            self.source_code = " ".join(
+                self.source_code.split()
+            ).upper()
+
+        if self.reason:
+            self.reason = " ".join(
+                self.reason.split()
+            ).upper()
+
+        if not self.source_code:
+            errors["source_code"] = (
+                "The excluded source truck code is required."
+            )
+
+        if not self.reason:
+            errors["reason"] = (
+                "The source truck exclusion reason is required."
+            )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.source_code:
+            self.source_code = " ".join(
+                self.source_code.split()
+            ).upper()
+
+        if self.reason:
+            self.reason = " ".join(
+                self.reason.split()
+            ).upper()
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"{self.source_system.code}: "
+            f"{self.source_code} [{self.reason}]"
         )
 
 
@@ -1311,6 +1408,7 @@ class ImportBatch(models.Model):
                     in {
                         ImportReportType.ITEMS,
                         ImportReportType.SALES,
+                        ImportReportType.CHARGEMENT,
                     }
                     and (
                         self.replaces_batch
@@ -1334,8 +1432,9 @@ class ImportBatch(models.Model):
                 ):
                     errors["replaces_batch"] = (
                         "A replacement must use the same "
-                        "period. An ITEMS or SALES replacement may "
-                        "instead fully contain the period "
+                        "period. An ITEMS, SALES, or CHARGEMENT "
+                        "replacement may instead fully contain "
+                        "the period "
                         "of the batch it replaces."
                     )
 
