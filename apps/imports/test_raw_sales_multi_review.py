@@ -311,8 +311,8 @@ class RawSalesMultiReviewTests(TestCase):
                 [
                     "VDD-5",
                     "16/08/2026 15:34:54",
-                    None,
-                    1850,
+                    "Client Blocked",
+                    "INVALID-TOTAL",
                     1850,
                     None,
                     1850,

@@ -74,8 +74,8 @@ class ChargementAnalyticalRow(BaseAnalyticalRow):
 @dataclass(frozen=True, slots=True)
 class SalesAnalyticalRow(BaseAnalyticalRow):
     sale_datetime: datetime
-    client: str
-    client_normalized: str
+    client: str | None
+    client_normalized: str | None
     total: Decimal
     region: str | None
     region_normalized: str | None
@@ -348,11 +348,11 @@ def parse_sales_row(
         return SalesAnalyticalRow(
             **_base_values(row),
             sale_datetime=sale_datetime,
-            client=read_required_text(
+            client=read_optional_text(
                 row.cleaned_data,
                 "client",
             ),
-            client_normalized=read_required_lookup_text(
+            client_normalized=read_optional_text(
                 row.cleaned_data,
                 "client_normalized",
             ),

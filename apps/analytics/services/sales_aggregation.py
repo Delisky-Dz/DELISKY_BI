@@ -338,30 +338,34 @@ def aggregate_sales(
             sale.brand_id,
         ).add(sale.total)
 
-        brand_van_client = _get_named_accumulator(
-            brand_van_client_buckets,
-            (
-                sale.brand_id,
-                sale.van_normalized,
-                sale.client_normalized,
-            ),
-            sale.client,
-        )
-        brand_van_client.accumulator.add(
-            sale.total
-        )
+        if (
+            sale.client is not None
+            and sale.client_normalized is not None
+        ):
+            brand_van_client = _get_named_accumulator(
+                brand_van_client_buckets,
+                (
+                    sale.brand_id,
+                    sale.van_normalized,
+                    sale.client_normalized,
+                ),
+                sale.client,
+            )
+            brand_van_client.accumulator.add(
+                sale.total
+            )
 
-        brand_client = _get_named_accumulator(
-            brand_client_buckets,
-            (
-                sale.brand_id,
-                sale.client_normalized,
-            ),
-            sale.client,
-        )
-        brand_client.accumulator.add(
-            sale.total
-        )
+            brand_client = _get_named_accumulator(
+                brand_client_buckets,
+                (
+                    sale.brand_id,
+                    sale.client_normalized,
+                ),
+                sale.client,
+            )
+            brand_client.accumulator.add(
+                sale.total
+            )
 
         truck_resolution = resolve_truck_by_van(
             sale.van_normalized,

@@ -112,6 +112,7 @@ class SalesAggregationTests(TestCase):
         sale_datetime,
         total,
         excel_row_number=2,
+        include_client=True,
     ):
         return ImportRow.objects.create(
             batch=batch,
@@ -122,9 +123,15 @@ class SalesAggregationTests(TestCase):
                 "van": van,
                 "van_normalized": van.casefold(),
                 "sale_datetime": sale_datetime,
-                "client": f"Test Client {sequence}",
+                "client": (
+                    f"Test Client {sequence}"
+                    if include_client
+                    else None
+                ),
                 "client_normalized": (
                     f"test client {sequence}"
+                    if include_client
+                    else None
                 ),
                 "total": total,
                 "region": "Test Region",
@@ -541,6 +548,82 @@ class SalesAggregationTests(TestCase):
         self.assertEqual(
             metrics.zero_total_record_count,
             0,
+        )
+
+    def test_missing_client_keeps_non_customer_sales_totals(
+        self,
+    ):
+        truck = self.create_truck(
+            105,
+            "SALES-VAN-105",
+        )
+
+        worker = self.create_worker(
+            105
+        )
+
+        self.create_assignment(
+            truck=truck,
+            worker=worker,
+        )
+
+        batch = self.create_batch(
+            105,
+        )
+
+        self.create_sales_row(
+            batch,
+            105,
+            van="SALES-VAN-105",
+            sale_datetime="2026-07-04T10:30:45",
+            total="6970",
+            include_client=False,
+        )
+
+        result = aggregate_sales()
+
+        self.assertEqual(
+            result.overall.total_sales,
+            Decimal("6970"),
+        )
+
+        self.assertEqual(
+            result.overall.sale_record_count,
+            1,
+        )
+
+        self.assertEqual(
+            result.by_brand[0].metrics.total_sales,
+            Decimal("6970"),
+        )
+
+        self.assertEqual(
+            result.by_truck[0].metrics.total_sales,
+            Decimal("6970"),
+        )
+
+        self.assertEqual(
+            result.by_worker[0].metrics.total_sales,
+            Decimal("6970"),
+        )
+
+        self.assertEqual(
+            result.by_date[0].metrics.total_sales,
+            Decimal("6970"),
+        )
+
+        self.assertEqual(
+            result.by_brand_client,
+            (),
+        )
+
+        self.assertEqual(
+            result.by_brand_van_client,
+            (),
+        )
+
+        self.assertFalse(
+            result.has_attribution_issues
         )
 
     def test_zero_total_sale_is_counted_separately(self):

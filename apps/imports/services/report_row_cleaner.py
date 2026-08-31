@@ -632,8 +632,8 @@ def _clean_sales(
         issues.append(
             _issue(
                 "missing_client",
-                SEVERITY_ERROR,
-                "The customer name is required.",
+                SEVERITY_WARNING,
+                "The customer name is missing.",
                 field_name="Nom du client",
                 raw_value=raw.get("Nom du client"),
             )

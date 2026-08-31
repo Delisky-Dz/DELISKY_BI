@@ -228,7 +228,7 @@ class RawSalesDerivedReviewTests(TestCase):
             1,
         )
 
-    def test_missing_client_is_persisted_as_excluded(self):
+    def test_missing_client_is_persisted_as_warning(self):
         payload = self.make_payload(
             filename="VAN2-DELISKY.xlsx",
             rows=[
@@ -265,22 +265,34 @@ class RawSalesDerivedReviewTests(TestCase):
         )
         self.assertEqual(
             batch.accepted_rows,
-            0,
+            1,
         )
         self.assertEqual(
             batch.excluded_rows,
-            1,
+            0,
         )
-        self.assertGreater(
+        self.assertEqual(
             batch.error_count,
             0,
+        )
+        self.assertEqual(
+            batch.warning_count,
+            1,
         )
 
         row = batch.rows.get()
 
         self.assertEqual(
             row.status,
-            "EXCLUDED",
+            "ACCEPTED",
+        )
+
+        self.assertTrue(
+            any(
+                issue.get("code") == "missing_client"
+                and issue.get("severity") == "WARNING"
+                for issue in row.issues
+            )
         )
 
     def test_wrong_period_fails_before_persistence(self):

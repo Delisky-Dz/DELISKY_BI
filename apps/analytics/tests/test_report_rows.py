@@ -296,6 +296,46 @@ class ReportRowsTests(TestCase):
             Decimal("-1946.67"),
         )
 
+    def test_parses_sales_row_without_client(self):
+        batch = self.create_batch(
+            104,
+            ImportReportType.SALES,
+        )
+
+        row = self.create_row(
+            batch,
+            104,
+            {
+                **self.base_cleaned_data(),
+                "sale_datetime": "2026-07-04T10:30:45",
+                "client": None,
+                "client_normalized": None,
+                "total": "6970",
+                "region": None,
+                "region_normalized": None,
+            },
+        )
+
+        result = parse_sales_row(row)
+
+        self.assertIsInstance(
+            result,
+            SalesAnalyticalRow,
+        )
+
+        self.assertEqual(
+            result.total,
+            Decimal("6970"),
+        )
+
+        self.assertIsNone(
+            result.client,
+        )
+
+        self.assertIsNone(
+            result.client_normalized,
+        )
+
     def test_parses_item_row_at_period_level(self):
         batch = self.create_batch(
             4,

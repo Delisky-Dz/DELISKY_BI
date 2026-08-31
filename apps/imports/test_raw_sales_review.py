@@ -290,6 +290,55 @@ class RawSalesReviewTests(SimpleTestCase):
             "WARNING",
         )
 
+    def test_missing_client_is_accepted_with_warning(
+        self,
+    ):
+        source = build_sales_excel(
+            [
+                [
+                    "VDD-MISSING-CLIENT",
+                    "18/08/2026 10:00:00",
+                    None,
+                    6970,
+                    6970,
+                    None,
+                    6970,
+                ],
+            ],
+            filename="VAN2-DELISKY.xlsx",
+        )
+
+        result = prepare_raw_sales_review(
+            source,
+            truck_mapping=self.mapping,
+            period_start="2026-08-18",
+            period_end="2026-08-18",
+        )
+
+        row = result.cleaning_result.rows[0]
+
+        self.assertEqual(
+            row.status,
+            "ACCEPTED",
+        )
+
+        self.assertEqual(
+            str(row.cleaned_dict()["total"]),
+            "6970",
+        )
+
+        self.assertIsNone(
+            row.cleaned_dict()["client"],
+        )
+
+        self.assertTrue(
+            any(
+                issue.code == "missing_client"
+                and issue.severity == "WARNING"
+                for issue in row.issues
+            )
+        )
+
     def test_missing_datetime_is_rejected(self):
         source = build_sales_excel(
             [
