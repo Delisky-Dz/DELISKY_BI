@@ -689,6 +689,23 @@ def _clean_pos(
     date_raw = raw.get("Date")
     message_raw = raw.get("Message d'ignoration")
     cause_raw = raw.get("Cause d'ignoration")
+    latitude_raw = raw.get("Latitude")
+    longitude_raw = raw.get("Longitude")
+
+    coordinates_are_zero = (
+        isinstance(
+            latitude_raw,
+            (int, float, Decimal),
+        )
+        and not isinstance(latitude_raw, bool)
+        and isinstance(
+            longitude_raw,
+            (int, float, Decimal),
+        )
+        and not isinstance(longitude_raw, bool)
+        and latitude_raw == 0
+        and longitude_raw == 0
+    )
 
     if (
         van is not None
@@ -721,6 +738,61 @@ def _clean_pos(
                 "client": None,
                 "client_normalized": None,
                 "visit_date": None,
+                "ignoration_message": None,
+                "ignoration_cause": None,
+            },
+            issues,
+        )
+
+    if (
+        client is None
+        and not is_blank_value(date_raw)
+        and is_blank_value(message_raw)
+        and is_blank_value(cause_raw)
+        and coordinates_are_zero
+    ):
+        visit_date = _parse_required_date(
+            date_raw,
+            "Date",
+            issues,
+        )
+
+        _check_period(
+            visit_date,
+            period_start,
+            period_end,
+            "Date",
+            issues,
+        )
+
+        issues.append(
+            _issue(
+                "pos_blank_client_source_artifact",
+                SEVERITY_WARNING,
+                (
+                    "The POS row has a date but no "
+                    "customer, reason, or usable "
+                    "coordinates and is treated as "
+                    "a source placeholder."
+                ),
+                field_name="Nom du client",
+                raw_value=raw.get("Nom du client"),
+                details={
+                    "latitude": latitude_raw,
+                    "longitude": longitude_raw,
+                    "authoritative": False,
+                },
+            )
+        )
+
+        return (
+            STATUS_EXCLUDED,
+            {
+                "van": van,
+                "van_normalized": van_normalized,
+                "client": None,
+                "client_normalized": None,
+                "visit_date": visit_date,
                 "ignoration_message": None,
                 "ignoration_cause": None,
             },
