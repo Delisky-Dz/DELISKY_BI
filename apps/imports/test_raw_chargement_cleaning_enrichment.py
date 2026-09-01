@@ -300,6 +300,103 @@ class RawChargementCleaningEnrichmentTests(
         "raw_chargement_cleaning_enrichment."
         "enrich_raw_chargement_quantity"
     )
+    def test_ambiguous_product_consensus_is_accepted_with_warning(
+        self,
+        enrich_quantity,
+    ):
+        from decimal import Decimal
+        from types import SimpleNamespace
+
+        enrich_quantity.return_value = SimpleNamespace(
+            status=(
+                ChargementQuantityStatus
+                .AMBIGUOUS_PRODUCT
+            ),
+            product=None,
+            match_method="designation",
+            quantity_raw=-18,
+            units_per_carton=8,
+            total_units=-18,
+            carton_quantity=Decimal("-2.25"),
+            cartons=-2,
+            pieces=-2,
+            error_code=None,
+        )
+
+        result = (
+            enrich_raw_chargement_cleaning_result(
+                self._result(
+                    self._row()
+                ),
+                source_system=object(),
+            )
+        )
+
+        row = result.rows[0]
+        cleaned = row.cleaned_dict()
+
+        self.assertEqual(
+            row.status,
+            "ACCEPTED",
+        )
+        self.assertEqual(
+            cleaned["packaging_status"],
+            "AMBIGUOUS_PRODUCT",
+        )
+        self.assertEqual(
+            cleaned["total_units"],
+            -18,
+        )
+        self.assertEqual(
+            cleaned["units_per_carton"],
+            8,
+        )
+        self.assertEqual(
+            cleaned["cartons"],
+            -2,
+        )
+        self.assertEqual(
+            cleaned["pieces"],
+            -2,
+        )
+        self.assertEqual(
+            cleaned["carton_quantity"],
+            "-2.25",
+        )
+        self.assertIsNone(
+            cleaned["product_packaging_id"],
+        )
+        self.assertEqual(
+            cleaned["product_match_method"],
+            "designation",
+        )
+
+        issue = row.issues[-1]
+
+        self.assertEqual(
+            issue.code,
+            "chargement_ambiguous_product",
+        )
+        self.assertEqual(
+            issue.severity,
+            "WARNING",
+        )
+        self.assertEqual(
+            issue.details[
+                "consensus_units_per_carton"
+            ],
+            8,
+        )
+        self.assertEqual(
+            issue.details["total_units"],
+            -18,
+        )
+
+    @patch(
+        "apps.imports.services."
+        "raw_chargement_cleaning_enrichment."
+        "enrich_raw_chargement_quantity"
+    )
     def test_invalid_quantity_excludes_row(
         self,
         enrich_quantity,

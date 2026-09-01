@@ -9,6 +9,7 @@ from .report_row_cleaner import (
     ReportCleaningResult,
     RowCleaningIssue,
     SEVERITY_ERROR,
+    SEVERITY_WARNING,
     STATUS_EXCLUDED,
     STATUS_STOPPED,
 )
@@ -22,6 +23,17 @@ _BLOCKING_STATUSES = {
 }
 
 
+def _uses_packaging_consensus(
+    enrichment,
+) -> bool:
+    return (
+        enrichment.status
+        == ChargementQuantityStatus.AMBIGUOUS_PRODUCT
+        and enrichment.total_units is not None
+        and enrichment.units_per_carton is not None
+    )
+
+
 def _quantity_issue(
     enrichment,
 ) -> RowCleaningIssue | None:
@@ -29,6 +41,35 @@ def _quantity_issue(
 
     if status == ChargementQuantityStatus.READY:
         return None
+
+    if _uses_packaging_consensus(enrichment):
+        return RowCleaningIssue(
+            code="chargement_ambiguous_product",
+            severity=SEVERITY_WARNING,
+            message=(
+                "The Chargement product matches multiple "
+                "source products with the same confirmed "
+                "packaging. Quantity was accepted using "
+                "packaging consensus without selecting "
+                "a product record."
+            ),
+            field="Article",
+            raw_value=enrichment.quantity_raw,
+            details={
+                "packaging_status":
+                    status.value,
+                "match_method":
+                    enrichment.match_method,
+                "product_packaging_id":
+                    None,
+                "consensus_units_per_carton":
+                    enrichment.units_per_carton,
+                "total_units":
+                    enrichment.total_units,
+                "error_code":
+                    enrichment.error_code,
+            },
+        )
 
     messages = {
         ChargementQuantityStatus.INVALID_QUANTITY: (
@@ -159,6 +200,9 @@ def enrich_raw_chargement_cleaning_result(
         if (
             enrichment.status
             in _BLOCKING_STATUSES
+            and not _uses_packaging_consensus(
+                enrichment
+            )
         ):
             status = STATUS_EXCLUDED
 

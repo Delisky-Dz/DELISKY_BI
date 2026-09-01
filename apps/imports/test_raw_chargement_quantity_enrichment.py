@@ -242,6 +242,71 @@ class RawChargementQuantityEnrichmentTests(
         "raw_chargement_quantity_enrichment."
         "resolve_source_product_packaging"
     )
+    def test_ambiguous_product_with_packaging_consensus_is_usable(
+        self,
+        resolver,
+    ):
+        from decimal import Decimal
+
+        resolver.return_value = PackagingResolution(
+            status=(
+                PackagingResolutionStatus
+                .AMBIGUOUS_PRODUCT
+            ),
+            product=None,
+            match_method="designation",
+            candidates_count=2,
+            consensus_units_per_carton=8,
+        )
+
+        result = enrich_raw_chargement_quantity(
+            {
+                "Article": "CONSENSUS PRODUCT",
+                "Qt\u00e9": -18,
+            },
+            source_system=object(),
+        )
+
+        self.assertEqual(
+            result.status,
+            ChargementQuantityStatus.AMBIGUOUS_PRODUCT,
+        )
+        self.assertIsNone(
+            result.product,
+        )
+        self.assertEqual(
+            result.match_method,
+            "designation",
+        )
+        self.assertEqual(
+            result.units_per_carton,
+            8,
+        )
+        self.assertEqual(
+            result.total_units,
+            -18,
+        )
+        self.assertEqual(
+            result.cartons,
+            -2,
+        )
+        self.assertEqual(
+            result.pieces,
+            -2,
+        )
+        self.assertEqual(
+            result.carton_quantity,
+            Decimal("-2.25"),
+        )
+        self.assertIsNone(
+            result.error_code,
+        )
+
+    @patch(
+        "apps.imports.services."
+        "raw_chargement_quantity_enrichment."
+        "resolve_source_product_packaging"
+    )
     def test_ambiguous_product_blocks_packaging(
         self,
         resolver,
