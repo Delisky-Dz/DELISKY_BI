@@ -202,6 +202,291 @@ class StockFlowAggregationTests(TestCase):
             truck.pk,
         )
 
+
+
+    def test_opening_stock_allows_multiple_approved_snapshots_same_month(
+        self,
+    ):
+        first = self.create_batch(
+            201,
+            ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 6, 1),
+        )
+
+        second = self.create_batch(
+            202,
+            ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 6, 30),
+        )
+
+        self.assertEqual(
+            first.opening_month,
+            date(2026, 6, 1),
+        )
+        self.assertEqual(
+            second.opening_month,
+            date(2026, 6, 1),
+        )
+        self.assertNotEqual(
+            first.period_start,
+            second.period_start,
+        )
+
+
+
+    def test_opening_stock_uses_latest_snapshot_before_period(
+        self,
+    ):
+        first_truck = self.create_truck(
+            101,
+            "STOCK-BASELINE-001",
+        )
+        second_truck = self.create_truck(
+            102,
+            "STOCK-BASELINE-002",
+        )
+
+        first_worker = self.create_worker(101)
+        second_worker = self.create_worker(102)
+
+        self.create_assignment(
+            truck=first_truck,
+            worker=first_worker,
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 31),
+        )
+        self.create_assignment(
+            truck=second_truck,
+            worker=second_worker,
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 31),
+        )
+
+        old_snapshot = self.create_batch(
+            101,
+            ImportReportType.OPENING_STOCK,
+            brand=self.first_brand,
+            period_start=date(2026, 6, 1),
+        )
+        baseline_snapshot = self.create_batch(
+            102,
+            ImportReportType.OPENING_STOCK,
+            brand=self.first_brand,
+            period_start=date(2026, 6, 30),
+        )
+        future_snapshot = self.create_batch(
+            103,
+            ImportReportType.OPENING_STOCK,
+            brand=self.first_brand,
+            period_start=date(2026, 7, 20),
+        )
+        second_brand_snapshot = self.create_batch(
+            104,
+            ImportReportType.OPENING_STOCK,
+            brand=self.second_brand,
+            period_start=date(2026, 6, 29),
+        )
+
+        self.create_quantity_row(
+            old_snapshot,
+            101,
+            van="STOCK-BASELINE-001",
+            article="Old Product",
+            article_normalized="old product",
+            quantity="50",
+        )
+        self.create_quantity_row(
+            baseline_snapshot,
+            102,
+            van="STOCK-BASELINE-001",
+            article="Baseline Product",
+            article_normalized="baseline product",
+            quantity="100",
+        )
+        self.create_quantity_row(
+            future_snapshot,
+            103,
+            van="STOCK-BASELINE-001",
+            article="Future Product",
+            article_normalized="future product",
+            quantity="999",
+        )
+        self.create_quantity_row(
+            second_brand_snapshot,
+            104,
+            van="STOCK-BASELINE-002",
+            article="Second Brand Product",
+            article_normalized="second brand product",
+            quantity="200",
+        )
+
+        result = aggregate_opening_stock(
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 31),
+        )
+
+        self.assertEqual(
+            result.requested_period_start,
+            date(2026, 7, 1),
+        )
+        self.assertEqual(
+            result.requested_period_end,
+            date(2026, 7, 31),
+        )
+        self.assertEqual(
+            result.source_row_count,
+            2,
+        )
+        self.assertEqual(
+            result.included_row_count,
+            2,
+        )
+        self.assertEqual(
+            result.outside_requested_period_count,
+            0,
+        )
+        self.assertEqual(
+            result.partial_overlap_excluded_count,
+            0,
+        )
+        self.assertEqual(
+            result.overall.total_quantity,
+            Decimal("300"),
+        )
+        self.assertEqual(
+            len(result.attribution_issues),
+            0,
+        )
+
+        self.assertEqual(
+            {
+                item.worker_id
+                for item in result.by_worker
+            },
+            {
+                first_worker.pk,
+                second_worker.pk,
+            },
+        )
+
+        totals_by_brand = {
+            item.brand_id: item.metrics.total_quantity
+            for item in result.by_brand
+        }
+
+        self.assertEqual(
+            totals_by_brand,
+            {
+                self.first_brand.pk: Decimal("100"),
+                self.second_brand.pk: Decimal("200"),
+            },
+        )
+
+    def test_opening_stock_without_period_uses_latest_snapshot(
+        self,
+    ):
+        truck = self.create_truck(
+            105,
+            "STOCK-LATEST-001",
+        )
+        worker = self.create_worker(105)
+
+        self.create_assignment(
+            truck=truck,
+            worker=worker,
+            start_date=date(2026, 6, 1),
+            end_date=date(2026, 8, 31),
+        )
+
+        first_snapshot = self.create_batch(
+            105,
+            ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 6, 1),
+        )
+        latest_snapshot = self.create_batch(
+            106,
+            ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 8, 1),
+        )
+
+        self.create_quantity_row(
+            first_snapshot,
+            105,
+            van="STOCK-LATEST-001",
+            article="First Snapshot Product",
+            article_normalized="first snapshot product",
+            quantity="25",
+        )
+        self.create_quantity_row(
+            latest_snapshot,
+            106,
+            van="STOCK-LATEST-001",
+            article="Latest Snapshot Product",
+            article_normalized="latest snapshot product",
+            quantity="75",
+        )
+
+        result = aggregate_opening_stock()
+
+        self.assertEqual(
+            result.source_row_count,
+            1,
+        )
+        self.assertEqual(
+            result.included_row_count,
+            1,
+        )
+        self.assertEqual(
+            result.overall.total_quantity,
+            Decimal("75"),
+        )
+
+
+    def test_explicit_opening_stock_rows_keep_period_filtering(
+        self,
+    ):
+        batch = self.create_batch(
+            107,
+            ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 6, 1),
+        )
+
+        row = self.create_quantity_row(
+            batch,
+            107,
+            van="STOCK-EXPLICIT-001",
+            article="Explicit Snapshot Product",
+            article_normalized="explicit snapshot product",
+            quantity="125",
+        )
+
+        result = aggregate_opening_stock(
+            period_start=date(2026, 7, 1),
+            period_end=date(2026, 7, 31),
+            rows=[row],
+        )
+
+        self.assertEqual(
+            result.source_row_count,
+            1,
+        )
+        self.assertEqual(
+            result.included_row_count,
+            0,
+        )
+        self.assertEqual(
+            result.outside_requested_period_count,
+            1,
+        )
+        self.assertEqual(
+            result.partial_overlap_excluded_count,
+            0,
+        )
+        self.assertEqual(
+            result.overall.total_quantity,
+            Decimal("0"),
+        )
+
     def test_multiple_chargement_batches_are_summed(self):
         truck = self.create_truck(
             2,

@@ -4,6 +4,7 @@ from typing import Iterable
 from django.db.models import QuerySet
 
 from apps.imports.models import (
+    ImportBatch,
     ImportBatchStatus,
     ImportReportType,
     ImportRow,
@@ -106,6 +107,108 @@ def get_approved_calculation_rows(
     return get_approved_rows(
         row_statuses=CALCULATION_ROW_STATUSES,
         **filters,
+    )
+
+
+
+def get_approved_opening_stock_baseline_rows(
+    *,
+    period_start: date | None = None,
+    period_end: date | None = None,
+    brand_id: int | None = None,
+) -> QuerySet[ImportRow]:
+    """
+    Return ACCEPTED rows from the latest approved opening-stock
+    snapshot available on or before the analysis baseline date.
+
+    Snapshot selection is independent per brand.
+
+    period_start is the preferred baseline anchor. When it is not
+    supplied, period_end is used. With no requested period, the
+    latest approved snapshot available for each brand is selected.
+    """
+    if (
+        period_start is not None
+        and period_end is not None
+        and period_end < period_start
+    ):
+        raise ValueError(
+            "period_end cannot be before period_start."
+        )
+
+    anchor_date = (
+        period_start
+        if period_start is not None
+        else period_end
+    )
+
+    batches = ImportBatch.objects.filter(
+        status=ImportBatchStatus.APPROVED,
+        report_type=ImportReportType.OPENING_STOCK,
+    )
+
+    if brand_id is not None:
+        batches = batches.filter(
+            brand_id=brand_id,
+        )
+
+    if anchor_date is not None:
+        batches = batches.filter(
+            period_start__lte=anchor_date,
+        )
+
+    latest_snapshot_by_brand: dict[
+        int,
+        date,
+    ] = {}
+
+    for (
+        current_brand_id,
+        snapshot_date,
+    ) in (
+        batches
+        .order_by(
+            "brand_id",
+            "-period_start",
+            "-id",
+        )
+        .values_list(
+            "brand_id",
+            "period_start",
+        )
+    ):
+        latest_snapshot_by_brand.setdefault(
+            current_brand_id,
+            snapshot_date,
+        )
+
+    if not latest_snapshot_by_brand:
+        return ImportRow.objects.none()
+
+    selected_batch_ids = [
+        batch_id
+        for (
+            batch_id,
+            current_brand_id,
+            snapshot_date,
+        ) in batches.values_list(
+            "id",
+            "brand_id",
+            "period_start",
+        )
+        if (
+            latest_snapshot_by_brand.get(
+                current_brand_id
+            )
+            == snapshot_date
+        )
+    ]
+
+    return get_approved_calculation_rows(
+        report_type=ImportReportType.OPENING_STOCK,
+        brand_id=brand_id,
+    ).filter(
+        batch_id__in=selected_batch_ids,
     )
 
 

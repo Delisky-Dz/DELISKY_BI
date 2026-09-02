@@ -349,7 +349,7 @@ class ImportBatchModelTests(TestCase):
         with self.assertRaises(ValidationError):
             duplicate.full_clean()
 
-    def test_only_one_approved_opening_stock_per_month(self):
+    def test_only_one_approved_opening_stock_per_date(self):
         self.build_batch(
             report_type=ImportReportType.OPENING_STOCK,
             period_start=date(2026, 3, 1),
@@ -359,8 +359,8 @@ class ImportBatchModelTests(TestCase):
 
         duplicate = self.build_batch(
             report_type=ImportReportType.OPENING_STOCK,
-            period_start=date(2026, 3, 15),
-            period_end=date(2026, 3, 15),
+            period_start=date(2026, 3, 1),
+            period_end=date(2026, 3, 1),
             status=ImportBatchStatus.APPROVED,
             file_sha256="c" * 64,
             content_sha256="d" * 64,
@@ -368,6 +368,33 @@ class ImportBatchModelTests(TestCase):
 
         with self.assertRaises(ValidationError):
             duplicate.full_clean()
+
+    def test_multiple_approved_opening_stock_dates_same_month_are_allowed(
+        self,
+    ):
+        self.build_batch(
+            report_type=ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 3, 1),
+            period_end=date(2026, 3, 1),
+            status=ImportBatchStatus.APPROVED,
+        ).save()
+
+        later_snapshot = self.build_batch(
+            report_type=ImportReportType.OPENING_STOCK,
+            period_start=date(2026, 3, 15),
+            period_end=date(2026, 3, 15),
+            status=ImportBatchStatus.APPROVED,
+            file_sha256="c" * 64,
+            content_sha256="d" * 64,
+        )
+
+        later_snapshot.full_clean()
+        later_snapshot.save()
+
+        self.assertEqual(
+            later_snapshot.opening_month,
+            date(2026, 3, 1),
+        )
 
     def test_replacement_must_use_same_brand(self):
         original = self.build_batch(

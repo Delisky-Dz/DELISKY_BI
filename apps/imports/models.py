@@ -1218,19 +1218,18 @@ class ImportBatch(models.Model):
             models.UniqueConstraint(
                 fields=[
                     "brand",
-                    "opening_month",
+                    "period_start",
                 ],
                 condition=Q(
                     report_type=ImportReportType.OPENING_STOCK,
                     status=ImportBatchStatus.APPROVED,
-                    opening_month__isnull=False,
                 ),
-                name="import_approved_opening_month_uniq",
+                name="import_approved_opening_date_uniq",
                 violation_error_message=(
                     "\u0633\u0628\u0642 \u0627\u0639\u062a\u0645\u0627\u062f "
-                    "\u0645\u062e\u0632\u0648\u0646 \u0627\u0641\u062a\u062a\u0627\u062d\u064a "
+                    "\u0644\u0642\u0637\u0629 \u0645\u062e\u0632\u0648\u0646 "
                     "\u0644\u0647\u0630\u0627 \u0627\u0644\u0635\u0646\u0641 "
-                    "\u062e\u0644\u0627\u0644 \u0646\u0641\u0633 \u0627\u0644\u0634\u0647\u0631."
+                    "\u0641\u064a \u0646\u0641\u0633 \u0627\u0644\u062a\u0627\u0631\u064a\u062e."
                 ),
             ),
             models.UniqueConstraint(

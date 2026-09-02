@@ -8,6 +8,7 @@ from apps.imports.models import ImportReportType, ImportRow
 
 from .approved_data_source import (
     get_approved_calculation_rows,
+    get_approved_opening_stock_baseline_rows,
 )
 from .assignment_resolver import (
     AssignmentIndex,
@@ -294,6 +295,11 @@ def aggregate_stock_flow(
     Dated CHARGEMENT rows may additionally use their exact
     chargement datetime for worker attribution. Legacy CHARGEMENT
     rows without that datetime retain period-level attribution.
+
+    An OPENING_STOCK baseline selected for a requested analysis
+    period is attributed to the primary seller active at the
+    analysis period start. The snapshot represents stock carried
+    into that period rather than worker activity on snapshot day.
     """
     if report_type not in SUPPORTED_STOCK_FLOW_REPORT_TYPES:
         raise ValueError(
@@ -309,13 +315,27 @@ def aggregate_stock_flow(
             "period_end cannot be before period_start."
         )
 
+    uses_opening_stock_baseline = (
+        report_type == ImportReportType.OPENING_STOCK
+        and rows is None
+    )
+
     if rows is None:
-        rows = get_approved_calculation_rows(
-            report_type=report_type,
-            brand_id=brand_id,
-            period_start=period_start,
-            period_end=period_end,
-        )
+        if uses_opening_stock_baseline:
+            rows = (
+                get_approved_opening_stock_baseline_rows(
+                    period_start=period_start,
+                    period_end=period_end,
+                    brand_id=brand_id,
+                )
+            )
+        else:
+            rows = get_approved_calculation_rows(
+                report_type=report_type,
+                brand_id=brand_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
 
     if truck_index is None:
         truck_index = build_truck_code_index()
@@ -367,16 +387,21 @@ def aggregate_stock_flow(
             report_type,
         )
 
-        period_status = _period_status(
-            batch_period_start=(
-                analytical_row.period_start
-            ),
-            batch_period_end=(
-                analytical_row.period_end
-            ),
-            requested_period_start=period_start,
-            requested_period_end=period_end,
-        )
+        if uses_opening_stock_baseline:
+            period_status = (
+                StockFlowPeriodStatus.INCLUDED
+            )
+        else:
+            period_status = _period_status(
+                batch_period_start=(
+                    analytical_row.period_start
+                ),
+                batch_period_end=(
+                    analytical_row.period_end
+                ),
+                requested_period_start=period_start,
+                requested_period_end=period_end,
+            )
 
         if period_status == StockFlowPeriodStatus.OUTSIDE:
             outside_requested_period_count += 1
@@ -469,6 +494,15 @@ def aggregate_stock_flow(
             assignment_resolution = resolve_worker_for_date(
                 truck,
                 analytical_row.chargement_datetime.date(),
+                assignment_index=assignment_index,
+            )
+        elif (
+            report_type == ImportReportType.OPENING_STOCK
+            and period_start is not None
+        ):
+            assignment_resolution = resolve_worker_for_date(
+                truck,
+                period_start,
                 assignment_index=assignment_index,
             )
         else:
