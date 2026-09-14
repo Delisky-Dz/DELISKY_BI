@@ -28,6 +28,7 @@ from .manager_filters import (
     manager_filter_query,
     selected_brand_id,
 )
+from .manager_identity import worker_display_identity
 from .presenters import (
     present_brand_sales_chart,
     present_sales_timeline,
@@ -84,31 +85,6 @@ def _load_brands_by_id(
     }
 
 
-def _worker_identity(worker_id, worker):
-    if worker is None:
-        return f"المسار رقم {worker_id}", None
-
-    employee_code = str(
-        worker.employee_code or ""
-    ).strip()
-
-    if employee_code.startswith("GEN-"):
-        route_label = " ".join(
-            employee_code.split("-")[1:]
-        )
-        return route_label, "مسار توزيع"
-
-    full_name = str(worker.full_name or "").strip()
-
-    if full_name:
-        return full_name, employee_code or None
-
-    if employee_code:
-        return employee_code, None
-
-    return f"البائع رقم {worker_id}", None
-
-
 def _present_top_sellers(
     sales: SalesAggregationResult,
 ) -> tuple[OverviewSellerPresentation, ...]:
@@ -145,7 +121,7 @@ def _present_top_sellers(
     rows = []
 
     for item in ranked:
-        worker_name, subtitle = _worker_identity(
+        worker_name, subtitle = worker_display_identity(
             item.worker_id,
             workers_by_id.get(item.worker_id),
         )
