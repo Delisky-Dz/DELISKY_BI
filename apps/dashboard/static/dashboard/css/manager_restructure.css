@@ -53,6 +53,271 @@
     color: var(--text-muted, #64748b);
 }
 
+.manager-navigation {
+    width: 100%;
+}
+
+.manager-navigation__list,
+.manager-navigation__submenu {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.manager-navigation__list {
+    display: grid;
+    gap: 6px;
+}
+
+.manager-navigation__link,
+.manager-navigation__toggle,
+.manager-navigation__sublink {
+    color: inherit;
+    text-decoration: none;
+}
+
+.manager-navigation__link,
+.manager-navigation__toggle {
+    display: flex;
+    width: 100%;
+    min-height: 46px;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    font: inherit;
+    font-weight: 700;
+    text-align: right;
+    cursor: pointer;
+    transition:
+        background-color 160ms ease,
+        color 160ms ease,
+        transform 160ms ease;
+}
+
+.manager-navigation__link:hover,
+.manager-navigation__toggle:hover,
+.manager-navigation__link--active {
+    background: rgba(59, 130, 246, 0.10);
+}
+
+.manager-navigation__link--active {
+    color: var(--primary-color, #2563eb);
+}
+
+.manager-navigation__toggle {
+    justify-content: space-between;
+}
+
+.manager-navigation__toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.manager-navigation__toggle-label > span:first-child,
+.manager-navigation__link > span:first-child {
+    display: inline-grid;
+    width: 27px;
+    height: 27px;
+    flex: 0 0 27px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.13);
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.manager-navigation__chevron {
+    transition: transform 160ms ease;
+}
+
+.manager-navigation__group--open .manager-navigation__chevron {
+    transform: rotate(180deg);
+}
+
+.manager-navigation__submenu {
+    display: none;
+    gap: 4px;
+    margin: 4px 12px 8px 0;
+    padding-right: 18px;
+    border-right: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+.manager-navigation__group--open .manager-navigation__submenu {
+    display: grid;
+}
+
+.manager-navigation__sublink {
+    display: block;
+    padding: 8px 12px;
+    border-radius: 9px;
+    color: var(--text-muted, #64748b);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    transition:
+        background-color 160ms ease,
+        color 160ms ease;
+}
+
+.manager-navigation__sublink:hover,
+.manager-navigation__sublink--active {
+    background: rgba(59, 130, 246, 0.09);
+    color: var(--text-primary, inherit);
+}
+
+.manager-navigation__sublink--active {
+    font-weight: 800;
+}
+
+.manager-navigation__admin-separator {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.manager-module-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 18px;
+}
+
+.manager-module-header__eyebrow {
+    margin: 0 0 6px;
+    color: var(--text-muted, #64748b);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.manager-module-header h2 {
+    margin: 0;
+    color: var(--text-primary, inherit);
+}
+
+.manager-module-header p {
+    max-width: 720px;
+    margin: 8px 0 0;
+    color: var(--text-muted, #64748b);
+    line-height: 1.8;
+}
+
+.manager-module-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 20px;
+}
+
+.manager-module-tabs a {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.24));
+    border-radius: 999px;
+    color: var(--text-muted, #64748b);
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+
+.manager-module-tabs a:hover,
+.manager-module-tabs a[aria-current="page"] {
+    border-color: rgba(59, 130, 246, 0.38);
+    background: rgba(59, 130, 246, 0.10);
+    color: var(--text-primary, inherit);
+}
+
+.manager-section-card {
+    overflow: hidden;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.24));
+    border-radius: 18px;
+    background: var(--surface-color, rgba(255, 255, 255, 0.72));
+}
+
+.manager-section-card__header {
+    padding: 18px 20px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.manager-section-card__header h3,
+.manager-section-card__header p {
+    margin: 0;
+}
+
+.manager-section-card__header p {
+    margin-top: 6px;
+    color: var(--text-muted, #64748b);
+    line-height: 1.7;
+}
+
+.manager-data-table-wrap {
+    overflow-x: auto;
+}
+
+.manager-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 720px;
+}
+
+.manager-data-table th,
+.manager-data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    text-align: right;
+    vertical-align: middle;
+}
+
+.manager-data-table th {
+    color: var(--text-muted, #64748b);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.manager-data-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.manager-data-table__rank {
+    display: inline-grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(59, 130, 246, 0.10);
+    font-weight: 800;
+}
+
+.manager-scope-notice,
+.manager-placeholder {
+    padding: 22px;
+    border: 1px dashed rgba(148, 163, 184, 0.38);
+    border-radius: 16px;
+    background: rgba(148, 163, 184, 0.06);
+}
+
+.manager-scope-notice strong,
+.manager-placeholder strong {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.manager-scope-notice p,
+.manager-placeholder p {
+    margin: 0;
+    color: var(--text-muted, #64748b);
+    line-height: 1.8;
+}
+
+.manager-daily-empty {
+    padding: 28px;
+    text-align: center;
+    color: var(--text-muted, #64748b);
+}
+
 @media (max-width: 720px) {
     .manager-welcome {
         min-height: 260px;
@@ -61,5 +326,19 @@
 
     .manager-welcome__content {
         padding: 36px 20px;
+    }
+
+    .manager-module-header {
+        display: block;
+    }
+
+    .manager-module-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+    }
+
+    .manager-module-tabs a {
+        flex: 0 0 auto;
     }
 }
