@@ -104,6 +104,18 @@
     color: var(--text-muted, #64748b);
 }
 
+.manager-data-table td,
+.manager-data-table strong,
+.manager-inline-selector option,
+.manager-accordion-card b {
+    color: var(--text-primary, inherit);
+}
+
+.manager-data-table small,
+.manager-table-note {
+    color: var(--text-muted, #64748b);
+}
+
 @media (max-width: 720px) {
     .manager-inline-selector {
         display: grid;
