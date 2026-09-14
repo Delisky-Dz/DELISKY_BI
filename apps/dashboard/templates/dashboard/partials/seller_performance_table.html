@@ -1,0 +1,45 @@
+<div class="manager-section-card">
+    {% if seller_rows %}
+        <div class="manager-data-table-wrap">
+            <table class="manager-data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>البائع / المسار</th>
+                        <th>المبيعات</th>
+                        <th>عمليات البيع</th>
+                        <th>الزيارات الناجحة</th>
+                        <th>عدم الزيارة</th>
+                        <th>نسبة النجاح</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in seller_rows %}
+                        <tr>
+                            <td><span class="manager-data-table__rank">{{ forloop.counter }}</span></td>
+                            <td>
+                                <strong>{{ row.worker_name }}</strong>
+                                {% if row.subtitle %}<br><small>{{ row.subtitle }}</small>{% endif %}
+                            </td>
+                            <td>{{ row.total_sales|floatformat:2 }} دج</td>
+                            <td>{{ row.positive_sale_record_count }}</td>
+                            <td>{{ row.visited_record_count }}</td>
+                            <td>{{ row.not_visited_record_count }}</td>
+                            <td>
+                                {% if row.visit_success_percentage == None %}
+                                    —
+                                {% else %}
+                                    {{ row.visit_success_percentage|floatformat:1 }}%
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="manager-daily-empty">
+            لا توجد بيانات قابلة للقياس ضمن النطاق الحالي.
+        </div>
+    {% endif %}
+</div>
