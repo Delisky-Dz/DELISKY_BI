@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db.models import Count, Max, Sum
+from django.db.models import Max, Sum
 from django.shortcuts import render
 
 from apps.analytics.services.assignment_resolver import (
@@ -127,7 +127,6 @@ class ExclusionSummary:
     error_count: int
 
 
-
 def _build_product_sources(
     *,
     period_start,
@@ -172,7 +171,6 @@ def _build_product_sources(
         chargement,
         products,
     )
-
 
 
 def _data_quality(
@@ -294,7 +292,6 @@ def _data_quality(
     )
 
 
-
 def _gap_rows(products):
     rows = []
 
@@ -349,7 +346,6 @@ def _gap_rows(products):
     )
 
 
-
 def _attention(products, operational, quality):
     return AttentionPresentation(
         truck_not_sold_product_count=(
@@ -370,14 +366,53 @@ def _attention(products, operational, quality):
     )
 
 
+def _scope_batches(
+    queryset,
+    *,
+    period_start=None,
+    period_end=None,
+    brand_id=None,
+):
+    if brand_id is not None:
+        queryset = queryset.filter(
+            brand_id=brand_id,
+        )
 
-def _exclusion_summary():
-    approved = ImportBatch.objects.filter(
-        status=ImportBatchStatus.APPROVED,
+    if period_start is not None:
+        queryset = queryset.filter(
+            period_end__gte=period_start,
+        )
+
+    if period_end is not None:
+        queryset = queryset.filter(
+            period_start__lte=period_end,
+        )
+
+    return queryset
+
+
+def _exclusion_summary(
+    *,
+    period_start=None,
+    period_end=None,
+    brand_id=None,
+):
+    approved = _scope_batches(
+        ImportBatch.objects.filter(
+            status=ImportBatchStatus.APPROVED,
+        ),
+        period_start=period_start,
+        period_end=period_end,
+        brand_id=brand_id,
     )
-    superseded_count = ImportBatch.objects.filter(
-        status=ImportBatchStatus.SUPERSEDED,
-    ).count()
+    superseded = _scope_batches(
+        ImportBatch.objects.filter(
+            status=ImportBatchStatus.SUPERSEDED,
+        ),
+        period_start=period_start,
+        period_end=period_end,
+        brand_id=brand_id,
+    )
     totals = approved.aggregate(
         excluded_rows=Sum("excluded_rows"),
         stopped_rows=Sum("stopped_rows"),
@@ -387,7 +422,7 @@ def _exclusion_summary():
 
     return ExclusionSummary(
         approved_batch_count=approved.count(),
-        superseded_batch_count=superseded_count,
+        superseded_batch_count=superseded.count(),
         excluded_rows=totals["excluded_rows"] or 0,
         stopped_rows=totals["stopped_rows"] or 0,
         warning_count=totals["warning_count"] or 0,
@@ -395,15 +430,24 @@ def _exclusion_summary():
     )
 
 
-
-def _source_status_rows():
+def _source_status_rows(
+    *,
+    period_start=None,
+    period_end=None,
+    brand_id=None,
+):
     labels = dict(ImportReportType.choices)
     rows = []
 
     for report_type, report_label in ImportReportType.choices:
-        approved = ImportBatch.objects.filter(
-            status=ImportBatchStatus.APPROVED,
-            report_type=report_type,
+        approved = _scope_batches(
+            ImportBatch.objects.filter(
+                status=ImportBatchStatus.APPROVED,
+                report_type=report_type,
+            ),
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
         )
         totals = approved.aggregate(
             latest_period_end=Max("period_end"),
@@ -445,7 +489,6 @@ def _source_status_rows():
     return tuple(rows)
 
 
-
 def build_follow_up_section_response(
     request,
     *,
@@ -463,18 +506,14 @@ def build_follow_up_section_response(
         "gap_rows": (),
         "exclusion_summary": None,
         "source_status_rows": (),
+        "audit_scope_is_filtered": False,
     }
 
-    if item in {"exclusions", "sources"}:
-        if item == "exclusions":
-            context_data["exclusion_summary"] = (
-                _exclusion_summary()
-            )
-        else:
-            context_data["source_status_rows"] = (
-                _source_status_rows()
-            )
-    elif filter_requested:
+    period_start = None
+    period_end = None
+    brand_id = None
+
+    if filter_requested:
         if filter_form.is_valid():
             period_start = filter_form.cleaned_data[
                 "period_start"
@@ -483,7 +522,30 @@ def build_follow_up_section_response(
                 "period_end"
             ]
             brand_id = selected_brand_id(filter_form)
+            context_data["audit_scope_is_filtered"] = True
+        else:
+            response_status = 400
 
+    if response_status == 200:
+        if item == "exclusions":
+            context_data["exclusion_summary"] = (
+                _exclusion_summary(
+                    period_start=period_start,
+                    period_end=period_end,
+                    brand_id=brand_id,
+                )
+            )
+
+        elif item == "sources":
+            context_data["source_status_rows"] = (
+                _source_status_rows(
+                    period_start=period_start,
+                    period_end=period_end,
+                    brand_id=brand_id,
+                )
+            )
+
+        elif filter_requested:
             if item == "gaps":
                 (
                     _truck_index,
@@ -528,8 +590,6 @@ def build_follow_up_section_response(
                     context_data["coverage_rows"] = (
                         coverage
                     )
-        else:
-            response_status = 400
 
     context = {
         "active_section": "follow-up",
