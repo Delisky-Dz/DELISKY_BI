@@ -15,6 +15,9 @@ from .manager_filters import (
 from .manager_fleet_products import (
     build_fleet_product_section_response,
 )
+from .manager_follow_up import (
+    build_follow_up_section_response,
+)
 from .manager_sellers import (
     build_seller_section_response,
 )
@@ -91,6 +94,13 @@ def manager_section(request, section, item):
 
     if section == "fleet-products":
         return build_fleet_product_section_response(
+            request,
+            item=item,
+            item_label=section_items[item],
+        )
+
+    if section == "follow-up":
+        return build_follow_up_section_response(
             request,
             item=item,
             item_label=section_items[item],
