@@ -5,7 +5,7 @@
     <header class="dashboard-filters__header">
         <div>
             <p class="section-eyebrow">
-                أدوات التصفية
+                بدء التحليل
             </p>
 
             <h2 id="dashboard-filters-title">
@@ -13,8 +13,8 @@
             </h2>
 
             <p class="dashboard-filters__description">
-                حدد الفترة والعلامة لعرض المؤشرات المرتبطة
-                بالبيانات المتوفرة فقط.
+                اختر الفترة والعلامة، ثم اعرض التحليل المطلوب.
+                لن يتم تحميل المؤشرات الثقيلة قبل طلبها.
             </p>
         </div>
 
@@ -40,13 +40,11 @@
         class="dashboard-filter-form"
         novalidate
     >
+        <input type="hidden" name="run" value="1">
+
         <div class="filter-field">
             <div class="filter-field__header">
                 {{ filter_form.period_start.label_tag }}
-
-                <span class="filter-field__hint">
-                    اختياري
-                </span>
             </div>
 
             {{ filter_form.period_start }}
@@ -56,10 +54,6 @@
         <div class="filter-field">
             <div class="filter-field__header">
                 {{ filter_form.period_end.label_tag }}
-
-                <span class="filter-field__hint">
-                    اختياري
-                </span>
             </div>
 
             {{ filter_form.period_end }}
@@ -71,7 +65,7 @@
                 {{ filter_form.brand.label_tag }}
 
                 <span class="filter-field__hint">
-                    اختياري
+                    يمكن اختيار جميع العلامات
                 </span>
             </div>
 
@@ -85,7 +79,7 @@
                 type="submit"
             >
                 <span aria-hidden="true">✓</span>
-                تطبيق الفلتر
+                عرض التحليل
             </button>
 
             <a
@@ -93,53 +87,51 @@
                 href="{% url 'dashboard:manager_dashboard' %}"
             >
                 <span aria-hidden="true">↻</span>
-                إعادة الضبط
+                مسح الاختيار
             </a>
         </div>
     </form>
 
-    {% if not filter_form.errors %}
-        {% if filter_form.period_start.value or filter_form.period_end.value or filter_form.brand.value %}
-            <div
-                class="active-filter-summary"
-                aria-label="الفلاتر المطبقة حاليًا"
-            >
-                <span class="active-filter-summary__title">
-                    الفلتر الحالي:
+    {% if filter_requested and not filter_form.errors %}
+        <div
+            class="active-filter-summary"
+            aria-label="الفلاتر المطبقة حاليًا"
+        >
+            <span class="active-filter-summary__title">
+                التحليل الحالي:
+            </span>
+
+            <div class="active-filter-summary__items">
+                <span class="filter-chip">
+                    <strong>من:</strong>
+
+                    {% if filter_form.cleaned_data.period_start %}
+                        {{ filter_form.cleaned_data.period_start|date:"Y-m-d" }}
+                    {% else %}
+                        كل البيانات المتاحة
+                    {% endif %}
                 </span>
 
-                <div class="active-filter-summary__items">
-                    <span class="filter-chip">
-                        <strong>من:</strong>
+                <span class="filter-chip">
+                    <strong>إلى:</strong>
 
-                        {% if filter_form.cleaned_data.period_start %}
-                            {{ filter_form.cleaned_data.period_start|date:"Y-m-d" }}
-                        {% else %}
-                            غير محدد
-                        {% endif %}
-                    </span>
+                    {% if filter_form.cleaned_data.period_end %}
+                        {{ filter_form.cleaned_data.period_end|date:"Y-m-d" }}
+                    {% else %}
+                        كل البيانات المتاحة
+                    {% endif %}
+                </span>
 
-                    <span class="filter-chip">
-                        <strong>إلى:</strong>
+                <span class="filter-chip">
+                    <strong>العلامة:</strong>
 
-                        {% if filter_form.cleaned_data.period_end %}
-                            {{ filter_form.cleaned_data.period_end|date:"Y-m-d" }}
-                        {% else %}
-                            غير محدد
-                        {% endif %}
-                    </span>
-
-                    <span class="filter-chip">
-                        <strong>العلامة:</strong>
-
-                        {% if filter_form.cleaned_data.brand %}
-                            {{ filter_form.cleaned_data.brand }}
-                        {% else %}
-                            جميع العلامات
-                        {% endif %}
-                    </span>
-                </div>
+                    {% if filter_form.cleaned_data.brand %}
+                        {{ filter_form.cleaned_data.brand }}
+                    {% else %}
+                        جميع العلامات
+                    {% endif %}
+                </span>
             </div>
-        {% endif %}
+        </div>
     {% endif %}
 </section>
