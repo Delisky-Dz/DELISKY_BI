@@ -84,7 +84,7 @@
 
             <a
                 class="button button--secondary"
-                href="{% url 'dashboard:manager_dashboard' %}"
+                href="{{ filter_reset_url|default:'/manager/' }}"
             >
                 <span aria-hidden="true">↻</span>
                 مسح الاختيار
