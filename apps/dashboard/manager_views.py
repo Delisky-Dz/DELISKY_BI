@@ -1,8 +1,23 @@
+from dataclasses import dataclass
+from decimal import Decimal
+
 from django.shortcuts import render
 
-from apps.analytics.services.manager_dashboard import (
-    build_manager_dashboard,
+from apps.analytics.services.assignment_resolver import (
+    build_assignment_index,
 )
+from apps.analytics.services.pos_visit_aggregation import (
+    aggregate_pos_visits,
+)
+from apps.analytics.services.sales_aggregation import (
+    SalesAggregationResult,
+    aggregate_sales,
+)
+from apps.analytics.services.truck_resolver import (
+    build_truck_code_index,
+)
+from apps.imports.models import DistributionBrand
+from apps.workforce.models import Worker
 
 from .access import (
     can_use_ai_assistants,
@@ -14,19 +29,204 @@ from .manager_filters import (
     selected_brand_id,
 )
 from .presenters import (
-    present_analytical_coverage,
-    present_data_quality,
-    present_manager_dashboard_summary,
-)
-from .views import (
-    DASHBOARD_PRODUCT_LIMIT,
-    _build_worker_presentations,
+    present_brand_sales_chart,
+    present_sales_timeline,
 )
 
 
 DASHBOARD_TEMPLATE_NAME = (
     "dashboard/manager_dashboard.html"
 )
+PERCENT_MULTIPLIER = Decimal("100")
+CLIENT_FOLLOW_UP_MINIMUM_NON_VISITS = 3
+OVERVIEW_TOP_SELLERS_LIMIT = 5
+
+
+@dataclass(frozen=True, slots=True)
+class OverviewSummaryPresentation:
+    total_sales: Decimal
+    sale_record_count: int
+    positive_sale_record_count: int
+    pos_record_count: int
+    visited_record_count: int
+    not_visited_record_count: int
+    visit_success_percentage: Decimal | None
+    measured_sales_worker_count: int
+    distinct_brand_client_count: int
+    client_follow_up_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class OverviewSellerPresentation:
+    worker_id: int
+    worker_name: str
+    subtitle: str | None
+    total_sales: Decimal
+    relative_bar_percentage: Decimal
+
+
+def _load_brands_by_id(
+    sales: SalesAggregationResult,
+) -> dict[int, DistributionBrand]:
+    brand_ids = {
+        item.brand_id
+        for item in sales.by_brand
+    }
+
+    if not brand_ids:
+        return {}
+
+    return {
+        brand.pk: brand
+        for brand in DistributionBrand.objects.filter(
+            pk__in=brand_ids,
+        )
+    }
+
+
+def _worker_identity(worker_id, worker):
+    if worker is None:
+        return f"المسار رقم {worker_id}", None
+
+    employee_code = str(
+        worker.employee_code or ""
+    ).strip()
+
+    if employee_code.startswith("GEN-"):
+        route_label = " ".join(
+            employee_code.split("-")[1:]
+        )
+        return route_label, "مسار توزيع"
+
+    full_name = str(worker.full_name or "").strip()
+
+    if full_name:
+        return full_name, employee_code or None
+
+    if employee_code:
+        return employee_code, None
+
+    return f"البائع رقم {worker_id}", None
+
+
+def _present_top_sellers(
+    sales: SalesAggregationResult,
+) -> tuple[OverviewSellerPresentation, ...]:
+    ranked = tuple(
+        sorted(
+            sales.by_worker or (),
+            key=lambda item: (
+                -item.metrics.total_sales,
+                item.worker_id,
+            ),
+        )[:OVERVIEW_TOP_SELLERS_LIMIT]
+    )
+
+    worker_ids = {
+        item.worker_id
+        for item in ranked
+    }
+    workers_by_id = {
+        worker.pk: worker
+        for worker in Worker.objects.filter(
+            pk__in=worker_ids,
+        )
+    }
+
+    maximum_total = max(
+        (
+            item.metrics.total_sales
+            for item in ranked
+            if item.metrics.total_sales > 0
+        ),
+        default=Decimal("0"),
+    )
+
+    rows = []
+
+    for item in ranked:
+        worker_name, subtitle = _worker_identity(
+            item.worker_id,
+            workers_by_id.get(item.worker_id),
+        )
+        total_sales = item.metrics.total_sales
+
+        if maximum_total > 0 and total_sales > 0:
+            relative_bar_percentage = (
+                total_sales
+                / maximum_total
+                * PERCENT_MULTIPLIER
+            )
+        else:
+            relative_bar_percentage = Decimal("0")
+
+        rows.append(
+            OverviewSellerPresentation(
+                worker_id=item.worker_id,
+                worker_name=worker_name,
+                subtitle=subtitle,
+                total_sales=total_sales,
+                relative_bar_percentage=(
+                    relative_bar_percentage
+                ),
+            )
+        )
+
+    return tuple(rows)
+
+
+def _present_overview_summary(
+    sales,
+    visits,
+) -> OverviewSummaryPresentation:
+    if visits.overall.total_record_count:
+        visit_success_percentage = (
+            Decimal(visits.overall.visited_record_count)
+            / Decimal(visits.overall.total_record_count)
+            * PERCENT_MULTIPLIER
+        )
+    else:
+        visit_success_percentage = None
+
+    client_follow_up_count = sum(
+        1
+        for item in visits.by_brand_client
+        if (
+            item.metrics.not_visited_record_count
+            >= CLIENT_FOLLOW_UP_MINIMUM_NON_VISITS
+        )
+    )
+
+    return OverviewSummaryPresentation(
+        total_sales=sales.overall.total_sales,
+        sale_record_count=(
+            sales.overall.sale_record_count
+        ),
+        positive_sale_record_count=(
+            sales.overall.positive_sale_record_count
+        ),
+        pos_record_count=(
+            visits.overall.total_record_count
+        ),
+        visited_record_count=(
+            visits.overall.visited_record_count
+        ),
+        not_visited_record_count=(
+            visits.overall.not_visited_record_count
+        ),
+        visit_success_percentage=(
+            visit_success_percentage
+        ),
+        measured_sales_worker_count=len(
+            sales.by_worker or ()
+        ),
+        distinct_brand_client_count=len(
+            visits.by_brand_client or ()
+        ),
+        client_follow_up_count=(
+            client_follow_up_count
+        ),
+    )
 
 
 @manager_required
@@ -35,87 +235,62 @@ def manager_dashboard(request):
         build_filter_form(request)
     )
 
-    dashboard_result = None
-    summary_presentation = None
-    coverage_presentation = None
-    data_quality_presentation = None
-
-    worker_presentations = {
-        "top_sales_workers": (),
-        "lowest_sales_workers": (),
-        "highest_visit_workers": (),
-        "highest_non_visit_workers": (),
-        "most_not_sold_workers": (),
-        "top_visited_clients": (),
-        "top_not_visited_clients": (),
-        "worker_cards": (),
-        "brand_sales_chart": (),
-        "sales_timeline": None,
-    }
-
+    overview_summary = None
+    top_sales_workers = ()
+    sales_timeline = None
+    brand_sales_chart = ()
     response_status = 200
 
     if filter_requested:
         if filter_form.is_valid():
-            dashboard_result = build_manager_dashboard(
-                period_start=(
-                    filter_form.cleaned_data[
-                        "period_start"
-                    ]
-                ),
-                period_end=(
-                    filter_form.cleaned_data[
-                        "period_end"
-                    ]
-                ),
-                brand_id=selected_brand_id(
-                    filter_form
-                ),
-                product_limit=DASHBOARD_PRODUCT_LIMIT,
+            brand_id = selected_brand_id(
+                filter_form
+            )
+            period_start = filter_form.cleaned_data[
+                "period_start"
+            ]
+            period_end = filter_form.cleaned_data[
+                "period_end"
+            ]
+
+            truck_index = build_truck_code_index()
+            assignment_index = build_assignment_index()
+
+            sales = aggregate_sales(
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+                truck_index=truck_index,
+                assignment_index=assignment_index,
+            )
+            visits = aggregate_pos_visits(
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+                truck_index=truck_index,
+                assignment_index=assignment_index,
             )
 
-            dashboard_summary = getattr(
-                dashboard_result,
-                "summary",
-                None,
+            overview_summary = (
+                _present_overview_summary(
+                    sales,
+                    visits,
+                )
             )
-            dashboard_coverage = getattr(
-                dashboard_result,
-                "coverage",
-                None,
+            top_sales_workers = (
+                _present_top_sellers(sales)
             )
-            dashboard_data_quality = getattr(
-                dashboard_result,
-                "data_quality",
-                None,
+            sales_timeline = present_sales_timeline(
+                sales
             )
 
-            if dashboard_summary is not None:
-                summary_presentation = (
-                    present_manager_dashboard_summary(
-                        dashboard_summary
+            if brand_id is None:
+                brand_sales_chart = (
+                    present_brand_sales_chart(
+                        sales,
+                        _load_brands_by_id(sales),
                     )
                 )
-
-            if dashboard_coverage is not None:
-                coverage_presentation = (
-                    present_analytical_coverage(
-                        dashboard_coverage
-                    )
-                )
-
-            if dashboard_data_quality is not None:
-                data_quality_presentation = (
-                    present_data_quality(
-                        dashboard_data_quality
-                    )
-                )
-
-            worker_presentations = (
-                _build_worker_presentations(
-                    dashboard_result
-                )
-            )
         else:
             response_status = 400
 
@@ -128,14 +303,13 @@ def manager_dashboard(request):
         "filter_reset_url": request.path,
         "filter_requested": filter_requested,
         "filter_form": filter_form,
-        "dashboard_result": dashboard_result,
-        "summary": summary_presentation,
-        "coverage": coverage_presentation,
-        "data_quality": data_quality_presentation,
         "can_use_ai_assistants": can_use_ai_assistants(
             request.user
         ),
-        **worker_presentations,
+        "overview_summary": overview_summary,
+        "top_sales_workers": top_sales_workers,
+        "sales_timeline": sales_timeline,
+        "brand_sales_chart": brand_sales_chart,
     }
 
     return render(
