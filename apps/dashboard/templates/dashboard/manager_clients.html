@@ -1,0 +1,178 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ item_label }} | الزبائن | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-clients-1"
+    >
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_requested and filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% elif not filter_requested %}
+        <section class="manager-placeholder">
+            <strong>اختر الفترة والعلامة لعرض تحليل الزبائن</strong>
+            <p>
+                هذا القسم لا يشغّل تحليلات الزبائن قبل الضغط على «عرض التحليل».
+            </p>
+        </section>
+    {% else %}
+        <section class="dashboard-section">
+            <header class="manager-module-header">
+                <div>
+                    <p class="manager-module-header__eyebrow">الزبائن</p>
+                    <h2>{{ item_label }}</h2>
+                    <p>
+                        يعرض فقط تحليل الزبائن المطلوب ضمن الفترة والعلامة المختارة.
+                    </p>
+                </div>
+            </header>
+
+            {% if client_item == 'overview' and client_overview %}
+                <div class="metric-grid">
+                    <article class="metric-card"><h3>الزبائن المسجلون</h3><p>{{ client_overview.distinct_client_count }}</p></article>
+                    <article class="metric-card"><h3>الزبائن المشترون</h3><p>{{ client_overview.purchasing_client_count }}</p></article>
+                    <article class="metric-card"><h3>الزيارات الناجحة</h3><p>{{ client_overview.visited_record_count }}</p></article>
+                    <article class="metric-card"><h3>عدم الزيارة</h3><p>{{ client_overview.not_visited_record_count }}</p></article>
+                    <article class="metric-card"><h3>نسبة نجاح الزيارة</h3><p>{% if client_overview.visit_success_percentage == None %}غير متاحة{% else %}{{ client_overview.visit_success_percentage|floatformat:1 }}%{% endif %}</p></article>
+                </div>
+
+                <div class="manager-scope-notice">
+                    <strong>أهم الزبائن خلال الفترة</strong>
+                    <p>أعلى عشرة زبائن حسب قيمة المبيعات، مع سياق الزيارات عند توفره.</p>
+                </div>
+                <br>
+            {% endif %}
+
+            {% if client_item == 'top' or client_item == 'overview' %}
+                {% if client_rows %}
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>الزبون</th><th>العلامة</th><th>المبيعات</th><th>عمليات البيع</th><th>الزيارات الناجحة</th><th>عدم الزيارة</th></tr></thead>
+                            <tbody>
+                                {% for row in client_rows %}
+                                    <tr>
+                                        <td><strong>{{ row.client_name }}</strong></td>
+                                        <td>{{ row.brand_name }}</td>
+                                        <td>{{ row.total_sales|floatformat:2 }} دج</td>
+                                        <td>{{ row.sale_record_count }}</td>
+                                        <td>{{ row.visited_record_count }}</td>
+                                        <td>{{ row.not_visited_record_count }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="manager-placeholder"><strong>لا توجد بيانات زبائن</strong><p>غيّر الفترة أو العلامة لعرض بيانات متاحة.</p></div>
+                {% endif %}
+
+            {% elif client_item == 'declining' or client_item == 'stopped' %}
+                {% if not comparison_available %}
+                    <div class="manager-placeholder">
+                        <strong>لا توجد فترة سابقة كافية للمقارنة</strong>
+                        <p>يحتاج هذا التحليل فترة سابقة بنفس طول الفترة المختارة وبها مبيعات معتمدة.</p>
+                    </div>
+                {% elif trend_rows %}
+                    <div class="manager-scope-notice">
+                        <strong>مقارنة زمنية مباشرة</strong>
+                        <p>
+                            الفترة السابقة:
+                            {{ comparison_period.0|date:"Y-m-d" }} → {{ comparison_period.1|date:"Y-m-d" }}.
+                            {% if client_item == 'declining' %}
+                                يظهر التراجع عندما تنخفض المبيعات بنسبة {{ decline_threshold_percentage|floatformat:0 }}% أو أكثر.
+                            {% endif %}
+                        </p>
+                    </div>
+                    <br>
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>الزبون</th><th>العلامة</th><th>الفترة السابقة</th><th>الفترة الحالية</th><th>التغير</th></tr></thead>
+                            <tbody>
+                                {% for row in trend_rows %}
+                                    <tr>
+                                        <td><strong>{{ row.client_name }}</strong></td>
+                                        <td>{{ row.brand_name }}</td>
+                                        <td>{{ row.previous_sales|floatformat:2 }} دج</td>
+                                        <td>{{ row.current_sales|floatformat:2 }} دج</td>
+                                        <td>{% if row.change_percentage == None %}—{% else %}{{ row.change_percentage|floatformat:1 }}%{% endif %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="manager-placeholder">
+                        <strong>{% if client_item == 'declining' %}لا يوجد تراجع مثبت ضمن المعيار الحالي{% else %}لا يوجد زبائن متوقفون مثبتون{% endif %}</strong>
+                        <p>لا توجد حالات مطابقة ضمن النطاق المختار مقارنة بالفترة السابقة.</p>
+                    </div>
+                {% endif %}
+
+            {% elif client_item == 'visited-no-sale' or client_item == 'visits' %}
+                {% if visit_rows %}
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>الزبون</th><th>العلامة</th><th>إجمالي الزيارات</th><th>زيارات ناجحة</th><th>عدم زيارة</th><th>نسبة النجاح</th></tr></thead>
+                            <tbody>
+                                {% for row in visit_rows %}
+                                    <tr>
+                                        <td><strong>{{ row.client_name }}</strong></td>
+                                        <td>{{ row.brand_name }}</td>
+                                        <td>{{ row.total_record_count }}</td>
+                                        <td>{{ row.visited_record_count }}</td>
+                                        <td>{{ row.not_visited_record_count }}</td>
+                                        <td>{% if row.visit_success_percentage == None %}—{% else %}{{ row.visit_success_percentage|floatformat:1 }}%{% endif %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="manager-placeholder"><strong>لا توجد حالات مطابقة</strong><p>لا توجد بيانات تطابق هذا التحليل ضمن النطاق المختار.</p></div>
+                {% endif %}
+
+            {% elif client_item == 'card' %}
+                <form method="get" class="manager-inline-selector">
+                    <input type="hidden" name="run" value="1">
+                    {% if filter_form.cleaned_data.period_start %}<input type="hidden" name="period_start" value="{{ filter_form.cleaned_data.period_start|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.period_end %}<input type="hidden" name="period_end" value="{{ filter_form.cleaned_data.period_end|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.brand %}<input type="hidden" name="brand" value="{{ filter_form.cleaned_data.brand.pk }}">{% endif %}
+                    <label for="client-card-client">اختر الزبون</label>
+                    <select id="client-card-client" name="client" required>
+                        <option value="">اختر...</option>
+                        {% for row in client_rows %}
+                            <option value="{{ row.key }}" {% if selected_client and selected_client.key == row.key %}selected{% endif %}>{{ row.client_name }} — {{ row.brand_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button class="button button--primary" type="submit">عرض البطاقة</button>
+                </form>
+
+                {% if selected_client %}
+                    <div class="metric-grid">
+                        <article class="metric-card"><h3>المبيعات</h3><p>{{ selected_client.total_sales|floatformat:2 }} دج</p></article>
+                        <article class="metric-card"><h3>عمليات البيع</h3><p>{{ selected_client.sale_record_count }}</p></article>
+                        <article class="metric-card"><h3>الزيارات</h3><p>{{ selected_client.visit_record_count }}</p></article>
+                        <article class="metric-card"><h3>الزيارات الناجحة</h3><p>{{ selected_client.visited_record_count }}</p></article>
+                        <article class="metric-card"><h3>عدم الزيارة</h3><p>{{ selected_client.not_visited_record_count }}</p></article>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-clients-1" defer></script>
+{% endblock %}
