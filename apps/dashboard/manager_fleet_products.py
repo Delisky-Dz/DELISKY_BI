@@ -55,6 +55,7 @@ class ProductMovementRow:
     sold_quantity: Decimal
     quantity_gap: Decimal
     sold_to_supplied_percentage: Decimal | None
+    has_sales_coverage: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +88,7 @@ class TruckDetailPresentation:
     sold_quantity: Decimal
     not_sold_product_count: int
     slow_moving_product_count: int
+    has_sales_coverage: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,7 +99,7 @@ class ProductTruckRow:
     sold_quantity: Decimal
     quantity_gap: Decimal
     sold_to_supplied_percentage: Decimal | None
-
+    has_sales_coverage: bool
 
 
 def _load_trucks(truck_ids):
@@ -110,7 +112,6 @@ def _load_trucks(truck_ids):
             pk__in=truck_ids,
         ).select_related("distribution_brand")
     }
-
 
 
 def _truck_name(truck_id, trucks):
@@ -126,15 +127,16 @@ def _truck_name(truck_id, trucks):
     )
 
 
-
 def _percentage_ratio(quantities):
+    if not quantities.has_sales_coverage:
+        return None
+
     ratio = quantities.sold_to_supplied_ratio
 
     if ratio is None:
         return None
 
     return ratio * Decimal("100")
-
 
 
 def _movement_row(item, trucks):
@@ -155,8 +157,10 @@ def _movement_row(item, trucks):
         sold_to_supplied_percentage=(
             _percentage_ratio(quantities)
         ),
+        has_sales_coverage=(
+            quantities.has_sales_coverage
+        ),
     )
-
 
 
 def _build_product_result(
@@ -195,7 +199,6 @@ def _build_product_result(
         opening_stock_result=opening_stock,
         chargement_result=chargement,
     )
-
 
 
 def _not_sold_groups(product_result):
@@ -244,13 +247,13 @@ def _not_sold_groups(product_result):
     )
 
 
-
 def _slow_moving_rows(product_result):
     candidates = [
         item
         for item in product_result.truck_products
         if (
-            item.quantities.supplied_quantity > 0
+            item.quantities.has_sales_coverage
+            and item.quantities.supplied_quantity > 0
             and item.quantities.sold_quantity > 0
             and item.quantities.sold_to_supplied_ratio
             is not None
@@ -276,7 +279,6 @@ def _slow_moving_rows(product_result):
     )
 
 
-
 def _load_vs_sales_rows(product_result):
     candidates = [
         item
@@ -292,10 +294,14 @@ def _load_vs_sales_rows(product_result):
         for item in sorted(
             candidates,
             key=lambda item: (
+                not item.quantities.has_sales_coverage,
                 (
                     item.quantities.sold_to_supplied_ratio
-                    if item.quantities.sold_to_supplied_ratio
-                    is not None
+                    if (
+                        item.quantities.has_sales_coverage
+                        and item.quantities.sold_to_supplied_ratio
+                        is not None
+                    )
                     else Decimal("999999")
                 ),
                 -item.quantities.supplied_quantity,
@@ -304,7 +310,6 @@ def _load_vs_sales_rows(product_result):
             ),
         )[:TABLE_LIMIT]
     )
-
 
 
 def _status_rows(
@@ -357,7 +362,6 @@ def _status_rows(
     )
 
 
-
 def _truck_detail(
     *,
     product_result,
@@ -384,6 +388,10 @@ def _truck_detail(
             if item.truck_id == selected_truck_id
         ),
         None,
+    )
+    has_sales_coverage = bool(products) and all(
+        item.quantities.has_sales_coverage
+        for item in products
     )
 
     return TruckDetailPresentation(
@@ -425,7 +433,8 @@ def _truck_detail(
             1
             for item in products
             if (
-                item.quantities.supplied_quantity > 0
+                item.quantities.has_sales_coverage
+                and item.quantities.supplied_quantity > 0
                 and item.quantities.sold_quantity > 0
                 and item.quantities.sold_to_supplied_ratio
                 is not None
@@ -433,8 +442,8 @@ def _truck_detail(
                 <= SLOW_MOVING_RATIO
             )
         ),
+        has_sales_coverage=has_sales_coverage,
     )
-
 
 
 def _product_rows(
@@ -470,16 +479,19 @@ def _product_rows(
             sold_to_supplied_percentage=(
                 _percentage_ratio(item.quantities)
             ),
+            has_sales_coverage=(
+                item.quantities.has_sales_coverage
+            ),
         )
         for item in sorted(
             matches,
             key=lambda item: (
+                not item.quantities.has_sales_coverage,
                 -item.quantities.sold_quantity,
                 item.truck_id,
             ),
         )
     )
-
 
 
 def build_fleet_product_section_response(
