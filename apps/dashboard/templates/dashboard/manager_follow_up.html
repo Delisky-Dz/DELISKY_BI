@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-follow-up-1">
+    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-follow-up-2">
 {% endblock %}
 
 {% block content %}
@@ -32,6 +32,19 @@
                     <p>هذا القسم مخصص للمراجعة والجودة والتغطية، بعيدًا عن الواجهة اليومية للمدير.</p>
                 </div>
             </header>
+
+            {% if follow_up_item == 'exclusions' or follow_up_item == 'sources' %}
+                <div class="manager-scope-notice">
+                    {% if audit_scope_is_filtered %}
+                        <strong>النطاق الحالي مطبق على الدفعات</strong>
+                        <p>تُعرض الدفعات التي تتقاطع زمنيًا مع الفترة المختارة وتطابق العلامة عند تحديدها. هذا نطاق مراجعة للدفعات وليس إعادة تفسير لخط أساس Opening Stock.</p>
+                    {% else %}
+                        <strong>عرض شامل لكل البيانات المعتمدة</strong>
+                        <p>لم يتم اختيار فلتر، لذلك تظهر حالة المصادر والدفعات على مستوى النظام كاملًا.</p>
+                    {% endif %}
+                </div>
+                <br>
+            {% endif %}
 
             {% if follow_up_item == 'attention' %}
                 {% if attention %}
@@ -137,5 +150,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-follow-up-1" defer></script>
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-follow-up-2" defer></script>
 {% endblock %}
