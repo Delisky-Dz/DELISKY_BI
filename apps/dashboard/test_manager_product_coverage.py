@@ -8,6 +8,8 @@ from apps.imports.models import (
     ImportBatch,
     ImportBatchStatus,
     ImportReportType,
+    ImportSourceSystem,
+    ImportSourceUpload,
 )
 
 from .templatetags.manager_product_coverage import (
@@ -32,7 +34,19 @@ class ManagerItemsPeriodGuidanceTests(TestCase):
             name="Other Guidance Brand",
             is_active=True,
         )
+        cls.source_system = ImportSourceSystem.objects.create(
+            code="GUIDANCE-SOURCE",
+            name="Guidance Source",
+            is_active=True,
+        )
+        cls.source_upload = ImportSourceUpload.objects.create(
+            source_system=cls.source_system,
+            original_filename="items-guidance.xlsx",
+            file_sha256="a" * 64,
+            uploaded_by=cls.user,
+        )
         ImportBatch.objects.create(
+            source_upload=cls.source_upload,
             brand=cls.brand,
             report_type=ImportReportType.ITEMS,
             period_start=date(2026, 4, 4),
