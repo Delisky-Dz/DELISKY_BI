@@ -35,6 +35,34 @@ def _visits_result():
     )
 
 
+def _product_performance_item(
+    *,
+    sales_coverage,
+    truck_id=999,
+    worker_id=999,
+    article="Coverage Test Product",
+    normalized="coverage test product",
+):
+    supplied = Decimal("10")
+    sold = Decimal("0")
+
+    return SimpleNamespace(
+        brand_id=1,
+        truck_id=truck_id,
+        worker_id=worker_id,
+        article=article,
+        article_normalized=normalized,
+        quantities=SimpleNamespace(
+            supplied_quantity=supplied,
+            sold_quantity=sold,
+            analytical_quantity_gap=supplied - sold,
+            sold_to_supplied_ratio=Decimal("0"),
+            has_sales_coverage=sales_coverage,
+            is_not_sold=sales_coverage,
+        ),
+    )
+
+
 class ManagerDashboardFilterFirstTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -269,3 +297,111 @@ class ManagerSectionRoutingTests(TestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 404)
+
+
+class ManagerProductCoveragePresentationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="manager-product-coverage",
+            password="test-password",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_login(self.user)
+        self.filters = {
+            "run": "1",
+            "period_start": "2026-07-01",
+            "period_end": "2026-07-31",
+            "brand": "",
+        }
+
+    @patch(
+        "apps.dashboard.manager_fleet_products."
+        "_build_product_result"
+    )
+    def test_load_vs_sales_hides_false_zero_without_items_coverage(
+        self,
+        build_product_result,
+    ):
+        item = _product_performance_item(
+            sales_coverage=False,
+        )
+        build_product_result.return_value = SimpleNamespace(
+            truck_products=(item,),
+        )
+        url = reverse(
+            "dashboard:manager_section",
+            args=("fleet-products", "load-vs-sales"),
+        )
+
+        response = self.client.get(url, self.filters)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "غير متاح")
+        self.assertNotContains(response, "0.0%")
+        self.assertContains(
+            response,
+            "لا توجد تغطية Items قابلة للقياس",
+        )
+
+    @patch(
+        "apps.dashboard.manager_fleet_products."
+        "_build_product_result"
+    )
+    def test_not_sold_page_does_not_claim_missing_coverage_is_zero(
+        self,
+        build_product_result,
+    ):
+        item = _product_performance_item(
+            sales_coverage=False,
+        )
+        build_product_result.return_value = SimpleNamespace(
+            truck_products=(item,),
+        )
+        url = reverse(
+            "dashboard:manager_section",
+            args=("fleet-products", "not-sold"),
+        )
+
+        response = self.client.get(url, self.filters)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "هذا لا يثبت أن كل المنتجات بيعت",
+        )
+        self.assertContains(
+            response,
+            "غياب التغطية لا يعني أن المبيعات تساوي صفرًا",
+        )
+
+    @patch(
+        "apps.dashboard.manager_sellers."
+        "_build_product_result"
+    )
+    def test_seller_not_sold_page_explains_missing_items_coverage(
+        self,
+        build_product_result,
+    ):
+        item = _product_performance_item(
+            sales_coverage=False,
+        )
+        build_product_result.return_value = SimpleNamespace(
+            worker_products=(item,),
+        )
+        url = reverse(
+            "dashboard:manager_section",
+            args=("sellers", "not-sold"),
+        )
+
+        response = self.client.get(url, self.filters)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            "غياب Items ليس صفر مبيعات",
+        )
+        self.assertContains(
+            response,
+            "هذا لا يعني أن كل المنتجات بيعت",
+        )
