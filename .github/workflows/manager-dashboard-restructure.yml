@@ -67,3 +67,6 @@ jobs:
 
       - name: Full dashboard app tests
         run: python manage.py test apps.dashboard --settings=config.settings.development -v 2
+
+      - name: Full project test suite
+        run: python manage.py test --settings=config.settings.development -v 1
