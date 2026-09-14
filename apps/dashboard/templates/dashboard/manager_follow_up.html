@@ -1,0 +1,141 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ item_label }} | المتابعة | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-follow-up-1">
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_requested and filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% elif not filter_requested and follow_up_item != 'exclusions' and follow_up_item != 'sources' %}
+        <section class="manager-placeholder">
+            <strong>اختر الفترة والعلامة لعرض المتابعة</strong>
+            <p>لن يتم تشغيل تحليلات المتابعة الثقيلة قبل الضغط على «عرض التحليل».</p>
+        </section>
+    {% else %}
+        <section class="dashboard-section">
+            <header class="manager-module-header">
+                <div>
+                    <p class="manager-module-header__eyebrow">المتابعة</p>
+                    <h2>{{ item_label }}</h2>
+                    <p>هذا القسم مخصص للمراجعة والجودة والتغطية، بعيدًا عن الواجهة اليومية للمدير.</p>
+                </div>
+            </header>
+
+            {% if follow_up_item == 'attention' %}
+                {% if attention %}
+                    <div class="metric-grid">
+                        <article class="metric-card"><h3>منتجات غير مباعة حسب الشاحنة</h3><p>{{ attention.truck_not_sold_product_count }}</p></article>
+                        <article class="metric-card"><h3>شاحنات متوقفة مؤكدة</h3><p>{{ attention.confirmed_stopped_truck_count }}</p></article>
+                        <article class="metric-card"><h3>توقف محتمل</h3><p>{{ attention.possible_stopped_truck_count }}</p></article>
+                        <article class="metric-card"><h3>أدلة تشغيل متعارضة</h3><p>{{ attention.conflicting_truck_state_count }}</p></article>
+                    </div>
+                    {% if attention.attribution_issue_count %}
+                        <div class="manager-scope-notice">
+                            <strong>يوجد {{ attention.attribution_issue_count }} ملاحظة ربط</strong>
+                            <p>هذه ملاحظات جودة بيانات وليست حالات تجارية بحد ذاتها؛ تفاصيلها موجودة في «جودة البيانات».</p>
+                        </div>
+                    {% endif %}
+                {% endif %}
+
+            {% elif follow_up_item == 'data-quality' %}
+                {% if data_quality %}
+                    <div class="metric-grid">
+                        <article class="metric-card"><h3>مشاكل الربط</h3><p>{{ data_quality.attribution_issue_count }}</p></article>
+                        <article class="metric-card"><h3>تحذيرات POS</h3><p>{{ data_quality.warning_count }}</p></article>
+                    </div>
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>المصدر</th><th>مشاكل الربط</th><th>تحذيرات إضافية</th></tr></thead>
+                            <tbody>
+                                <tr><td>Sales</td><td>{{ data_quality.sales_attribution_issue_count }}</td><td>—</td></tr>
+                                <tr><td>POS</td><td>{{ data_quality.pos_attribution_issue_count }}</td><td>{{ data_quality.pos_numeric_message_warning_count }} رقمي + {{ data_quality.pos_duplicate_same_day_warning_count }} تكرار يومي</td></tr>
+                                <tr><td>Items</td><td>{{ data_quality.items_attribution_issue_count }}</td><td>—</td></tr>
+                                <tr><td>Opening Stock</td><td>{{ data_quality.opening_stock_attribution_issue_count }}</td><td>—</td></tr>
+                                <tr><td>Chargement</td><td>{{ data_quality.chargement_attribution_issue_count }}</td><td>—</td></tr>
+                                <tr><td>الحالة التشغيلية</td><td>{{ data_quality.operational_attribution_issue_count }}</td><td>—</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+
+            {% elif follow_up_item == 'gaps' %}
+                <div class="manager-scope-notice">
+                    <strong>فجوة تحليلية تحتاج تحقق</strong>
+                    <p>الفجوة السالبة لا تُعرض كخطأ مخزون قطعي؛ مصادرنا قد لا تشمل كل الحركات والتسويات.</p>
+                </div>
+                <br>
+                {% if gap_rows %}
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>النطاق</th><th>المعرف</th><th>المنتج</th><th>المتاح للتحليل</th><th>المباع</th><th>الفجوة</th></tr></thead>
+                            <tbody>
+                                {% for row in gap_rows %}
+                                    <tr><td>{{ row.scope }}</td><td>{{ row.entity_id }}</td><td><strong>{{ row.article }}</strong></td><td>{{ row.supplied_quantity|floatformat:2 }}</td><td>{{ row.sold_quantity|floatformat:2 }}</td><td>{{ row.analytical_gap|floatformat:2 }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="manager-table-note">يعرض حتى 100 حالة، مرتبة حسب أكبر فجوة سالبة.</p>
+                {% else %}
+                    <div class="manager-placeholder"><strong>لا توجد فجوات سالبة ضمن النطاق</strong><p>لا توجد حالات مطابقة في البيانات القابلة للقياس.</p></div>
+                {% endif %}
+
+            {% elif follow_up_item == 'coverage' %}
+                {% if coverage_rows %}
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>المصدر</th><th>صفوف المصدر</th><th>داخل الفترة</th><th>خارج الفترة</th><th>تداخل جزئي مستبعد</th></tr></thead>
+                            <tbody>
+                                {% for row in coverage_rows %}
+                                    <tr><td><strong>{{ row.source_name }}</strong></td><td>{{ row.source_row_count }}</td><td>{{ row.included_row_count }}</td><td>{{ row.outside_period_count }}</td><td>{{ row.partial_overlap_count }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+
+            {% elif follow_up_item == 'exclusions' %}
+                {% if exclusion_summary %}
+                    <div class="metric-grid">
+                        <article class="metric-card"><h3>دفعات معتمدة</h3><p>{{ exclusion_summary.approved_batch_count }}</p></article>
+                        <article class="metric-card"><h3>دفعات مستبدلة</h3><p>{{ exclusion_summary.superseded_batch_count }}</p></article>
+                        <article class="metric-card"><h3>صفوف مستبعدة</h3><p>{{ exclusion_summary.excluded_rows }}</p></article>
+                        <article class="metric-card"><h3>صفوف توقف</h3><p>{{ exclusion_summary.stopped_rows }}</p></article>
+                        <article class="metric-card"><h3>تحذيرات الدفعات</h3><p>{{ exclusion_summary.warning_count }}</p></article>
+                        <article class="metric-card"><h3>أخطاء الدفعات المعتمدة</h3><p>{{ exclusion_summary.error_count }}</p></article>
+                    </div>
+                {% endif %}
+
+            {% elif follow_up_item == 'sources' %}
+                {% if source_status_rows %}
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>المصدر</th><th>دفعات معتمدة</th><th>آخر تاريخ</th><th>مقبول</th><th>مستبعد</th><th>توقف</th><th>تحذيرات</th><th>أخطاء</th></tr></thead>
+                            <tbody>
+                                {% for row in source_status_rows %}
+                                    <tr><td><strong>{{ row.report_label }}</strong></td><td>{{ row.approved_batch_count }}</td><td>{% if row.latest_period_end %}{{ row.latest_period_end|date:"Y-m-d" }}{% else %}—{% endif %}</td><td>{{ row.accepted_rows }}</td><td>{{ row.excluded_rows }}</td><td>{{ row.stopped_rows }}</td><td>{{ row.warning_count }}</td><td>{{ row.error_count }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-follow-up-1" defer></script>
+{% endblock %}
