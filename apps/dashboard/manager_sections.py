@@ -50,24 +50,26 @@ SECTION_ITEMS = {
     },
 }
 
-SECTION_BUILDERS = {
-    "sellers": build_seller_section_response,
-    "clients": build_client_section_response,
-    "fleet-products": build_fleet_product_section_response,
-    "follow-up": build_follow_up_section_response,
-}
-
 
 @manager_required
 def manager_section(request, section, item):
     section_items = SECTION_ITEMS.get(section)
-    builder = SECTION_BUILDERS.get(section)
 
     if (
         section_items is None
-        or builder is None
         or item not in section_items
     ):
+        raise Http404
+
+    if section == "sellers":
+        builder = build_seller_section_response
+    elif section == "clients":
+        builder = build_client_section_response
+    elif section == "fleet-products":
+        builder = build_fleet_product_section_response
+    elif section == "follow-up":
+        builder = build_follow_up_section_response
+    else:
         raise Http404
 
     return builder(
