@@ -190,33 +190,82 @@ class ManagerSectionRoutingTests(TestCase):
         )
         self.client.force_login(self.user)
 
-    @patch(
-        "apps.dashboard.manager_sections."
-        "build_client_section_response"
-    )
-    def test_client_section_is_dispatched_to_client_module(
+    def _assert_dispatch(
         self,
-        build_client_section_response,
+        *,
+        section,
+        item,
+        patch_path,
+        expected_label,
     ):
-        build_client_section_response.return_value = (
-            HttpResponse("ok")
+        with patch(patch_path) as builder:
+            builder.return_value = HttpResponse("ok")
+            url = reverse(
+                "dashboard:manager_section",
+                args=(section, item),
+            )
+
+            response = self.client.get(url)
+
+            self.assertEqual(response.status_code, 200)
+            builder.assert_called_once()
+            kwargs = builder.call_args.kwargs
+            self.assertEqual(kwargs["item"], item)
+            self.assertEqual(
+                kwargs["item_label"],
+                expected_label,
+            )
+
+    def test_seller_section_is_dispatched(self):
+        self._assert_dispatch(
+            section="sellers",
+            item="rankings",
+            patch_path=(
+                "apps.dashboard.manager_sections."
+                "build_seller_section_response"
+            ),
+            expected_label="ترتيب البائعين",
         )
 
+    def test_client_section_is_dispatched(self):
+        self._assert_dispatch(
+            section="clients",
+            item="declining",
+            patch_path=(
+                "apps.dashboard.manager_sections."
+                "build_client_section_response"
+            ),
+            expected_label="الزبائن المتراجعون",
+        )
+
+    def test_fleet_product_section_is_dispatched(self):
+        self._assert_dispatch(
+            section="fleet-products",
+            item="slow-moving",
+            patch_path=(
+                "apps.dashboard.manager_sections."
+                "build_fleet_product_section_response"
+            ),
+            expected_label="المنتجات ضعيفة الحركة",
+        )
+
+    def test_follow_up_section_is_dispatched(self):
+        self._assert_dispatch(
+            section="follow-up",
+            item="data-quality",
+            patch_path=(
+                "apps.dashboard.manager_sections."
+                "build_follow_up_section_response"
+            ),
+            expected_label="جودة البيانات",
+        )
+
+    def test_unknown_section_item_returns_404(self):
         url = reverse(
             "dashboard:manager_section",
-            args=("clients", "declining"),
+            args=("clients", "unknown"),
         )
 
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, 200)
-        build_client_section_response.assert_called_once()
-        kwargs = (
-            build_client_section_response
-            .call_args.kwargs
-        )
-        self.assertEqual(kwargs["item"], "declining")
-        self.assertEqual(
-            kwargs["item_label"],
-            "الزبائن المتراجعون",
-        )
+        self.assertEqual(response.status_code, 404)
