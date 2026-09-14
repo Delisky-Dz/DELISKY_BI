@@ -1,12 +1,12 @@
 {% extends "dashboard/base.html" %}
-{% load static %}
+{% load static manager_product_coverage %}
 
 {% block title %}
     {{ item_label }} | الشاحنات والمنتجات | DELISKY BI
 {% endblock %}
 
 {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-fleet-products-2">
+    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-fleet-products-3">
 {% endblock %}
 
 {% block content %}
@@ -32,6 +32,39 @@
                     <p>يتم تحميل هذا التحليل وحده ضمن الفترة والعلامة المختارة.</p>
                 </div>
             </header>
+
+            {% if fleet_product_item != 'truck-status' %}
+                {% items_period_guidance filter_form.cleaned_data.period_start filter_form.cleaned_data.period_end filter_form.cleaned_data.brand as items_guidance %}
+                {% if items_guidance.has_partial_overlap %}
+                    <div class="manager-scope-notice">
+                        <strong>الفترة المختارة أدق من بيانات Items المتاحة</strong>
+                        <p>
+                            ملفات Items تحفظ إجمالي فترة كاملة ولا تحتوي تاريخ بيع لكل سطر. لذلك تُستبعد أي Items لا تقع فترتها كاملة داخل نطاق التحليل بدل توزيع مبيعاتها على أيام أو أشهر بشكل تقديري.
+                        </p>
+                        {% if items_guidance.suggested_period %}
+                            <p>
+                                <strong>الفترة المتاحة لتحليل المنتجات بدقة:</strong>
+                                {{ items_guidance.suggested_period.start|date:'d/m/Y' }} → {{ items_guidance.suggested_period.end|date:'d/m/Y' }}.
+                                اختر فترة تحتوي هذا النطاق كاملًا لإدخال Items في الحساب.
+                            </p>
+                        {% else %}
+                            <p><strong>فترات Items المتداخلة مع اختيارك:</strong></p>
+                            <ul>
+                                {% for source_period in items_guidance.source_periods %}
+                                    <li>{{ source_period.start|date:'d/m/Y' }} → {{ source_period.end|date:'d/m/Y' }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                    <br>
+                {% elif not items_guidance.has_overlapping_sources %}
+                    <div class="manager-scope-notice">
+                        <strong>لا توجد Items معتمدة لهذه الفترة</strong>
+                        <p>لا توجد ملفات Items معتمدة تتقاطع مع الفترة والعلامة المختارة. مؤشرات المنتجات المعتمدة على الكمية المباعة لا يمكن حسمها لهذا النطاق.</p>
+                    </div>
+                    <br>
+                {% endif %}
+            {% endif %}
 
             {% if fleet_product_item == 'not-sold' %}
                 <div class="manager-scope-notice">
@@ -176,5 +209,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-fleet-products-2" defer></script>
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-fleet-products-3" defer></script>
 {% endblock %}
