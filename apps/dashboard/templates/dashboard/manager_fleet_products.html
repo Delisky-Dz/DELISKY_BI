@@ -1,0 +1,159 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ item_label }} | الشاحنات والمنتجات | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-fleet-products-1">
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_requested and filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% elif not filter_requested %}
+        <section class="manager-placeholder">
+            <strong>اختر الفترة والعلامة لعرض المنتجات والشاحنات</strong>
+            <p>لن يتم تشغيل تحليلات المخزون والحركة قبل الضغط على «عرض التحليل».</p>
+        </section>
+    {% else %}
+        <section class="dashboard-section">
+            <header class="manager-module-header">
+                <div>
+                    <p class="manager-module-header__eyebrow">الشاحنات والمنتجات</p>
+                    <h2>{{ item_label }}</h2>
+                    <p>يتم تحميل هذا التحليل وحده ضمن الفترة والعلامة المختارة.</p>
+                </div>
+            </header>
+
+            {% if fleet_product_item == 'not-sold' %}
+                {% if not_sold_groups %}
+                    <div class="manager-accordion-list">
+                        {% for group in not_sold_groups %}
+                            <details class="manager-accordion-card">
+                                <summary>
+                                    <span><strong>{{ group.truck_name }}</strong></span>
+                                    <b>{{ group.product_count }} منتج غير مباع</b>
+                                </summary>
+                                <div class="manager-data-table-wrap">
+                                    <table class="manager-data-table">
+                                        <thead><tr><th>المنتج</th><th>المتاح للتحليل</th><th>المباع</th></tr></thead>
+                                        <tbody>
+                                            {% for row in group.products %}
+                                                <tr><td><strong>{{ row.article }}</strong></td><td>{{ row.supplied_quantity|floatformat:2 }}</td><td>{{ row.sold_quantity|floatformat:2 }}</td></tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% if group.product_count > group.products|length %}
+                                    <p class="manager-accordion-card__note">يعرض أول {{ group.products|length }} حالات حسب أكبر كمية متاحة للتحليل.</p>
+                                {% endif %}
+                            </details>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="manager-placeholder"><strong>لا توجد منتجات غير مباعة مثبتة</strong><p>لا توجد حالات ضمن النطاق المختار.</p></div>
+                {% endif %}
+
+            {% elif fleet_product_item == 'slow-moving' %}
+                <div class="manager-scope-notice">
+                    <strong>تعريف الحركة الضعيفة</strong>
+                    <p>يعرض المنتج عندما تكون له كمية متاحة ومبيعات موجبة، لكن نسبة المباع إلى المتاح لا تتجاوز {{ slow_moving_percentage|floatformat:0 }}%. هذا مؤشر متابعة تحليلي وليس رصيد مخزون ختاميًا.</p>
+                </div>
+                <br>
+                {% include "dashboard/partials/product_movement_table.html" %}
+
+            {% elif fleet_product_item == 'load-vs-sales' %}
+                <div class="manager-scope-notice">
+                    <strong>التحميل مقابل البيع</strong>
+                    <p>يرتب الحالات ذات التوفر/التحميل مقابل المبيعات دون الادعاء أن الفجوة تمثل مخزونًا ختاميًا دقيقًا.</p>
+                </div>
+                <br>
+                {% include "dashboard/partials/product_movement_table.html" %}
+
+            {% elif fleet_product_item == 'truck-status' %}
+                {% if truck_status_rows %}
+                    <div class="manager-data-table-wrap">
+                        <table class="manager-data-table">
+                            <thead><tr><th>الشاحنة</th><th>الحالة</th><th>نشاط البيع</th><th>إجمالي المبيعات</th><th>دليل توقف مؤكد</th><th>دليل توقف محتمل</th></tr></thead>
+                            <tbody>
+                                {% for row in truck_status_rows %}
+                                    <tr><td><strong>{{ row.truck_name }}</strong></td><td>{{ row.status_label }}</td><td>{{ row.sales_activity_count }}</td><td>{{ row.sales_total|floatformat:2 }} دج</td><td>{{ row.authoritative_stopped_count }}</td><td>{{ row.possible_stopped_count }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="manager-placeholder"><strong>لا توجد أدلة تشغيلية</strong><p>لا توجد حالة قابلة للإثبات ضمن الفترة المختارة.</p></div>
+                {% endif %}
+
+            {% elif fleet_product_item == 'truck' %}
+                <form method="get" class="manager-inline-selector">
+                    <input type="hidden" name="run" value="1">
+                    {% if filter_form.cleaned_data.period_start %}<input type="hidden" name="period_start" value="{{ filter_form.cleaned_data.period_start|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.period_end %}<input type="hidden" name="period_end" value="{{ filter_form.cleaned_data.period_end|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.brand %}<input type="hidden" name="brand" value="{{ filter_form.cleaned_data.brand.pk }}">{% endif %}
+                    <label for="fleet-truck-select">اختر الشاحنة</label>
+                    <select id="fleet-truck-select" name="truck" required>
+                        <option value="">اختر...</option>
+                        {% for truck_id, truck_name in truck_choices %}<option value="{{ truck_id }}" {% if selected_truck_id == truck_id %}selected{% endif %}>{{ truck_name }}</option>{% endfor %}
+                    </select>
+                    <button class="button button--primary" type="submit">عرض التفاصيل</button>
+                </form>
+
+                {% if truck_detail %}
+                    <div class="metric-grid">
+                        <article class="metric-card"><h3>الشاحنة</h3><p>{{ truck_detail.truck_name }}</p></article>
+                        <article class="metric-card"><h3>المبيعات</h3><p>{{ truck_detail.total_sales|floatformat:2 }} دج</p></article>
+                        <article class="metric-card"><h3>عمليات البيع</h3><p>{{ truck_detail.sale_record_count }}</p></article>
+                        <article class="metric-card"><h3>الكمية المتاحة للتحليل</h3><p>{{ truck_detail.supplied_quantity|floatformat:2 }}</p></article>
+                        <article class="metric-card"><h3>الكمية المباعة</h3><p>{{ truck_detail.sold_quantity|floatformat:2 }}</p></article>
+                        <article class="metric-card"><h3>منتجات غير مباعة</h3><p>{{ truck_detail.not_sold_product_count }}</p></article>
+                        <article class="metric-card"><h3>منتجات ضعيفة الحركة</h3><p>{{ truck_detail.slow_moving_product_count }}</p></article>
+                    </div>
+                {% endif %}
+
+            {% elif fleet_product_item == 'product' %}
+                <form method="get" class="manager-inline-selector">
+                    <input type="hidden" name="run" value="1">
+                    {% if filter_form.cleaned_data.period_start %}<input type="hidden" name="period_start" value="{{ filter_form.cleaned_data.period_start|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.period_end %}<input type="hidden" name="period_end" value="{{ filter_form.cleaned_data.period_end|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.brand %}<input type="hidden" name="brand" value="{{ filter_form.cleaned_data.brand.pk }}">{% endif %}
+                    <label for="fleet-product-select">اختر المنتج</label>
+                    <select id="fleet-product-select" name="product" required>
+                        <option value="">اختر...</option>
+                        {% for normalized, label in product_choices %}<option value="{{ normalized }}" {% if selected_product == label %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    <button class="button button--primary" type="submit">عرض التفاصيل</button>
+                </form>
+
+                {% if selected_product %}
+                    <div class="manager-scope-notice"><strong>{{ selected_product }}</strong><p>مقارنة حركة المنتج بين الشاحنات ضمن النطاق المختار.</p></div><br>
+                    {% if product_rows %}
+                        <div class="manager-data-table-wrap">
+                            <table class="manager-data-table">
+                                <thead><tr><th>الشاحنة</th><th>المتاح للتحليل</th><th>المباع</th><th>الفجوة التحليلية</th><th>نسبة المباع</th></tr></thead>
+                                <tbody>
+                                    {% for row in product_rows %}
+                                        <tr><td><strong>{{ row.truck_name }}</strong></td><td>{{ row.supplied_quantity|floatformat:2 }}</td><td>{{ row.sold_quantity|floatformat:2 }}</td><td>{{ row.quantity_gap|floatformat:2 }}</td><td>{% if row.sold_to_supplied_percentage == None %}—{% else %}{{ row.sold_to_supplied_percentage|floatformat:1 }}%{% endif %}</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-fleet-products-1" defer></script>
+{% endblock %}
