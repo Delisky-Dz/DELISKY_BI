@@ -5,6 +5,9 @@ from .access import (
     can_use_ai_assistants,
     manager_required,
 )
+from .manager_clients import (
+    build_client_section_response,
+)
 from .manager_filters import (
     build_filter_form,
     manager_filter_query,
@@ -71,6 +74,13 @@ def manager_section(request, section, item):
 
     if section == "sellers":
         return build_seller_section_response(
+            request,
+            item=item,
+            item_label=section_items[item],
+        )
+
+    if section == "clients":
+        return build_client_section_response(
             request,
             item=item,
             item_label=section_items[item],
