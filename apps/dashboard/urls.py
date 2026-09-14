@@ -1,6 +1,6 @@
 ﻿from django.urls import path
 
-from . import views
+from . import manager_views, views
 
 
 app_name = "dashboard"
@@ -8,7 +8,7 @@ app_name = "dashboard"
 urlpatterns = [
     path(
         "",
-        views.manager_dashboard,
+        manager_views.manager_dashboard,
         name="manager_dashboard",
     ),
     path(
