@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 from django.test import TestCase
 from django.urls import reverse
 
@@ -198,7 +199,7 @@ class ManagerSectionRoutingTests(TestCase):
         build_client_section_response,
     ):
         build_client_section_response.return_value = (
-            SimpleNamespace(status_code=200)
+            HttpResponse("ok")
         )
 
         url = reverse(
