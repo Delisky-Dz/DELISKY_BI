@@ -8,7 +8,7 @@
 {% block extra_head %}
     <link
         rel="stylesheet"
-        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-sellers-1"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-sellers-2"
     >
 {% endblock %}
 
@@ -73,6 +73,11 @@
                 {% include "dashboard/partials/seller_performance_table.html" %}
 
             {% elif seller_item == 'not-sold' %}
+                <div class="manager-scope-notice">
+                    <strong>مهم: غياب Items ليس صفر مبيعات</strong>
+                    <p>يعرض هذا القسم فقط المنتجات غير المباعة المثبتة عندما تكون تغطية Items قابلة للقياس للبائع/المسار والفترة. الحالات دون تغطية لا تُصنف كغير مباعة.</p>
+                </div>
+                <br>
                 {% if not_sold_groups %}
                     <div class="manager-accordion-list">
                         {% for group in not_sold_groups %}
@@ -82,7 +87,7 @@
                                         <strong>{{ group.worker_name }}</strong>
                                         {% if group.subtitle %}<small>{{ group.subtitle }}</small>{% endif %}
                                     </span>
-                                    <b>{{ group.product_count }} منتج غير مباع</b>
+                                    <b>{{ group.product_count }} منتج غير مباع مثبت</b>
                                 </summary>
                                 <div class="manager-data-table-wrap">
                                     <table class="manager-data-table">
@@ -114,8 +119,8 @@
                     </div>
                 {% else %}
                     <div class="manager-placeholder">
-                        <strong>لا توجد منتجات غير مباعة مثبتة</strong>
-                        <p>لا توجد حالات ضمن النطاق المختار وفق البيانات القابلة للقياس.</p>
+                        <strong>لا توجد منتجات غير مباعة مثبتة ضمن البيانات القابلة للقياس</strong>
+                        <p>هذا لا يعني أن كل المنتجات بيعت؛ غياب تغطية Items لبعض المسارات يجعل النتيجة غير قابلة للحسم بدل اعتبارها صفر مبيعات.</p>
                     </div>
                 {% endif %}
 
@@ -155,5 +160,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-sellers-1" defer></script>
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-sellers-2" defer></script>
 {% endblock %}
