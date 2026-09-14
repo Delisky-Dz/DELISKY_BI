@@ -61,3 +61,6 @@ jobs:
 
       - name: Focused manager dashboard tests
         run: python manage.py test apps.dashboard.test_manager_dashboard_restructure --settings=config.settings.development -v 2
+
+      - name: Full dashboard app tests
+        run: python manage.py test apps.dashboard --settings=config.settings.development -v 2
