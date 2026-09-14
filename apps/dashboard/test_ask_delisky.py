@@ -910,26 +910,11 @@ class AskDeliskyUiTests(TestCase):
             self.manager
         )
 
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_dashboard_renders_assistant_with_filters(
-        self,
-        mocked_dashboard,
-    ):
-        from types import SimpleNamespace
-
-        mocked_dashboard.return_value = (
-            SimpleNamespace(
-                summary=None,
-                coverage=None,
-                data_quality=None,
-            )
-        )
-
+    def test_dashboard_renders_assistant_with_filters(self):
         response = self.client.get(
             reverse(
-                "dashboard:manager_dashboard"
+                "dashboard:manager_tool",
+                args=("ask-delisky",),
             ),
             {
                 "period_start": "2026-07-01",
@@ -938,89 +923,42 @@ class AskDeliskyUiTests(TestCase):
             },
         )
 
-        self.assertEqual(
-            response.status_code,
-            200,
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "dashboard/manager_tool.html",
         )
-
         self.assertTemplateUsed(
             response,
             "dashboard/partials/ask_delisky.html",
         )
 
         html = response.content.decode("utf-8")
+        self.assertIn("data-ask-delisky", html)
+        self.assertIn("data-ask-delisky-form", html)
+        self.assertIn('name="period_start"', html)
+        self.assertIn('value="2026-07-01"', html)
+        self.assertIn('value="2026-07-20"', html)
+        self.assertIn(f'value="{self.brand.pk}"', html)
+        self.assertIn("csrfmiddlewaretoken", html)
 
-        self.assertIn(
-            "data-ask-delisky",
-            html,
-        )
-        self.assertIn(
-            "data-ask-delisky-form",
-            html,
-        )
-        self.assertIn(
-            'name="period_start"',
-            html,
-        )
-        self.assertIn(
-            'value="2026-07-01"',
-            html,
-        )
-        self.assertIn(
-            'value="2026-07-20"',
-            html,
-        )
-        self.assertIn(
-            f'value="{self.brand.pk}"',
-            html,
-        )
-        self.assertIn(
-            "csrfmiddlewaretoken",
-            html,
-        )
 
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_dashboard_renders_assistant_sidebar_link(
-        self,
-        mocked_dashboard,
-    ):
-        from types import SimpleNamespace
-
-        mocked_dashboard.return_value = (
-            SimpleNamespace(
-                summary=None,
-                coverage=None,
-                data_quality=None,
-            )
-        )
-
+    def test_dashboard_renders_assistant_sidebar_link(self):
         response = self.client.get(
-            reverse(
-                "dashboard:manager_dashboard"
-            )
+            reverse("dashboard:manager_dashboard")
         )
 
-        self.assertEqual(
-            response.status_code,
-            200,
-        )
-
+        self.assertEqual(response.status_code, 200)
         html = response.content.decode("utf-8")
+        tool_url = reverse(
+            "dashboard:manager_tool",
+            args=("ask-delisky",),
+        )
+        self.assertIn(f'href="{tool_url}"', html)
+        self.assertIn("Ask DELISKY", html)
+        self.assertNotIn('id="ask-delisky-title"', html)
+        self.assertNotIn("data-ask-delisky-form", html)
 
-        self.assertIn(
-            'href="#ask-delisky-title"',
-            html,
-        )
-        self.assertIn(
-            'id="ask-delisky-title"',
-            html,
-        )
-        self.assertIn(
-            "Ask DELISKY",
-            html,
-        )
 
     @patch(
         "apps.dashboard.views.build_manager_dashboard"

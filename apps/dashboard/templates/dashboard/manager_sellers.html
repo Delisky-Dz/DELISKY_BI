@@ -1,0 +1,195 @@
+{% extends "dashboard/base.html" %}
+{% load static manager_product_coverage %}
+
+{% block title %}
+    {{ item_label }} | البائعون | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-sellers-3"
+    >
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_requested and filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% elif not filter_requested %}
+        <section class="manager-placeholder">
+            <strong>اختر الفترة والعلامة لعرض البائعين</strong>
+            <p>
+                لن يتم تشغيل تحليلات البائعين قبل الضغط على «عرض التحليل».
+            </p>
+        </section>
+    {% else %}
+        <section class="dashboard-section">
+            <header class="manager-module-header">
+                <div>
+                    <p class="manager-module-header__eyebrow">البائعون</p>
+                    <h2>{{ item_label }}</h2>
+                    <p>
+                        يتم تحميل المؤشرات اللازمة لهذا القسم فقط، بدل بناء
+                        كل لوحة المدير في كل ضغطة.
+                    </p>
+                </div>
+            </header>
+
+            {% if seller_item == 'rankings' %}
+                <nav class="manager-module-tabs" aria-label="مؤشر ترتيب البائعين">
+                    <a href="?{% if manager_query %}{{ manager_query }}&{% endif %}metric=sales" {% if ranking_metric == 'sales' %}aria-current="page"{% endif %}>المبيعات</a>
+                    <a href="?{% if manager_query %}{{ manager_query }}&{% endif %}metric=visits" {% if ranking_metric == 'visits' %}aria-current="page"{% endif %}>الزيارات الناجحة</a>
+                    <a href="?{% if manager_query %}{{ manager_query }}&{% endif %}metric=success" {% if ranking_metric == 'success' %}aria-current="page"{% endif %}>نسبة نجاح الزيارة</a>
+                </nav>
+
+                {% include "dashboard/partials/seller_performance_table.html" %}
+
+            {% elif seller_item == 'visits' %}
+                <div class="manager-scope-notice">
+                    <strong>أداء الزيارات</strong>
+                    <p>
+                        يرتب البائعين الذين لديهم 3 سجلات زيارة أو أكثر حسب
+                        نسبة نجاح الزيارة، دون اعتبار غياب القياس فشلًا.
+                    </p>
+                </div>
+                <br>
+                {% include "dashboard/partials/seller_performance_table.html" %}
+
+            {% elif seller_item == 'lowest-sales' %}
+                <div class="manager-scope-notice">
+                    <strong>أقل البائعين مبيعًا</strong>
+                    <p>
+                        يظهر فقط من لديه سجلات مبيعات قابلة للقياس ضمن الفترة
+                        والعلامة المختارة.
+                    </p>
+                </div>
+                <br>
+                {% include "dashboard/partials/seller_performance_table.html" %}
+
+            {% elif seller_item == 'not-sold' %}
+                {% items_period_guidance filter_form.cleaned_data.period_start filter_form.cleaned_data.period_end filter_form.cleaned_data.brand as items_guidance %}
+                {% if items_guidance.has_partial_overlap %}
+                    <div class="manager-scope-notice">
+                        <strong>الفترة المختارة أدق من بيانات Items المتاحة</strong>
+                        <p>
+                            ملفات Items تحفظ إجمالي فترة كاملة ولا تحتوي تاريخ بيع لكل سطر، لذلك لا يمكن تقسيمها على جزء من تلك الفترة دون اختراع توزيع زمني غير موجود.
+                        </p>
+                        {% if items_guidance.suggested_period %}
+                            <p>
+                                <strong>الفترة المتاحة لتحليل المنتجات بدقة:</strong>
+                                {{ items_guidance.suggested_period.start|date:'d/m/Y' }} → {{ items_guidance.suggested_period.end|date:'d/m/Y' }}.
+                                اختر فترة تحتوي هذا النطاق كاملًا لإدخال Items في الحساب.
+                            </p>
+                        {% else %}
+                            <p><strong>فترات Items المتداخلة مع اختيارك:</strong></p>
+                            <ul>
+                                {% for source_period in items_guidance.source_periods %}
+                                    <li>{{ source_period.start|date:'d/m/Y' }} → {{ source_period.end|date:'d/m/Y' }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                    <br>
+                {% elif not items_guidance.has_overlapping_sources %}
+                    <div class="manager-scope-notice">
+                        <strong>لا توجد Items معتمدة لهذه الفترة</strong>
+                        <p>لا توجد ملفات Items معتمدة تتقاطع مع الفترة والعلامة المختارة، لذلك لا يمكن حسم المنتجات غير المباعة.</p>
+                    </div>
+                    <br>
+                {% endif %}
+
+                <div class="manager-scope-notice">
+                    <strong>مهم: غياب Items ليس صفر مبيعات</strong>
+                    <p>يعرض هذا القسم فقط المنتجات غير المباعة المثبتة عندما تكون تغطية Items قابلة للقياس للبائع/المسار والفترة. الحالات دون تغطية لا تُصنف كغير مباعة.</p>
+                </div>
+                <br>
+                {% if not_sold_groups %}
+                    <div class="manager-accordion-list">
+                        {% for group in not_sold_groups %}
+                            <details class="manager-accordion-card">
+                                <summary>
+                                    <span>
+                                        <strong>{{ group.worker_name }}</strong>
+                                        {% if group.subtitle %}<small>{{ group.subtitle }}</small>{% endif %}
+                                    </span>
+                                    <b>{{ group.product_count }} منتج غير مباع مثبت</b>
+                                </summary>
+                                <div class="manager-data-table-wrap">
+                                    <table class="manager-data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>المنتج</th>
+                                                <th>الكمية المتاحة للتحليل</th>
+                                                <th>المباع</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for product in group.products %}
+                                                <tr>
+                                                    <td><strong>{{ product.article }}</strong></td>
+                                                    <td>{{ product.supplied_quantity|floatformat:2 }}</td>
+                                                    <td>{{ product.sold_quantity|floatformat:2 }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% if group.product_count > group.products|length %}
+                                    <p class="manager-accordion-card__note">
+                                        يعرض أول {{ group.products|length }} منتجات حسب أكبر كمية متاحة للتحليل.
+                                    </p>
+                                {% endif %}
+                            </details>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="manager-placeholder">
+                        <strong>لا توجد منتجات غير مباعة مثبتة ضمن البيانات القابلة للقياس</strong>
+                        <p>هذا لا يعني أن كل المنتجات بيعت؛ غياب تغطية Items لبعض المسارات يجعل النتيجة غير قابلة للحسم بدل اعتبارها صفر مبيعات.</p>
+                    </div>
+                {% endif %}
+
+            {% elif seller_item == 'card' %}
+                <form method="get" class="manager-inline-selector">
+                    <input type="hidden" name="run" value="1">
+                    {% if filter_form.cleaned_data.period_start %}<input type="hidden" name="period_start" value="{{ filter_form.cleaned_data.period_start|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.period_end %}<input type="hidden" name="period_end" value="{{ filter_form.cleaned_data.period_end|date:'Y-m-d' }}">{% endif %}
+                    {% if filter_form.cleaned_data.brand %}<input type="hidden" name="brand" value="{{ filter_form.cleaned_data.brand.pk }}">{% endif %}
+
+                    <label for="seller-card-worker">اختر البائع / المسار</label>
+                    <select id="seller-card-worker" name="worker" required>
+                        <option value="">اختر...</option>
+                        {% for row in seller_rows %}
+                            <option value="{{ row.worker_id }}" {% if selected_worker_id == row.worker_id %}selected{% endif %}>
+                                {{ row.worker_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="button button--primary" type="submit">عرض البطاقة</button>
+                </form>
+
+                {% if selected_worker %}
+                    <div class="metric-grid">
+                        <article class="metric-card"><h3>المبيعات</h3><p>{{ selected_worker.total_sales|floatformat:2 }} دج</p></article>
+                        <article class="metric-card"><h3>عمليات البيع</h3><p>{{ selected_worker.positive_sale_record_count }}</p></article>
+                        <article class="metric-card"><h3>الزيارات الناجحة</h3><p>{{ selected_worker.visited_record_count }}</p></article>
+                        <article class="metric-card"><h3>عدم الزيارة</h3><p>{{ selected_worker.not_visited_record_count }}</p></article>
+                        <article class="metric-card"><h3>نسبة نجاح الزيارة</h3><p>{% if selected_worker.visit_success_percentage == None %}غير متاحة{% else %}{{ selected_worker.visit_success_percentage|floatformat:1 }}%{% endif %}</p></article>
+                    </div>
+                {% elif selected_worker_id %}
+                    <div class="manager-placeholder"><strong>البائع غير موجود ضمن القياس الحالي</strong><p>غيّر البائع أو نطاق التحليل.</p></div>
+                {% endif %}
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-sellers-3" defer></script>
+{% endblock %}

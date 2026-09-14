@@ -1,0 +1,48 @@
+<div class="manager-section-card">
+    <header class="manager-section-card__header">
+        <h3>المبيعات حسب الشاحنة</h3>
+        <p>
+            ترتيب الشاحنات حسب إجمالي المبيعات المعتمدة ضمن الفترة
+            والعلامة المختارة.
+        </p>
+    </header>
+
+    {% if truck_sales %}
+        <div class="manager-data-table-wrap">
+            <table class="manager-data-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الشاحنة / المسار</th>
+                        <th>العلامة</th>
+                        <th>إجمالي المبيعات</th>
+                        <th>العمليات الإيجابية</th>
+                        <th>إجمالي السجلات</th>
+                        <th>السجلات الصفرية</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in truck_sales %}
+                        <tr>
+                            <td>
+                                <span class="manager-data-table__rank">
+                                    {{ forloop.counter }}
+                                </span>
+                            </td>
+                            <td><strong>{{ row.truck_name }}</strong></td>
+                            <td>{{ row.brand_name }}</td>
+                            <td>{{ row.total_sales|floatformat:2 }} دج</td>
+                            <td>{{ row.positive_sale_record_count }}</td>
+                            <td>{{ row.sale_record_count }}</td>
+                            <td>{{ row.zero_total_record_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="manager-daily-empty">
+            لا توجد مبيعات منسوبة إلى شاحنات ضمن النطاق الحالي.
+        </div>
+    {% endif %}
+</div>

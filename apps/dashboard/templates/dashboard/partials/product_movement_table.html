@@ -1,0 +1,53 @@
+{% if movement_rows %}
+    <div class="manager-data-table-wrap">
+        <table class="manager-data-table">
+            <thead>
+                <tr>
+                    <th>الشاحنة</th>
+                    <th>المنتج</th>
+                    <th>المتاح للتحليل</th>
+                    <th>المباع</th>
+                    <th>الفجوة التحليلية</th>
+                    <th>نسبة المباع</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in movement_rows %}
+                    <tr>
+                        <td><strong>{{ row.truck_name }}</strong></td>
+                        <td>{{ row.article }}</td>
+                        <td>{{ row.supplied_quantity|floatformat:2 }}</td>
+                        <td>
+                            {% if row.has_sales_coverage %}
+                                {{ row.sold_quantity|floatformat:2 }}
+                            {% else %}
+                                <span title="لا توجد تغطية Items قابلة للقياس لهذه الحالة">غير متاح</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.has_sales_coverage %}
+                                {{ row.quantity_gap|floatformat:2 }}
+                            {% else %}
+                                <span title="لا يمكن حساب الفجوة دون تغطية مبيعات Items">غير متاح</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if not row.has_sales_coverage %}
+                                <span title="لا توجد تغطية Items قابلة للقياس لهذه الحالة">غير متاح</span>
+                            {% elif row.sold_to_supplied_percentage == None %}
+                                —
+                            {% else %}
+                                {{ row.sold_to_supplied_percentage|floatformat:1 }}%
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="manager-placeholder">
+        <strong>لا توجد حالات مطابقة قابلة للقياس</strong>
+        <p>قد تكون بعض الحالات خارج التصنيف عندما لا تتوفر تغطية Items صالحة للفترة المختارة.</p>
+    </div>
+{% endif %}
