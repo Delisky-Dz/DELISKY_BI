@@ -1,3 +1,5 @@
+from django.shortcuts import render
+
 from apps.analytics.services.manager_dashboard import (
     build_manager_dashboard,
 )
@@ -6,7 +8,11 @@ from .access import (
     can_use_ai_assistants,
     manager_required,
 )
-from .forms import ManagerDashboardFilterForm
+from .manager_filters import (
+    build_filter_form,
+    manager_filter_query,
+    selected_brand_id,
+)
 from .presenters import (
     present_analytical_coverage,
     present_data_quality,
@@ -21,32 +27,12 @@ from .views import (
 DASHBOARD_TEMPLATE_NAME = (
     "dashboard/manager_dashboard.html"
 )
-FILTER_QUERY_KEYS = frozenset(
-    {
-        "period_start",
-        "period_end",
-        "brand",
-        "run",
-    }
-)
-
-
-def _filter_requested(request) -> bool:
-    return any(
-        key in request.GET
-        for key in FILTER_QUERY_KEYS
-    )
 
 
 @manager_required
 def manager_dashboard(request):
-    filter_requested = _filter_requested(request)
-    filter_form = ManagerDashboardFilterForm(
-        data=(
-            request.GET
-            if filter_requested
-            else None
-        ),
+    filter_requested, filter_form = (
+        build_filter_form(request)
     )
 
     dashboard_result = None
@@ -71,10 +57,6 @@ def manager_dashboard(request):
 
     if filter_requested:
         if filter_form.is_valid():
-            selected_brand = (
-                filter_form.cleaned_data["brand"]
-            )
-
             dashboard_result = build_manager_dashboard(
                 period_start=(
                     filter_form.cleaned_data[
@@ -86,10 +68,8 @@ def manager_dashboard(request):
                         "period_end"
                     ]
                 ),
-                brand_id=(
-                    selected_brand.pk
-                    if selected_brand is not None
-                    else None
+                brand_id=selected_brand_id(
+                    filter_form
                 ),
                 product_limit=DASHBOARD_PRODUCT_LIMIT,
             )
@@ -140,6 +120,12 @@ def manager_dashboard(request):
             response_status = 400
 
     context = {
+        "active_section": "overview",
+        "active_item": "overview",
+        "manager_query": manager_filter_query(
+            request
+        ),
+        "filter_reset_url": request.path,
         "filter_requested": filter_requested,
         "filter_form": filter_form,
         "dashboard_result": dashboard_result,
@@ -151,8 +137,6 @@ def manager_dashboard(request):
         ),
         **worker_presentations,
     }
-
-    from django.shortcuts import render
 
     return render(
         request,
