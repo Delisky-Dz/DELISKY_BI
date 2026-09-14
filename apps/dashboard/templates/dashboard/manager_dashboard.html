@@ -8,11 +8,13 @@
 {% block extra_head %}
     <link
         rel="stylesheet"
-        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-filter-first"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-overview-2"
     >
 {% endblock %}
 
 {% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+
     {% include "dashboard/partials/filter_form.html" %}
 
     {% if not filter_requested %}
@@ -30,36 +32,8 @@
                 صحح الأخطاء الظاهرة ثم أعد المحاولة.
             </p>
         </section>
-    {% elif dashboard_result %}
-        {% if summary %}
-            {% include "dashboard/partials/executive_overview.html" %}
-            {% include "dashboard/partials/sales_summary.html" %}
-            {% include "dashboard/partials/visits_summary.html" %}
-            {% include "dashboard/partials/workers_summary.html" %}
-            {% include "dashboard/partials/attention_summary.html" %}
-            {% include "dashboard/partials/truck_status.html" %}
-        {% endif %}
-
-        {% if top_sales_workers or lowest_sales_workers or highest_visit_workers or highest_non_visit_workers or most_not_sold_workers %}
-            {% include "dashboard/partials/worker_rankings.html" %}
-        {% endif %}
-
-        {% if worker_cards %}
-            {% include "dashboard/partials/worker_cards.html" %}
-        {% endif %}
-
-        {% if coverage %}
-            {% include "dashboard/partials/coverage_summary.html" %}
-        {% endif %}
-
-        {% if data_quality %}
-            {% include "dashboard/partials/data_quality_summary.html" %}
-        {% endif %}
-
-        {% if can_use_ai_assistants %}
-            {% include "dashboard/partials/ask_delisky.html" %}
-            {% include "dashboard/partials/marketing_helper.html" %}
-        {% endif %}
+    {% elif overview_summary %}
+        {% include "dashboard/partials/manager_overview_core.html" %}
     {% else %}
         <section
             class="dashboard-empty-state"
@@ -74,4 +48,11 @@
             </p>
         </section>
     {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script
+        src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-overview-2"
+        defer
+    ></script>
 {% endblock %}
