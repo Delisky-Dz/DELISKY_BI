@@ -15,7 +15,7 @@ on:
       - ".github/workflows/manager-dashboard-restructure.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   dashboard-tests:
@@ -50,15 +50,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prepare and migrate legacy dashboard tests locally
-        if: >-
-          github.event_name == 'push' &&
-          hashFiles('scripts/fix_manager_test_migration.py') != '' &&
-          hashFiles('scripts/migrate_manager_dashboard_tests.py') != ''
-        run: |
-          python scripts/fix_manager_test_migration.py
-          python scripts/migrate_manager_dashboard_tests.py
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -76,17 +67,3 @@ jobs:
 
       - name: Full dashboard app tests
         run: python manage.py test apps.dashboard --settings=config.settings.development -v 2
-
-      - name: Commit migrated tests only after green suite
-        if: >-
-          github.event_name == 'push' &&
-          hashFiles('scripts/fix_manager_test_migration.py') != '' &&
-          success()
-        run: |
-          rm -f scripts/fix_manager_test_migration.py
-          rm -f scripts/migrate_manager_dashboard_tests.py
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/dashboard scripts
-          git commit -m "test: migrate dashboard tests to modular manager UI"
-          git push origin HEAD:feature/manager-dashboard-restructure
