@@ -1,26 +1,38 @@
 {% extends "dashboard/base.html" %}
+{% load static %}
 
 {% block title %}
     لوحة المدير | DELISKY BI
 {% endblock %}
 
-{% block content %}
-    {% if dashboard_result and summary %}
-        {% include "dashboard/partials/executive_overview.html" %}
-    {% endif %}
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-filter-first"
+    >
+{% endblock %}
 
+{% block content %}
     {% include "dashboard/partials/filter_form.html" %}
 
-    {% if can_use_ai_assistants %}
-        {% if not filter_form.errors %}
-            {% include "dashboard/partials/ask_delisky.html" %}
-        {% endif %}
+    {% if not filter_requested %}
+        {% include "dashboard/partials/welcome_state.html" %}
+    {% elif filter_form.errors %}
+        <section
+            class="dashboard-empty-state dashboard-empty-state--error"
+            aria-labelledby="filter-errors-title"
+        >
+            <h2 id="filter-errors-title">
+                تعذر تطبيق الفلتر
+            </h2>
 
-        {% include "dashboard/partials/marketing_helper.html" %}
-    {% endif %}
-
-    {% if dashboard_result %}
+            <p>
+                صحح الأخطاء الظاهرة ثم أعد المحاولة.
+            </p>
+        </section>
+    {% elif dashboard_result %}
         {% if summary %}
+            {% include "dashboard/partials/executive_overview.html" %}
             {% include "dashboard/partials/sales_summary.html" %}
             {% include "dashboard/partials/visits_summary.html" %}
             {% include "dashboard/partials/workers_summary.html" %}
@@ -43,21 +55,11 @@
         {% if data_quality %}
             {% include "dashboard/partials/data_quality_summary.html" %}
         {% endif %}
-    {% elif filter_form.errors %}
-        <section
-            class="dashboard-empty-state dashboard-empty-state--error"
-            aria-labelledby="filter-errors-title"
-        >
-            <h2 id="filter-errors-title">
-                تعذر تطبيق الفلتر
-            </h2>
 
-            <p>
-                صحح الأخطاء
-                الظاهرة ثم
-                أعد المحاولة.
-            </p>
-        </section>
+        {% if can_use_ai_assistants %}
+            {% include "dashboard/partials/ask_delisky.html" %}
+            {% include "dashboard/partials/marketing_helper.html" %}
+        {% endif %}
     {% else %}
         <section
             class="dashboard-empty-state"
@@ -68,10 +70,7 @@
             </h2>
 
             <p>
-                غيّر الفترة
-                أو العلامة
-                لعرض البيانات
-                المتاحة.
+                غيّر الفترة أو العلامة لعرض البيانات المتاحة.
             </p>
         </section>
     {% endif %}
