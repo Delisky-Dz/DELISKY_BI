@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block extra_head %}
-    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-fleet-products-1">
+    <link rel="stylesheet" href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-fleet-products-2">
 {% endblock %}
 
 {% block content %}
@@ -34,13 +34,18 @@
             </header>
 
             {% if fleet_product_item == 'not-sold' %}
+                <div class="manager-scope-notice">
+                    <strong>مهم: التصنيف يحتاج تغطية Items</strong>
+                    <p>المنتج لا يُصنف «غير مباع» إلا عندما تكون مبيعات Items قابلة للقياس لنفس المسار والفترة. غياب التغطية لا يعني أن المبيعات تساوي صفرًا.</p>
+                </div>
+                <br>
                 {% if not_sold_groups %}
                     <div class="manager-accordion-list">
                         {% for group in not_sold_groups %}
                             <details class="manager-accordion-card">
                                 <summary>
                                     <span><strong>{{ group.truck_name }}</strong></span>
-                                    <b>{{ group.product_count }} منتج غير مباع</b>
+                                    <b>{{ group.product_count }} منتج غير مباع مثبت</b>
                                 </summary>
                                 <div class="manager-data-table-wrap">
                                     <table class="manager-data-table">
@@ -59,13 +64,16 @@
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="manager-placeholder"><strong>لا توجد منتجات غير مباعة مثبتة</strong><p>لا توجد حالات ضمن النطاق المختار.</p></div>
+                    <div class="manager-placeholder">
+                        <strong>لا توجد منتجات غير مباعة مثبتة ضمن البيانات القابلة للقياس</strong>
+                        <p>هذا لا يثبت أن كل المنتجات بيعت؛ الحالات التي لا تتوفر لها تغطية Items تبقى غير قابلة للحسم ولا تُحسب كصفر مبيعات.</p>
+                    </div>
                 {% endif %}
 
             {% elif fleet_product_item == 'slow-moving' %}
                 <div class="manager-scope-notice">
                     <strong>تعريف الحركة الضعيفة</strong>
-                    <p>يعرض المنتج عندما تكون له كمية متاحة ومبيعات موجبة، لكن نسبة المباع إلى المتاح لا تتجاوز {{ slow_moving_percentage|floatformat:0 }}%. هذا مؤشر متابعة تحليلي وليس رصيد مخزون ختاميًا.</p>
+                    <p>يعرض المنتج عندما تكون له كمية متاحة ومبيعات موجبة وقابلة للقياس، لكن نسبة المباع إلى المتاح لا تتجاوز {{ slow_moving_percentage|floatformat:0 }}%. الحالات دون تغطية Items لا تُصنف كحركة ضعيفة أو كصفر مبيعات.</p>
                 </div>
                 <br>
                 {% include "dashboard/partials/product_movement_table.html" %}
@@ -73,7 +81,7 @@
             {% elif fleet_product_item == 'load-vs-sales' %}
                 <div class="manager-scope-notice">
                     <strong>التحميل مقابل البيع</strong>
-                    <p>يرتب الحالات ذات التوفر/التحميل مقابل المبيعات دون الادعاء أن الفجوة تمثل مخزونًا ختاميًا دقيقًا.</p>
+                    <p>يرتب الحالات ذات التوفر/التحميل مقابل المبيعات. عندما لا توجد تغطية Items قابلة للقياس، تظهر المبيعات والنسبة والفجوة «غير متاحة» بدل عرض صفر مضلل.</p>
                 </div>
                 <br>
                 {% include "dashboard/partials/product_movement_table.html" %}
@@ -109,14 +117,21 @@
                 </form>
 
                 {% if truck_detail %}
+                    {% if not truck_detail.has_sales_coverage %}
+                        <div class="manager-scope-notice">
+                            <strong>تغطية Items غير مكتملة لهذه الشاحنة</strong>
+                            <p>المؤشرات المعتمدة على كمية Items المباعة لا تُعرض كصفر، لأنها غير قابلة للحسم ضمن الفترة المختارة.</p>
+                        </div>
+                        <br>
+                    {% endif %}
                     <div class="metric-grid">
                         <article class="metric-card"><h3>الشاحنة</h3><p>{{ truck_detail.truck_name }}</p></article>
                         <article class="metric-card"><h3>المبيعات</h3><p>{{ truck_detail.total_sales|floatformat:2 }} دج</p></article>
                         <article class="metric-card"><h3>عمليات البيع</h3><p>{{ truck_detail.sale_record_count }}</p></article>
                         <article class="metric-card"><h3>الكمية المتاحة للتحليل</h3><p>{{ truck_detail.supplied_quantity|floatformat:2 }}</p></article>
-                        <article class="metric-card"><h3>الكمية المباعة</h3><p>{{ truck_detail.sold_quantity|floatformat:2 }}</p></article>
-                        <article class="metric-card"><h3>منتجات غير مباعة</h3><p>{{ truck_detail.not_sold_product_count }}</p></article>
-                        <article class="metric-card"><h3>منتجات ضعيفة الحركة</h3><p>{{ truck_detail.slow_moving_product_count }}</p></article>
+                        <article class="metric-card"><h3>الكمية المباعة حسب Items</h3><p>{% if truck_detail.has_sales_coverage %}{{ truck_detail.sold_quantity|floatformat:2 }}{% else %}غير متاحة{% endif %}</p></article>
+                        <article class="metric-card"><h3>منتجات غير مباعة</h3><p>{% if truck_detail.has_sales_coverage %}{{ truck_detail.not_sold_product_count }}{% else %}غير متاح{% endif %}</p></article>
+                        <article class="metric-card"><h3>منتجات ضعيفة الحركة</h3><p>{% if truck_detail.has_sales_coverage %}{{ truck_detail.slow_moving_product_count }}{% else %}غير متاح{% endif %}</p></article>
                     </div>
                 {% endif %}
 
@@ -135,14 +150,20 @@
                 </form>
 
                 {% if selected_product %}
-                    <div class="manager-scope-notice"><strong>{{ selected_product }}</strong><p>مقارنة حركة المنتج بين الشاحنات ضمن النطاق المختار.</p></div><br>
+                    <div class="manager-scope-notice"><strong>{{ selected_product }}</strong><p>مقارنة حركة المنتج بين الشاحنات ضمن النطاق المختار. القيم المعتمدة على Items تظهر «غير متاحة» عندما لا توجد تغطية قابلة للقياس.</p></div><br>
                     {% if product_rows %}
                         <div class="manager-data-table-wrap">
                             <table class="manager-data-table">
                                 <thead><tr><th>الشاحنة</th><th>المتاح للتحليل</th><th>المباع</th><th>الفجوة التحليلية</th><th>نسبة المباع</th></tr></thead>
                                 <tbody>
                                     {% for row in product_rows %}
-                                        <tr><td><strong>{{ row.truck_name }}</strong></td><td>{{ row.supplied_quantity|floatformat:2 }}</td><td>{{ row.sold_quantity|floatformat:2 }}</td><td>{{ row.quantity_gap|floatformat:2 }}</td><td>{% if row.sold_to_supplied_percentage == None %}—{% else %}{{ row.sold_to_supplied_percentage|floatformat:1 }}%{% endif %}</td></tr>
+                                        <tr>
+                                            <td><strong>{{ row.truck_name }}</strong></td>
+                                            <td>{{ row.supplied_quantity|floatformat:2 }}</td>
+                                            <td>{% if row.has_sales_coverage %}{{ row.sold_quantity|floatformat:2 }}{% else %}غير متاح{% endif %}</td>
+                                            <td>{% if row.has_sales_coverage %}{{ row.quantity_gap|floatformat:2 }}{% else %}غير متاح{% endif %}</td>
+                                            <td>{% if not row.has_sales_coverage %}غير متاح{% elif row.sold_to_supplied_percentage == None %}—{% else %}{{ row.sold_to_supplied_percentage|floatformat:1 }}%{% endif %}</td>
+                                        </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -155,5 +176,5 @@
 {% endblock %}
 
 {% block extra_scripts %}
-    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-fleet-products-1" defer></script>
+    <script src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-fleet-products-2" defer></script>
 {% endblock %}
