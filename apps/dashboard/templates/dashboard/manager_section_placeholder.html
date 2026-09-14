@@ -1,0 +1,57 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ item_label }} | {{ section_label }} | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-modules-1"
+    >
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_requested and filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% else %}
+        <section class="dashboard-section">
+            <header class="manager-module-header">
+                <div>
+                    <p class="manager-module-header__eyebrow">
+                        {{ section_label }}
+                    </p>
+                    <h2>{{ item_label }}</h2>
+                    <p>
+                        تم فصل هذا القسم عن الصفحة الرئيسية حتى لا يتم
+                        تحميله إلا عند طلبه. سيتم نقل التحليل الحالي إليه
+                        في الدفعة التالية دون حذف أي منطق قائم.
+                    </p>
+                </div>
+            </header>
+
+            <div class="manager-placeholder">
+                <strong>القسم جاهز كمسار مستقل</strong>
+                <p>
+                    هذه صفحة تطويرية على الفرع الجديد. لا تشغّل أي تحليل
+                    ثقيل حاليًا، لذلك التنقل بينها سريع وآمن أثناء إعادة التنظيم.
+                </p>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script
+        src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-modules-1"
+        defer
+    ></script>
+{% endblock %}
