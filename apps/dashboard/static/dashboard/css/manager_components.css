@@ -1,0 +1,124 @@
+.manager-inline-selector {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+    margin: 0 0 22px;
+    padding: 18px;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.24));
+    border-radius: 16px;
+    background: var(--surface-color, rgba(255, 255, 255, 0.72));
+}
+
+.manager-inline-selector label {
+    width: 100%;
+    color: var(--text-primary, inherit);
+    font-weight: 800;
+}
+
+.manager-inline-selector select,
+.manager-inline-selector input[type="search"],
+.manager-inline-selector input[type="text"] {
+    min-width: min(360px, 100%);
+    min-height: 44px;
+    padding: 9px 12px;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.34));
+    border-radius: 10px;
+    background: var(--surface-color, #fff);
+    color: var(--text-primary, inherit);
+    font: inherit;
+}
+
+.manager-accordion-list {
+    display: grid;
+    gap: 12px;
+}
+
+.manager-accordion-card {
+    overflow: hidden;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.24));
+    border-radius: 16px;
+    background: var(--surface-color, rgba(255, 255, 255, 0.72));
+}
+
+.manager-accordion-card summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px;
+    color: var(--text-primary, inherit);
+    cursor: pointer;
+    list-style: none;
+}
+
+.manager-accordion-card summary::-webkit-details-marker {
+    display: none;
+}
+
+.manager-accordion-card summary small {
+    display: block;
+    margin-top: 3px;
+    color: var(--text-muted, #64748b);
+    font-weight: 500;
+}
+
+.manager-accordion-card[open] summary {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.manager-accordion-card__note,
+.manager-table-note {
+    margin: 0;
+    padding: 12px 16px;
+    color: var(--text-muted, #64748b);
+    font-size: 0.84rem;
+    line-height: 1.7;
+}
+
+.manager-result-list {
+    display: grid;
+    gap: 8px;
+    margin: 12px 0 0;
+}
+
+.manager-result-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color, rgba(148, 163, 184, 0.22));
+    border-radius: 12px;
+    color: var(--text-primary, inherit);
+    text-decoration: none;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.manager-result-link:hover {
+    border-color: rgba(59, 130, 246, 0.35);
+    background: rgba(59, 130, 246, 0.07);
+}
+
+.manager-result-link small {
+    color: var(--text-muted, #64748b);
+}
+
+@media (max-width: 720px) {
+    .manager-inline-selector {
+        display: grid;
+    }
+
+    .manager-inline-selector select,
+    .manager-inline-selector input[type="search"],
+    .manager-inline-selector input[type="text"] {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .manager-accordion-card summary,
+    .manager-result-link {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
