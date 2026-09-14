@@ -9,6 +9,9 @@ from .manager_filters import (
     build_filter_form,
     manager_filter_query,
 )
+from .manager_sellers import (
+    build_seller_section_response,
+)
 
 
 SECTION_TEMPLATE_NAME = (
@@ -65,6 +68,13 @@ def manager_section(request, section, item):
         or item not in section_items
     ):
         raise Http404
+
+    if section == "sellers":
+        return build_seller_section_response(
+            request,
+            item=item,
+            item_label=section_items[item],
+        )
 
     filter_requested, filter_form = (
         build_filter_form(request)
