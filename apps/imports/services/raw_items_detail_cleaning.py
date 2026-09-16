@@ -6,6 +6,8 @@ from .report_row_cleaner import (
     ReportCleaningResult,
     RowCleaningIssue,
     SEVERITY_ERROR,
+    SEVERITY_WARNING,
+    STATUS_ACCEPTED,
     STATUS_EXCLUDED,
     clean_report_rows_from_metadata,
 )
@@ -75,6 +77,41 @@ def _detail_issue(
     )
 
 
+def _detail_issues(
+    issues: list[RowCleaningIssue],
+) -> list[RowCleaningIssue]:
+    result: list[RowCleaningIssue] = []
+
+    for issue in issues:
+        if (
+            issue.code == "missing_client"
+            and issue.severity == SEVERITY_ERROR
+        ):
+            result.append(
+                RowCleaningIssue(
+                    code=issue.code,
+                    severity=SEVERITY_WARNING,
+                    message=(
+                        "The Items transaction has no client; "
+                        "it remains valid for product, truck, "
+                        "seller and period analytics but must "
+                        "not be attributed to a client."
+                    ),
+                    field=issue.field,
+                    raw_value=issue.raw_value,
+                    details={
+                        **issue.details,
+                        "client_analytics_eligible": False,
+                    },
+                )
+            )
+            continue
+
+        result.append(issue)
+
+    return result
+
+
 def clean_raw_items_detail_rows(
     row_result: ReportRowReadResult,
     *,
@@ -120,7 +157,9 @@ def clean_raw_items_detail_rows(
     ):
         raw = raw_row.as_dict()
         cleaned = base_row.cleaned_dict()
-        issues = list(base_row.issues)
+        issues = _detail_issues(
+            list(base_row.issues)
+        )
 
         sale_datetime_raw = raw.get("Date de vente")
 
@@ -197,10 +236,15 @@ def clean_raw_items_detail_rows(
             issue.severity == SEVERITY_ERROR
             for issue in issues
         )
+        has_forced_exclusion = any(
+            issue.code == "negative_quantity"
+            for issue in issues
+        )
 
-        status = base_row.status
-        if has_detail_error:
+        if has_detail_error or has_forced_exclusion:
             status = STATUS_EXCLUDED
+        else:
+            status = STATUS_ACCEPTED
 
         cleaned_rows.append(
             CleanedReportRow(

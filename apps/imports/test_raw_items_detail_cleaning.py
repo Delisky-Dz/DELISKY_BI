@@ -7,6 +7,7 @@ from apps.imports.services.raw_items_detail_cleaning import (
     clean_raw_items_detail_rows,
 )
 from apps.imports.services.report_row_cleaner import (
+    SEVERITY_WARNING,
     STATUS_ACCEPTED,
     STATUS_EXCLUDED,
 )
@@ -62,6 +63,38 @@ class RawItemsDetailCleaningTests(SimpleTestCase):
         self.assertEqual(cleaned["source_user"], "CV-03")
         self.assertEqual(cleaned["document"], "VDD-100")
         self.assertEqual(cleaned["document_number"], "123")
+
+    def test_missing_client_is_warning_and_transaction_stays_accepted(self):
+        values = self.base_values()
+        values["Client"] = None
+
+        result = clean_raw_items_detail_rows(
+            self.make_result(values),
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+        )
+
+        row = result.rows[0]
+        cleaned = row.cleaned_dict()
+        missing_client = [
+            issue
+            for issue in row.issues
+            if issue.code == "missing_client"
+        ]
+
+        self.assertEqual(row.status, STATUS_ACCEPTED)
+        self.assertIsNone(cleaned["client"])
+        self.assertIsNone(cleaned["client_normalized"])
+        self.assertEqual(len(missing_client), 1)
+        self.assertEqual(
+            missing_client[0].severity,
+            SEVERITY_WARNING,
+        )
+        self.assertFalse(
+            missing_client[0].details[
+                "client_analytics_eligible"
+            ]
+        )
 
     def test_invalid_sale_datetime_is_excluded(self):
         values = self.base_values()

@@ -13,6 +13,7 @@ from apps.imports.models import (
 from .typed_values import (
     AnalyticalValueError,
     read_optional_datetime,
+    read_optional_lookup_text,
     read_optional_text,
     read_required_date,
     read_required_datetime,
@@ -76,8 +77,8 @@ class ItemAnalyticalRow(BaseAnalyticalRow):
     article: str
     article_normalized: str
     quantity_sold: Decimal
-    client: str
-    client_normalized: str
+    client: str | None
+    client_normalized: str | None
     sale_datetime: datetime | None = None
 
 
@@ -167,7 +168,7 @@ def parse_item_row(row):
         sale_datetime = read_optional_datetime(row.cleaned_data, "sale_datetime")
         if sale_datetime is not None:
             _require_date_inside_batch(row, sale_datetime.date(), "sale_datetime")
-        return ItemAnalyticalRow(**_base_values(row), article=read_required_text(row.cleaned_data, "article"), article_normalized=read_required_lookup_text(row.cleaned_data, "article_normalized"), quantity_sold=quantity_sold, client=read_required_text(row.cleaned_data, "client"), client_normalized=read_required_lookup_text(row.cleaned_data, "client_normalized"), sale_datetime=sale_datetime)
+        return ItemAnalyticalRow(**_base_values(row), article=read_required_text(row.cleaned_data, "article"), article_normalized=read_required_lookup_text(row.cleaned_data, "article_normalized"), quantity_sold=quantity_sold, client=read_optional_text(row.cleaned_data, "client"), client_normalized=read_optional_lookup_text(row.cleaned_data, "client_normalized"), sale_datetime=sale_datetime)
     except AnalyticalValueError as exc:
         raise _convert_value_error(row, exc) from exc
 

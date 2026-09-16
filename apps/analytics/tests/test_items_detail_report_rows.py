@@ -26,7 +26,7 @@ class ItemDetailAnalyticalRowTests(TestCase):
             name="Item Detail Row Brand",
         )
 
-    def create_row(self, *, sale_datetime=None):
+    def create_row(self, *, sale_datetime=None, client="Client"):
         batch = ImportBatch.objects.create(
             brand=self.brand,
             report_type=ImportReportType.ITEMS,
@@ -48,8 +48,12 @@ class ItemDetailAnalyticalRowTests(TestCase):
             "article": "Product",
             "article_normalized": "product",
             "total_units": "10",
-            "client": "Client",
-            "client_normalized": "client",
+            "client": client,
+            "client_normalized": (
+                client.lower()
+                if client is not None
+                else None
+            ),
         }
         if sale_datetime is not None:
             cleaned["sale_datetime"] = sale_datetime
@@ -71,3 +75,17 @@ class ItemDetailAnalyticalRowTests(TestCase):
     def test_legacy_item_row_without_sale_datetime_remains_supported(self):
         item = parse_item_row(self.create_row())
         self.assertIsNone(item.sale_datetime)
+
+    def test_item_row_allows_missing_client_for_non_client_analytics(self):
+        expected = datetime(2026, 4, 13, 13, 10, 51)
+        item = parse_item_row(
+            self.create_row(
+                sale_datetime=expected,
+                client=None,
+            )
+        )
+
+        self.assertIsNone(item.client)
+        self.assertIsNone(item.client_normalized)
+        self.assertEqual(item.sale_datetime, expected)
+        self.assertEqual(item.quantity_sold, 10)
