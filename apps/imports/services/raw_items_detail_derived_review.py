@@ -30,6 +30,7 @@ def _items_detail_metadata(
         "replacement_batch_ids": list(
             replacement_plan.replacement_batch_ids
         ),
+        "source_truck_scope": brand_review.source_truck_scope.as_dict(),
     }
 
 
@@ -47,7 +48,9 @@ def persist_raw_items_detail_brand_review(
     The replacement plan is calculated before persistence and copied into
     review_summary as audit metadata. Approval must still recalculate the
     plan under database locks; the stored ids are evidence of what the
-    reviewer saw, not authority for superseding batches.
+    reviewer saw, not authority for superseding batches. The exact source
+    truck mapping/exclusion scope used during review is persisted alongside
+    that evidence so later configuration changes do not erase provenance.
     """
     if source_upload.pk is None:
         raise ValueError("source_upload must be saved before derived review.")
