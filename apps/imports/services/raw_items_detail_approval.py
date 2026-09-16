@@ -45,11 +45,7 @@ def approve_items_detail_batch(
         raise ImportBatchApprovalError("inactive_approver", "An inactive user cannot approve the import batch.")
 
     with transaction.atomic():
-        target = (
-            ImportBatch.objects.select_for_update()
-            .select_related("source_upload", "source_upload__source_system", "brand")
-            .get(pk=batch_id)
-        )
+        target = ImportBatch.objects.select_for_update().get(pk=batch_id)
         if target.status != ImportBatchStatus.REVIEWED:
             raise ImportBatchApprovalError(
                 "batch_not_reviewed",
