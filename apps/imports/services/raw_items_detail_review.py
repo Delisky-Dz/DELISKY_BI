@@ -17,6 +17,10 @@ from .source_truck_mapping_store import (
     build_source_truck_exclusions,
     build_source_truck_mapping,
 )
+from .source_truck_scope_snapshot import (
+    SourceTruckScopeSnapshot,
+    build_source_truck_scope_snapshot,
+)
 
 
 class RawItemsDetailReviewError(Exception):
@@ -33,6 +37,7 @@ class RawItemsDetailBrandReview:
     covered_trucks: tuple[str, ...]
     row_result: Any
     cleaning_result: Any
+    source_truck_scope: SourceTruckScopeSnapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +47,7 @@ class RawItemsDetailReviewResult:
     excluded_source_rows: tuple[ExcludedItemsDetailSourceRow, ...]
     period_start: date
     period_end: date
+    source_truck_scope: SourceTruckScopeSnapshot
 
 
 def _coerce_period_date(value: Any, *, field_name: str) -> date:
@@ -88,10 +94,17 @@ def prepare_raw_items_detail_review(
             details={"source_system_code": source_system_code},
         )
 
+    truck_mapping = build_source_truck_mapping(source_system.code)
+    source_exclusions = build_source_truck_exclusions(source_system.code)
+    source_truck_scope = build_source_truck_scope_snapshot(
+        mappings=truck_mapping,
+        exclusions=source_exclusions,
+    )
+
     adapted = adapt_raw_items_detail_file(
         source,
-        truck_mapping=build_source_truck_mapping(source_system.code),
-        source_exclusions=build_source_truck_exclusions(source_system.code),
+        truck_mapping=truck_mapping,
+        source_exclusions=source_exclusions,
         original_filename=original_filename,
     )
     partitions = partition_raw_items_detail_rows_by_brand(adapted.rows)
@@ -125,6 +138,7 @@ def prepare_raw_items_detail_review(
                 covered_trucks=covered_trucks,
                 row_result=row_result,
                 cleaning_result=enriched,
+                source_truck_scope=source_truck_scope,
             )
         )
 
@@ -134,4 +148,5 @@ def prepare_raw_items_detail_review(
         excluded_source_rows=adapted.excluded_source_rows,
         period_start=normalized_start,
         period_end=normalized_end,
+        source_truck_scope=source_truck_scope,
     )
