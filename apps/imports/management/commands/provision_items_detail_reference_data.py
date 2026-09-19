@@ -159,6 +159,7 @@ class Command(BaseCommand):
 
         self._inspect_historical_trucks(bifa)
         self._inspect_workers()
+        self._inspect_assignments()
         self._inspect_mappings(sources)
         self._inspect_exclusions(sources)
 
@@ -341,6 +342,120 @@ class Command(BaseCommand):
             result[employee_code] = worker
         return result
 
+    def _assignment_overlap(
+        self,
+        *,
+        truck,
+        assignment_start,
+        assignment_end,
+        exclude_assignment=None,
+    ):
+        overlapping = (
+            TruckCrewAssignment.objects
+            .filter(
+                truck=truck,
+                is_primary_seller=True,
+                start_date__lte=assignment_end,
+            )
+            .filter(
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=assignment_start)
+            )
+        )
+
+        if exclude_assignment is not None:
+            overlapping = overlapping.exclude(
+                pk=exclude_assignment.pk
+            )
+
+        return overlapping.first()
+
+    def _inspect_assignments(self):
+        self.stdout.write("")
+        self.stdout.write(
+            "Generic historical assignments:"
+        )
+
+        for employee_code, first_name, truck_code in GENERIC_WORKERS:
+            (
+                assignment_start,
+                assignment_end,
+            ) = ASSIGNMENT_WINDOWS[employee_code]
+
+            worker = Worker.objects.filter(
+                employee_code=employee_code
+            ).first()
+            truck = Truck.objects.filter(
+                internal_code=truck_code
+            ).first()
+
+            if worker is None or truck is None:
+                self.stdout.write(
+                    (
+                        f"  [CREATE] {employee_code} -> "
+                        f"{truck_code} "
+                        f"{assignment_start}..{assignment_end}"
+                    )
+                )
+                continue
+
+            assignments = list(
+                TruckCrewAssignment.objects
+                .filter(
+                    worker=worker,
+                    truck=truck,
+                )
+                .order_by("id")
+            )
+
+            if len(assignments) > 1:
+                raise CommandError(
+                    (
+                        "Multiple generic assignments found for "
+                        f"{employee_code} on {truck_code}."
+                    )
+                )
+
+            assignment = (
+                assignments[0]
+                if assignments
+                else None
+            )
+
+            conflict = self._assignment_overlap(
+                truck=truck,
+                assignment_start=assignment_start,
+                assignment_end=assignment_end,
+                exclude_assignment=assignment,
+            )
+            if conflict is not None:
+                raise CommandError(
+                    f"Primary seller conflict for {truck_code}."
+                )
+
+            if assignment is None:
+                state = "CREATE"
+            elif (
+                assignment.start_date
+                != assignment_start
+                or assignment.end_date
+                != assignment_end
+                or assignment.crew_role
+                != TruckCrewAssignment.CrewRole.SELLER
+                or not assignment.is_primary_seller
+            ):
+                state = "UPDATE"
+            else:
+                state = "OK"
+
+            self.stdout.write(
+                (
+                    f"  [{state}] {employee_code} -> "
+                    f"{truck_code} "
+                    f"{assignment_start}..{assignment_end}"
+                )
+            )
+
     def _apply_assignments(self, workers, trucks):
         for employee_code, first_name, truck_code in GENERIC_WORKERS:
             worker = workers[employee_code]
@@ -372,27 +487,11 @@ class Command(BaseCommand):
                 else None
             )
 
-            overlapping_primary = (
-                TruckCrewAssignment.objects
-                .filter(
-                    truck=truck,
-                    is_primary_seller=True,
-                    start_date__lte=assignment_end,
-                )
-                .filter(
-                    Q(end_date__isnull=True)
-                    | Q(end_date__gte=assignment_start)
-                )
-            )
-            if assignment is not None:
-                overlapping_primary = (
-                    overlapping_primary.exclude(
-                        pk=assignment.pk
-                    )
-                )
-
-            existing_primary = (
-                overlapping_primary.first()
+            existing_primary = self._assignment_overlap(
+                truck=truck,
+                assignment_start=assignment_start,
+                assignment_end=assignment_end,
+                exclude_assignment=assignment,
             )
             if existing_primary is not None:
                 raise CommandError(
