@@ -1,6 +1,8 @@
-﻿from io import StringIO
+﻿from datetime import date
+from io import StringIO
 
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 
 from apps.fleet.models import Truck, TruckCrewAssignment
@@ -202,3 +204,33 @@ class Phase10ReferenceDataProvisioningTests(TestCase):
             "[UPDATE]",
             dry_run_output.getvalue(),
         )
+
+    def test_dry_run_rejects_overlapping_primary_seller(self):
+        truck = Truck.objects.get(
+            internal_code="BIFA LIV03"
+        )
+        worker = Worker.objects.create(
+            employee_code="PHASE10-REAL-SELLER",
+            first_name="Real",
+            last_name="Seller",
+        )
+        assignment = TruckCrewAssignment(
+            worker=worker,
+            truck=truck,
+            crew_role=TruckCrewAssignment.CrewRole.SELLER,
+            is_primary_seller=True,
+            start_date=date(2026, 4, 4),
+            end_date=date(2026, 4, 30),
+        )
+        assignment.full_clean()
+        assignment.save()
+
+        with self.assertRaisesRegex(
+            CommandError,
+            "Primary seller conflict for BIFA LIV03",
+        ):
+            call_command(
+                "provision_phase10_reference_data",
+                stdout=StringIO(),
+            )
+
