@@ -1,3 +1,4 @@
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -52,6 +53,50 @@ class RawItemsDetailImportReviewResult:
             result.batch
             for result in self.brand_results
         )
+
+
+def _source_audit_metadata(
+    review: RawItemsDetailReviewResult,
+) -> dict[str, Any]:
+    excluded_counts = Counter(
+        (
+            row.source_code,
+            row.reason,
+        )
+        for row in review.excluded_source_rows
+    )
+
+    return {
+        "transaction_level": True,
+        "period_start": (
+            review.period_start.isoformat()
+        ),
+        "period_end": (
+            review.period_end.isoformat()
+        ),
+        "adapted_row_count": len(
+            review.adapted.rows
+        ),
+        "excluded_source_row_count": len(
+            review.excluded_source_rows
+        ),
+        "excluded_source_groups": [
+            {
+                "source_code": source_code,
+                "reason": reason,
+                "count": count,
+            }
+            for (
+                source_code,
+                reason,
+            ), count in sorted(
+                excluded_counts.items()
+            )
+        ],
+        "source_truck_scope": (
+            review.source_truck_scope.as_dict()
+        ),
+    }
 
 
 def create_raw_items_detail_import_review(
@@ -158,6 +203,20 @@ def create_raw_items_detail_import_review(
                         "existing_batches": existing,
                     },
                 )
+
+            audit_metadata = dict(
+                source_upload.audit_metadata or {}
+            )
+            audit_metadata["items_detail"] = (
+                _source_audit_metadata(review)
+            )
+            source_upload.audit_metadata = audit_metadata
+            source_upload.save(
+                update_fields=[
+                    "audit_metadata",
+                    "updated_at",
+                ]
+            )
 
             persisted = (
                 persist_raw_items_detail_review(
