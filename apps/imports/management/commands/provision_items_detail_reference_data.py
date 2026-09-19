@@ -2,6 +2,7 @@ from datetime import date
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Q
 
 from apps.fleet.models import Truck, TruckCrewAssignment
 from apps.imports.models import (
@@ -14,6 +15,17 @@ from apps.workforce.models import Worker
 
 
 START_DATE = date(2026, 4, 4)
+
+# These four generic assignments exist only to attribute the historical
+# transaction-detail rows that proved activity for otherwise inactive routes.
+# Bound them to the last observed accepted Items sale so a later route
+# reactivation cannot silently inherit a historical analytical worker.
+ASSIGNMENT_END_DATES = {
+    "GEN-BIFA-LIV04": date(2026, 6, 20),
+    "GEN-BIFA-LIV05": date(2026, 4, 15),
+    "GEN-BIFA-PLIV07": date(2026, 6, 23),
+    "GEN-BIFA-PSLIV01": date(2026, 4, 8),
+}
 
 WORKER_NOTES = (
     "Generic analytical workforce identity for this historical distribution "
@@ -322,16 +334,18 @@ class Command(BaseCommand):
         for employee_code, first_name, truck_code in GENERIC_WORKERS:
             worker = workers[employee_code]
             truck = trucks[truck_code]
+            assignment_end = ASSIGNMENT_END_DATES[employee_code]
 
             existing_primary = (
                 TruckCrewAssignment.objects
                 .filter(
                     truck=truck,
                     is_primary_seller=True,
-                    start_date__lte=START_DATE,
+                    start_date__lte=assignment_end,
                 )
                 .filter(
-                    end_date__isnull=True
+                    Q(end_date__isnull=True)
+                    | Q(end_date__gte=START_DATE)
                 )
                 .exclude(worker=worker)
                 .first()
@@ -359,7 +373,7 @@ class Command(BaseCommand):
 
             assignment.crew_role = TruckCrewAssignment.CrewRole.SELLER
             assignment.is_primary_seller = True
-            assignment.end_date = None
+            assignment.end_date = assignment_end
             assignment.notes = ASSIGNMENT_NOTES
             assignment.full_clean()
             assignment.save()
@@ -488,6 +502,7 @@ class Command(BaseCommand):
                 truck=trucks[truck_code],
                 is_primary_seller=True,
                 start_date=START_DATE,
+                end_date=ASSIGNMENT_END_DATES[employee_code],
             ).exists():
                 raise CommandError(
                     f"Assignment verification failed: {employee_code}."
