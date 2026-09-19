@@ -34,9 +34,11 @@ from .presenters import (
     issue_message,
     review_error_message,
 )
+from .services.approval_dispatch import (
+    approve_reviewed_batch,
+)
 from .services.batch_approval import (
     ImportBatchApprovalError,
-    approve_import_batch,
 )
 from .services.batch_review import (
     ImportBatchReviewError,
@@ -789,7 +791,7 @@ def approve_batch(request, batch_id: int):
     )
 
     try:
-        result = approve_import_batch(
+        result = approve_reviewed_batch(
             batch.pk,
             approved_by=request.user,
         )
