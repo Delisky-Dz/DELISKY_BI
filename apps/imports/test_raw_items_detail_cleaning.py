@@ -10,6 +10,7 @@ from apps.imports.services.report_row_cleaner import (
     SEVERITY_WARNING,
     STATUS_ACCEPTED,
     STATUS_EXCLUDED,
+    STATUS_STOPPED,
 )
 from apps.imports.services.report_row_reader import (
     RawReportRow,
@@ -94,6 +95,26 @@ class RawItemsDetailCleaningTests(SimpleTestCase):
             missing_client[0].details[
                 "client_analytics_eligible"
             ]
+        )
+
+    def test_stopped_indicator_remains_stopped_after_detail_enrichment(self):
+        values = self.base_values()
+        values["Article"] = None
+        values["Qté vendue"] = None
+        values["Client"] = None
+
+        result = clean_raw_items_detail_rows(
+            self.make_result(values),
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+        )
+
+        row = result.rows[0]
+
+        self.assertEqual(row.status, STATUS_STOPPED)
+        self.assertIn(
+            "stopped_indicator",
+            {issue.code for issue in row.issues},
         )
 
     def test_invalid_sale_datetime_is_excluded(self):
