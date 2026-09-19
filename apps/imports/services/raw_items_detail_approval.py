@@ -4,7 +4,11 @@ from typing import Any
 from django.db import transaction
 from django.utils import timezone
 
-from apps.imports.models import ImportBatch, ImportBatchStatus
+from apps.imports.models import (
+    ImportBatch,
+    ImportBatchStatus,
+    ImportSourceSystem,
+)
 
 from .batch_approval import (
     ImportBatchApprovalError,
@@ -129,6 +133,13 @@ def approve_items_detail_batch(
                 ),
             )
 
+        source_system = (
+            target.source_upload.source_system
+        )
+        ImportSourceSystem.objects.select_for_update().get(
+            pk=source_system.pk
+        )
+
         covered_trucks = detail_batch_covered_trucks(target)
         if not covered_trucks:
             raise ImportBatchApprovalError(
@@ -157,7 +168,7 @@ def approve_items_detail_batch(
         try:
             plan = plan_items_detail_replacements(
                 source_system_code=(
-                    target.source_upload.source_system.code
+                    source_system.code
                 ),
                 brand_code=target.brand.code,
                 covered_trucks=covered_trucks,
