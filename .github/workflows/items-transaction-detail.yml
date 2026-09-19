@@ -82,6 +82,7 @@ jobs:
           apps.imports.test_raw_items_detail_review
           apps.imports.test_raw_items_detail_views
           apps.imports.test_items_detail_reference_provisioning
+          apps.imports.test_phase10_provisioning
           --settings=config.settings.development
           -v 2
 
