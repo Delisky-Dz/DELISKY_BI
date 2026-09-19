@@ -17,6 +17,7 @@ from apps.imports.models import (
     SourceProductAlias,
     SourceProductPackaging,
     SourceTruckExclusion,
+    SourceTruckMapping,
 )
 from apps.workforce.models import Worker
 
@@ -228,6 +229,26 @@ class Phase10ReferenceDataProvisioningTests(TestCase):
         with self.assertRaisesRegex(
             CommandError,
             "Primary seller conflict for BIFA LIV03",
+        ):
+            call_command(
+                "provision_phase10_reference_data",
+                stdout=StringIO(),
+            )
+
+    def test_dry_run_rejects_mapping_exclusion_conflict(self):
+        truck = Truck.objects.get(
+            internal_code="NITA LIV01"
+        )
+        SourceTruckMapping.objects.create(
+            source_system=self.source,
+            source_code="VAN_SUPERVISEUR",
+            truck=truck,
+            is_active=True,
+        )
+
+        with self.assertRaisesRegex(
+            CommandError,
+            "Mapping/exclusion conflict",
         ):
             call_command(
                 "provision_phase10_reference_data",
