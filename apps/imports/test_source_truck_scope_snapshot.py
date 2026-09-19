@@ -50,6 +50,53 @@ class SourceTruckScopeSnapshotTests(SimpleTestCase):
                 exclusions={" van1 ": "OUT_OF_SCOPE"},
             )
 
+    def test_snapshot_rejects_conflicting_canonical_mappings(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Conflicting mapping entries for VAN1",
+        ):
+            build_source_truck_scope_snapshot(
+                mappings={
+                    "VAN1": "DELISKY LIV01",
+                    " van1 ": "DELISKY LIV02",
+                },
+                exclusions={},
+            )
+
+    def test_snapshot_rejects_conflicting_canonical_exclusions(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Conflicting exclusion entries for ADMIN",
+        ):
+            build_source_truck_scope_snapshot(
+                mappings={},
+                exclusions={
+                    "ADMIN": "OUT_OF_SCOPE",
+                    " admin ": "NON_DISTRIBUTION_USER",
+                },
+            )
+
+    def test_equivalent_canonical_duplicates_are_allowed(self):
+        snapshot = build_source_truck_scope_snapshot(
+            mappings={
+                "VAN1": "DELISKY LIV01",
+                " van1 ": " delisky   liv01 ",
+            },
+            exclusions={
+                "ADMIN": "OUT_OF_SCOPE",
+                " admin ": "out_of_scope",
+            },
+        )
+
+        self.assertEqual(
+            snapshot.mappings,
+            (("VAN1", "DELISKY LIV01"),),
+        )
+        self.assertEqual(
+            snapshot.exclusions,
+            (("ADMIN", "OUT_OF_SCOPE"),),
+        )
+
     def test_snapshot_hash_changes_when_scope_changes(self):
         baseline = build_source_truck_scope_snapshot(
             mappings={"VAN1": "DELISKY LIV01"},
