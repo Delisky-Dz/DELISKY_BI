@@ -389,7 +389,7 @@ class Command(BaseCommand):
                 internal_code=truck_code
             ).first()
 
-            if worker is None or truck is None:
+            if truck is None:
                 self.stdout.write(
                     (
                         f"  [CREATE] {employee_code} -> "
@@ -399,14 +399,17 @@ class Command(BaseCommand):
                 )
                 continue
 
-            assignments = list(
-                TruckCrewAssignment.objects
-                .filter(
-                    worker=worker,
-                    truck=truck,
+            assignments = []
+
+            if worker is not None:
+                assignments = list(
+                    TruckCrewAssignment.objects
+                    .filter(
+                        worker=worker,
+                        truck=truck,
+                    )
+                    .order_by("id")
                 )
-                .order_by("id")
-            )
 
             if len(assignments) > 1:
                 raise CommandError(
@@ -433,7 +436,7 @@ class Command(BaseCommand):
                     f"Primary seller conflict for {truck_code}."
                 )
 
-            if assignment is None:
+            if worker is None or assignment is None:
                 state = "CREATE"
             elif (
                 assignment.start_date
