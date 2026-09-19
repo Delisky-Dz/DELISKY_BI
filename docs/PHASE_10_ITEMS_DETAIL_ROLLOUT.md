@@ -26,22 +26,32 @@ time.
 ## Reference data
 
 The detail provisioning extends the existing Phase 10 reference baseline; it
-does not replace it. On a fresh target database, run both dry-runs in this
-order:
+does not replace it.
+
+For **DEV**, explicitly point `DB_NAME` at `delisky_bi_dev` and run both
+dry-runs in this order:
 
 ```powershell
+$env:DB_NAME = "delisky_bi_dev"
 python manage.py provision_phase10_reference_data --settings=config.settings.development
 python manage.py provision_items_detail_reference_data --settings=config.settings.development
 ```
 
 Both dry-runs must finish with `DRY RUN: PASS`.
 
-Apply only to the intended database, in the same order:
+Apply to DEV only after those checks:
 
 ```powershell
+$env:DB_NAME = "delisky_bi_dev"
 python manage.py provision_phase10_reference_data --apply --settings=config.settings.development
 python manage.py provision_items_detail_reference_data --apply --settings=config.settings.development
 ```
+
+For **Production**, do not reuse the DEV commands or `delisky_bi_dev`.
+After backup verification and explicit deployment approval, use
+`config.settings.production` with the Production environment variables and
+first verify that the resolved database is `delisky_bi` before any
+`--apply` command.
 
 The base command provisions the confirmed Phase 10 product aliases, exclusions
 and generic route workers. The detail command adds transaction-detail route
@@ -145,13 +155,17 @@ DEV ids above are evidence only and must not be copied into Production logic.
 
 ## Required verification before Production
 
-Run all of the following on the release candidate:
+Run all of the following on the DEV release candidate:
 
 ```powershell
+$env:DB_NAME = "delisky_bi_dev"
 python manage.py check --settings=config.settings.development
 python manage.py makemigrations --check --dry-run --settings=config.settings.development
 python manage.py test --settings=config.settings.development
 ```
+
+Before Production provisioning, separately confirm the Production settings
+resolve the expected database name without changing data.
 
 Also confirm:
 
