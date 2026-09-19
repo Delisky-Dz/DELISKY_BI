@@ -1,9 +1,7 @@
 name: Items transaction detail
 
 on:
-  push:
-    branches:
-      - feature/items-transaction-detail
+  workflow_dispatch:
   pull_request:
     branches:
       - feature/manager-dashboard-restructure
