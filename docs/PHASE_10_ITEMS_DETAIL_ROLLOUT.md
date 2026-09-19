@@ -25,22 +25,32 @@ time.
 
 ## Reference data
 
-Provision with:
+The detail provisioning extends the existing Phase 10 reference baseline; it
+does not replace it. On a fresh target database, run both dry-runs in this
+order:
 
 ```powershell
+python manage.py provision_phase10_reference_data --settings=config.settings.development
 python manage.py provision_items_detail_reference_data --settings=config.settings.development
 ```
 
-Dry-run must finish with `DRY RUN: PASS`.
+Both dry-runs must finish with `DRY RUN: PASS`.
 
-Apply only to the intended database:
+Apply only to the intended database, in the same order:
 
 ```powershell
+python manage.py provision_phase10_reference_data --apply --settings=config.settings.development
 python manage.py provision_items_detail_reference_data --apply --settings=config.settings.development
 ```
 
-The command is idempotent and validates mapping/exclusion conflicts before
-writing. Historical generic BIFA seller assignments are evidence-bounded to
+The base command provisions the confirmed Phase 10 product aliases, exclusions
+and generic route workers. The detail command adds transaction-detail route
+mappings/exclusions and the historical BIFA route identities required by the
+new exports.
+
+Both commands are designed to be idempotent. The detail command validates
+mapping/exclusion and primary-seller assignment conflicts before writing.
+Historical generic BIFA seller assignments are evidence-bounded to
 the accepted transaction-detail activity:
 
 | Worker | Route | Start | End |
@@ -159,8 +169,8 @@ Also confirm:
 2. Create and verify the Production backup.
 3. Deploy the reviewed code only after explicit approval.
 4. Run Django checks and migration check.
-5. Run Items-detail reference provisioning in dry-run mode.
-6. Apply reference provisioning only if the dry-run is clean.
+5. Run base Phase 10 and Items-detail reference provisioning in dry-run mode.
+6. Apply both provisioning commands, in order, only if both dry-runs are clean.
 7. Upload BIFA and AIO detail sources through the accountant workflow.
 8. Review derived batches and replacement plans before approval.
 9. Approve one source/brand scope at a time.
