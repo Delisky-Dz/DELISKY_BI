@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -113,23 +113,36 @@ class ItemsAggregationTests(TestCase):
         article_normalized,
         quantity_sold,
         excel_row_number=2,
+        sale_datetime=None,
+        client=None,
     ):
+        client_value = (
+            f"Test Client {sequence}"
+            if client is None
+            else client
+        )
+        cleaned_data = {
+            "van": van,
+            "van_normalized": van.casefold(),
+            "article": article,
+            "article_normalized": article_normalized,
+            "total_units": quantity_sold,
+            "client": client_value,
+            "client_normalized": (
+                client_value.casefold()
+                if client_value is not None
+                else None
+            ),
+        }
+        if sale_datetime is not None:
+            cleaned_data["sale_datetime"] = sale_datetime
+
         return ImportRow.objects.create(
             batch=batch,
             excel_row_number=excel_row_number,
             status=ImportRowStatus.ACCEPTED,
             raw_data={},
-            cleaned_data={
-                "van": van,
-                "van_normalized": van.casefold(),
-                "article": article,
-                "article_normalized": article_normalized,
-                "total_units": quantity_sold,
-                "client": f"Test Client {sequence}",
-                "client_normalized": (
-                    f"test client {sequence}"
-                ),
-            },
+            cleaned_data=cleaned_data,
             issues=[],
             row_sha256=f"{sequence + 30000:064x}",
         )
@@ -539,6 +552,141 @@ class ItemsAggregationTests(TestCase):
         self.assertEqual(
             result.partial_overlap_excluded_count,
             0,
+        )
+
+    def test_detail_row_uses_exact_sale_date_for_period_and_worker(self):
+        truck = self.create_truck(
+            9,
+            "ITEMS-VAN-009",
+        )
+        first_worker = self.create_worker(9)
+        second_worker = self.create_worker(10)
+
+        self.create_assignment(
+            truck=truck,
+            worker=first_worker,
+            start_date=date(2026, 7, 1),
+            end_date=date(2026, 7, 14),
+        )
+        self.create_assignment(
+            truck=truck,
+            worker=second_worker,
+            start_date=date(2026, 7, 15),
+            end_date=date(2026, 7, 31),
+        )
+
+        batch = self.create_batch(
+            9,
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+        )
+        self.create_item_row(
+            batch,
+            70,
+            van="ITEMS-VAN-009",
+            article="Exact Date Product",
+            article_normalized="exact date product",
+            quantity_sold="25",
+            sale_datetime=datetime(2026, 7, 15, 9, 30),
+        )
+
+        result = aggregate_items(
+            period_start=date(2026, 7, 15),
+            period_end=date(2026, 7, 15),
+        )
+
+        self.assertEqual(result.included_row_count, 1)
+        self.assertEqual(
+            result.partial_overlap_excluded_count,
+            0,
+        )
+        self.assertEqual(
+            result.by_worker[0].worker_id,
+            second_worker.pk,
+        )
+        self.assertEqual(
+            result.by_worker[0].metrics.quantity_sold,
+            Decimal("25"),
+        )
+
+    def test_detail_row_outside_requested_period_is_excluded_exactly(self):
+        batch = self.create_batch(
+            10,
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+        )
+        self.create_item_row(
+            batch,
+            80,
+            van="UNKNOWN-DETAIL-VAN",
+            article="Exact Outside Product",
+            article_normalized="exact outside product",
+            quantity_sold="12",
+            sale_datetime=datetime(2026, 7, 16, 8, 0),
+        )
+
+        result = aggregate_items(
+            period_start=date(2026, 7, 15),
+            period_end=date(2026, 7, 15),
+        )
+
+        self.assertEqual(result.included_row_count, 0)
+        self.assertEqual(
+            result.outside_requested_period_count,
+            1,
+        )
+        self.assertEqual(
+            result.partial_overlap_excluded_count,
+            0,
+        )
+
+    def test_missing_client_keeps_non_client_totals_only(self):
+        truck = self.create_truck(
+            11,
+            "ITEMS-VAN-011",
+        )
+        worker = self.create_worker(11)
+        self.create_assignment(
+            truck=truck,
+            worker=worker,
+        )
+        batch = self.create_batch(11)
+
+        row = self.create_item_row(
+            batch,
+            90,
+            van="ITEMS-VAN-011",
+            article="No Client Product",
+            article_normalized="no client product",
+            quantity_sold="8",
+        )
+        row.cleaned_data["client"] = None
+        row.cleaned_data["client_normalized"] = None
+        row.save(update_fields=["cleaned_data"])
+
+        result = aggregate_items()
+
+        self.assertEqual(
+            result.overall.quantity_sold,
+            Decimal("8"),
+        )
+        self.assertEqual(
+            result.by_truck[0].metrics.quantity_sold,
+            Decimal("8"),
+        )
+        self.assertEqual(
+            result.by_worker[0].metrics.quantity_sold,
+            Decimal("8"),
+        )
+        self.assertEqual(result.by_brand_client, ())
+        self.assertEqual(
+            result.by_brand_client_product,
+            (),
+        )
+        self.assertEqual(result.by_brand_van_client, ())
+        self.assertEqual(
+            result.by_brand_van_client_product,
+            (),
         )
 
     def test_invalid_period_is_rejected(self):
