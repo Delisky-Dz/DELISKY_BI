@@ -70,6 +70,7 @@ jobs:
           python manage.py test
           apps.imports.test_approval_dispatch
           apps.imports.test_raw_items_detail_approval
+          apps.imports.test_raw_items_detail_batch_detail
           apps.imports.test_raw_items_detail_brand_partition
           apps.imports.test_raw_items_detail_cleaning
           apps.imports.test_raw_items_detail_derived_review
