@@ -6,6 +6,7 @@ from django.test import TestCase
 
 from apps.fleet.models import Truck, TruckCrewAssignment
 from apps.imports.management.commands.provision_items_detail_reference_data import (
+    ASSIGNMENT_END_DATES,
     GENERIC_WORKERS,
     HISTORICAL_TRUCKS,
     SOURCE_EXCLUSIONS,
@@ -147,6 +148,18 @@ class ItemsDetailReferenceProvisioningTests(TestCase):
             4,
         )
 
+        for employee_code, first_name, truck_code in GENERIC_WORKERS:
+            assignment = TruckCrewAssignment.objects.get(
+                worker__employee_code=employee_code,
+                truck__internal_code=truck_code,
+                is_primary_seller=True,
+                start_date=START_DATE,
+            )
+            self.assertEqual(
+                assignment.end_date,
+                ASSIGNMENT_END_DATES[employee_code],
+            )
+
         self.assertEqual(
             SourceTruckMapping.objects.filter(
                 source_system=self.sources["AIO_WEB"],
@@ -201,6 +214,91 @@ class ItemsDetailReferenceProvisioningTests(TestCase):
             ),
             first_counts,
         )
+
+    def test_future_primary_seller_is_allowed_after_historical_window(self):
+        call_command(
+            "provision_items_detail_reference_data",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+        truck = Truck.objects.get(
+            internal_code="BIFA LIV05"
+        )
+        worker = Worker.objects.create(
+            employee_code="FUTURE-BIFA-LIV05",
+            first_name="Future",
+            last_name="Seller",
+        )
+        assignment = TruckCrewAssignment(
+            worker=worker,
+            truck=truck,
+            crew_role=TruckCrewAssignment.CrewRole.SELLER,
+            is_primary_seller=True,
+            start_date=date(2026, 4, 16),
+        )
+        assignment.full_clean()
+        assignment.save()
+
+        call_command(
+            "provision_items_detail_reference_data",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+        historical = TruckCrewAssignment.objects.get(
+            worker__employee_code="GEN-BIFA-LIV05",
+            truck=truck,
+            start_date=START_DATE,
+        )
+        self.assertEqual(
+            historical.end_date,
+            date(2026, 4, 15),
+        )
+        self.assertTrue(
+            TruckCrewAssignment.objects.filter(
+                pk=assignment.pk,
+                start_date=date(2026, 4, 16),
+                end_date__isnull=True,
+            ).exists()
+        )
+
+    def test_overlapping_primary_seller_is_rejected(self):
+        bifa = self.brands["BIFA"]
+        truck = Truck.objects.create(
+            distribution_brand=bifa,
+            route_type=Truck.RouteType.LIV,
+            route_number=5,
+            registration_number="DETAIL-OVERLAP-LIV05",
+            brand="BIFA",
+            model="TEST",
+            is_active=False,
+        )
+        worker = Worker.objects.create(
+            employee_code="OVERLAP-BIFA-LIV05",
+            first_name="Overlap",
+            last_name="Seller",
+        )
+        assignment = TruckCrewAssignment(
+            worker=worker,
+            truck=truck,
+            crew_role=TruckCrewAssignment.CrewRole.SELLER,
+            is_primary_seller=True,
+            start_date=date(2026, 4, 10),
+            end_date=date(2026, 4, 12),
+        )
+        assignment.full_clean()
+        assignment.save()
+
+        with self.assertRaisesRegex(
+            CommandError,
+            "Primary seller conflict for BIFA LIV05",
+        ):
+            call_command(
+                "provision_items_detail_reference_data",
+                "--apply",
+                stdout=StringIO(),
+            )
 
     def test_conflicting_mapping_is_rejected(self):
         source = self.sources["BIFA_MILA"]
