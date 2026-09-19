@@ -49,6 +49,29 @@ class RawItemsDetailImportReviewTests(TestCase):
             adapted=SimpleNamespace(
                 filename="AIO_Items_DETAIL.xlsx",
                 worksheet_name="Classeur",
+                rows=(object(), object()),
+            ),
+            excluded_source_rows=(
+                SimpleNamespace(
+                    source_code="RACHID",
+                    reason="OUT_OF_SCOPE",
+                ),
+                SimpleNamespace(
+                    source_code="RACHID",
+                    reason="OUT_OF_SCOPE",
+                ),
+                SimpleNamespace(
+                    source_code="ADV",
+                    reason="OUT_OF_SCOPE",
+                ),
+            ),
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+            source_truck_scope=SimpleNamespace(
+                as_dict=lambda: {
+                    "mappings": [],
+                    "exclusions": [],
+                }
             ),
         )
 
@@ -112,6 +135,37 @@ class RawItemsDetailImportReviewTests(TestCase):
                 "source_upload"
             ].pk,
             upload.pk,
+        )
+
+        upload.refresh_from_db()
+        audit = upload.audit_metadata[
+            "items_detail"
+        ]
+        self.assertTrue(
+            audit["transaction_level"]
+        )
+        self.assertEqual(
+            audit["adapted_row_count"],
+            2,
+        )
+        self.assertEqual(
+            audit["excluded_source_row_count"],
+            3,
+        )
+        self.assertEqual(
+            audit["excluded_source_groups"],
+            [
+                {
+                    "source_code": "ADV",
+                    "reason": "OUT_OF_SCOPE",
+                    "count": 1,
+                },
+                {
+                    "source_code": "RACHID",
+                    "reason": "OUT_OF_SCOPE",
+                    "count": 2,
+                },
+            ],
         )
 
     @patch(
