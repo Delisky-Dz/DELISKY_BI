@@ -7,12 +7,11 @@ from django.test import TestCase
 
 from apps.fleet.models import Truck, TruckCrewAssignment
 from apps.imports.management.commands.provision_items_detail_reference_data import (
-    ASSIGNMENT_END_DATES,
+    ASSIGNMENT_WINDOWS,
     GENERIC_WORKERS,
     HISTORICAL_TRUCKS,
     SOURCE_EXCLUSIONS,
     SOURCE_MAPPINGS,
-    START_DATE,
 )
 from apps.imports.models import (
     DistributionBrand,
@@ -144,21 +143,28 @@ class ItemsDetailReferenceProvisioningTests(TestCase):
                     for spec in GENERIC_WORKERS
                 ],
                 is_primary_seller=True,
-                start_date=START_DATE,
             ).count(),
             4,
         )
 
         for employee_code, first_name, truck_code in GENERIC_WORKERS:
+            (
+                assignment_start,
+                assignment_end,
+            ) = ASSIGNMENT_WINDOWS[employee_code]
+
             assignment = TruckCrewAssignment.objects.get(
                 worker__employee_code=employee_code,
                 truck__internal_code=truck_code,
                 is_primary_seller=True,
-                start_date=START_DATE,
+            )
+            self.assertEqual(
+                assignment.start_date,
+                assignment_start,
             )
             self.assertEqual(
                 assignment.end_date,
-                ASSIGNMENT_END_DATES[employee_code],
+                assignment_end,
             )
 
         self.assertEqual(
@@ -250,7 +256,11 @@ class ItemsDetailReferenceProvisioningTests(TestCase):
         historical = TruckCrewAssignment.objects.get(
             worker__employee_code="GEN-BIFA-LIV05",
             truck=truck,
-            start_date=START_DATE,
+            start_date=(
+                ASSIGNMENT_WINDOWS[
+                    "GEN-BIFA-LIV05"
+                ][0]
+            ),
         )
         self.assertEqual(
             historical.end_date,
@@ -262,6 +272,44 @@ class ItemsDetailReferenceProvisioningTests(TestCase):
                 start_date=date(2026, 4, 16),
                 end_date__isnull=True,
             ).exists()
+        )
+
+    def test_apply_corrects_legacy_open_ended_generic_assignment(self):
+        call_command(
+            "provision_items_detail_reference_data",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+        assignment = TruckCrewAssignment.objects.get(
+            worker__employee_code="GEN-BIFA-PLIV07",
+            truck__internal_code="BIFA PLIV07",
+        )
+        assignment.start_date = date(2026, 4, 4)
+        assignment.end_date = None
+        assignment.save(
+            update_fields=[
+                "start_date",
+                "end_date",
+                "updated_at",
+            ]
+        )
+
+        call_command(
+            "provision_items_detail_reference_data",
+            "--apply",
+            stdout=StringIO(),
+        )
+
+        assignment.refresh_from_db()
+        self.assertEqual(
+            (
+                assignment.start_date,
+                assignment.end_date,
+            ),
+            ASSIGNMENT_WINDOWS[
+                "GEN-BIFA-PLIV07"
+            ],
         )
 
     def test_overlapping_primary_seller_is_rejected(self):
