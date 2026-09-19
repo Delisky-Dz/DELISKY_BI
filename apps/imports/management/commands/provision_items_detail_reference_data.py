@@ -14,17 +14,28 @@ from apps.imports.models import (
 from apps.workforce.models import Worker
 
 
-START_DATE = date(2026, 4, 4)
-
-# These four generic assignments exist only to attribute the historical
+# These four generic assignments exist only to attribute historical
 # transaction-detail rows that proved activity for otherwise inactive routes.
-# Bound them to the last observed accepted Items sale so a later route
-# reactivation cannot silently inherit a historical analytical worker.
-ASSIGNMENT_END_DATES = {
-    "GEN-BIFA-LIV04": date(2026, 6, 20),
-    "GEN-BIFA-LIV05": date(2026, 4, 15),
-    "GEN-BIFA-PLIV07": date(2026, 6, 23),
-    "GEN-BIFA-PSLIV01": date(2026, 4, 8),
+# Bound both sides to the first/last observed accepted Items sale so future
+# or earlier operational data cannot silently inherit a historical analytical
+# worker without new evidence.
+ASSIGNMENT_WINDOWS = {
+    "GEN-BIFA-LIV04": (
+        date(2026, 4, 4),
+        date(2026, 6, 20),
+    ),
+    "GEN-BIFA-LIV05": (
+        date(2026, 4, 4),
+        date(2026, 4, 15),
+    ),
+    "GEN-BIFA-PLIV07": (
+        date(2026, 5, 13),
+        date(2026, 6, 23),
+    ),
+    "GEN-BIFA-PSLIV01": (
+        date(2026, 4, 8),
+        date(2026, 4, 8),
+    ),
 }
 
 WORKER_NOTES = (
@@ -334,9 +345,34 @@ class Command(BaseCommand):
         for employee_code, first_name, truck_code in GENERIC_WORKERS:
             worker = workers[employee_code]
             truck = trucks[truck_code]
-            assignment_end = ASSIGNMENT_END_DATES[employee_code]
+            (
+                assignment_start,
+                assignment_end,
+            ) = ASSIGNMENT_WINDOWS[employee_code]
 
-            existing_primary = (
+            existing_assignments = list(
+                TruckCrewAssignment.objects
+                .filter(
+                    worker=worker,
+                    truck=truck,
+                )
+                .order_by("id")
+            )
+            if len(existing_assignments) > 1:
+                raise CommandError(
+                    (
+                        "Multiple generic assignments found for "
+                        f"{employee_code} on {truck_code}."
+                    )
+                )
+
+            assignment = (
+                existing_assignments[0]
+                if existing_assignments
+                else None
+            )
+
+            overlapping_primary = (
                 TruckCrewAssignment.objects
                 .filter(
                     truck=truck,
@@ -345,35 +381,36 @@ class Command(BaseCommand):
                 )
                 .filter(
                     Q(end_date__isnull=True)
-                    | Q(end_date__gte=START_DATE)
+                    | Q(end_date__gte=assignment_start)
                 )
-                .exclude(worker=worker)
-                .first()
+            )
+            if assignment is not None:
+                overlapping_primary = (
+                    overlapping_primary.exclude(
+                        pk=assignment.pk
+                    )
+                )
+
+            existing_primary = (
+                overlapping_primary.first()
             )
             if existing_primary is not None:
                 raise CommandError(
                     f"Primary seller conflict for {truck_code}."
                 )
 
-            assignment = (
-                TruckCrewAssignment.objects
-                .filter(
-                    worker=worker,
-                    truck=truck,
-                    start_date=START_DATE,
-                )
-                .first()
-            )
             if assignment is None:
                 assignment = TruckCrewAssignment(
                     worker=worker,
                     truck=truck,
-                    start_date=START_DATE,
                 )
 
-            assignment.crew_role = TruckCrewAssignment.CrewRole.SELLER
-            assignment.is_primary_seller = True
+            assignment.start_date = assignment_start
             assignment.end_date = assignment_end
+            assignment.crew_role = (
+                TruckCrewAssignment.CrewRole.SELLER
+            )
+            assignment.is_primary_seller = True
             assignment.notes = ASSIGNMENT_NOTES
             assignment.full_clean()
             assignment.save()
@@ -497,12 +534,17 @@ class Command(BaseCommand):
 
     def _verify(self, sources, trucks):
         for employee_code, first_name, truck_code in GENERIC_WORKERS:
+            (
+                assignment_start,
+                assignment_end,
+            ) = ASSIGNMENT_WINDOWS[employee_code]
+
             if not TruckCrewAssignment.objects.filter(
                 worker__employee_code=employee_code,
                 truck=trucks[truck_code],
                 is_primary_seller=True,
-                start_date=START_DATE,
-                end_date=ASSIGNMENT_END_DATES[employee_code],
+                start_date=assignment_start,
+                end_date=assignment_end,
             ).exists():
                 raise CommandError(
                     f"Assignment verification failed: {employee_code}."
