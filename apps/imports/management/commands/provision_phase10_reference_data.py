@@ -10,6 +10,7 @@ from apps.imports.models import (
     SourceProductAlias,
     SourceProductPackaging,
     SourceTruckExclusion,
+    SourceTruckMapping,
 )
 from apps.workforce.models import Worker
 
@@ -385,6 +386,23 @@ class Command(BaseCommand):
         self.stdout.write("Source truck exclusions:")
 
         for source_code, reason, notes in TRUCK_EXCLUSIONS:
+            mapping = (
+                SourceTruckMapping.objects
+                .filter(
+                    source_system=source,
+                    source_code__iexact=source_code,
+                    is_active=True,
+                )
+                .first()
+            )
+            if mapping is not None:
+                raise CommandError(
+                    (
+                        "Mapping/exclusion conflict: "
+                        f"{SOURCE_SYSTEM_CODE}:{source_code}."
+                    )
+                )
+
             existing = (
                 SourceTruckExclusion.objects
                 .filter(
@@ -550,6 +568,23 @@ class Command(BaseCommand):
 
     def apply_exclusions(self, source):
         for source_code, reason, notes in TRUCK_EXCLUSIONS:
+            mapping = (
+                SourceTruckMapping.objects
+                .filter(
+                    source_system=source,
+                    source_code__iexact=source_code,
+                    is_active=True,
+                )
+                .first()
+            )
+            if mapping is not None:
+                raise CommandError(
+                    (
+                        "Mapping/exclusion conflict: "
+                        f"{SOURCE_SYSTEM_CODE}:{source_code}."
+                    )
+                )
+
             exclusion = (
                 SourceTruckExclusion.objects
                 .filter(
