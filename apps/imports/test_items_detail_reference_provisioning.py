@@ -1,3 +1,4 @@
+from datetime import date
 from io import StringIO
 
 from django.core.management import call_command
