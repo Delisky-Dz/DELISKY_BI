@@ -9,6 +9,7 @@ from .report_row_cleaner import (
     SEVERITY_WARNING,
     STATUS_ACCEPTED,
     STATUS_EXCLUDED,
+    STATUS_STOPPED,
     clean_report_rows_from_metadata,
 )
 from .report_row_reader import ReportRowReadResult
@@ -243,6 +244,8 @@ def clean_raw_items_detail_rows(
 
         if has_detail_error or has_forced_exclusion:
             status = STATUS_EXCLUDED
+        elif base_row.status == STATUS_STOPPED:
+            status = STATUS_STOPPED
         else:
             status = STATUS_ACCEPTED
 
