@@ -22,6 +22,35 @@ def _canonical(value: object) -> str:
     return " ".join(str(value or "").split()).upper()
 
 
+def _canonicalize_scope(
+    values: Mapping[object, object],
+    *,
+    default_value: str | None = None,
+    label: str,
+) -> dict[str, str]:
+    result: dict[str, str] = {}
+
+    for raw_source_code, raw_value in values.items():
+        source_code = _canonical(raw_source_code)
+        if not source_code:
+            continue
+
+        value = _canonical(raw_value)
+        if not value and default_value is not None:
+            value = default_value
+
+        existing = result.get(source_code)
+        if existing is not None and existing != value:
+            raise ValueError(
+                f"Conflicting {label} entries for {source_code}: "
+                f"{existing} != {value}"
+            )
+
+        result[source_code] = value
+
+    return result
+
+
 def build_source_truck_scope_snapshot(
     *,
     mappings: Mapping[object, object],
@@ -32,19 +61,18 @@ def build_source_truck_scope_snapshot(
     The snapshot deliberately stores canonical source codes and resolved
     internal truck codes/reasons rather than database primary keys. This makes
     a review reproducible across restored databases where row IDs can differ.
+    Conflicting entries that collapse to the same canonical source code are
+    rejected instead of being silently overwritten.
     """
-    canonical_mappings = {
-        _canonical(source_code): _canonical(internal_code)
-        for source_code, internal_code in mappings.items()
-        if _canonical(source_code)
-    }
-    canonical_exclusions = {
-        _canonical(source_code): (
-            _canonical(reason) or "OUT_OF_SCOPE"
-        )
-        for source_code, reason in exclusions.items()
-        if _canonical(source_code)
-    }
+    canonical_mappings = _canonicalize_scope(
+        mappings,
+        label="mapping",
+    )
+    canonical_exclusions = _canonicalize_scope(
+        exclusions,
+        default_value="OUT_OF_SCOPE",
+        label="exclusion",
+    )
 
     conflicts = sorted(
         set(canonical_mappings) & set(canonical_exclusions)
