@@ -5,6 +5,7 @@ from django.db import transaction
 
 from apps.imports.models import (
     ImportBatch,
+    ImportSourceSystem,
     ImportSourceUpload,
 )
 
@@ -120,6 +121,10 @@ def create_raw_items_detail_import_review(
                         .pk
                     )
                 )
+            )
+
+            ImportSourceSystem.objects.select_for_update().get(
+                pk=source_upload.source_system_id
             )
 
             if (
