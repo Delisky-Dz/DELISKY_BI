@@ -12,6 +12,9 @@ from apps.imports.models import (
     ImportSourceUpload,
     SourceTruckMapping,
 )
+from apps.imports.services.batch_approval import (
+    ImportBatchApprovalError,
+)
 from apps.imports.services.raw_items_detail_approval import (
     approve_items_detail_batch,
 )
@@ -20,7 +23,8 @@ from apps.imports.services.raw_items_detail_approval import (
 class RawItemsDetailApprovalTests(TestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
-            username="items-detail-approver", password="x"
+            username="items-detail-approver",
+            password="x",
         )
         self.brand = DistributionBrand.objects.create(
             code="BIFA",
@@ -81,6 +85,40 @@ class RawItemsDetailApprovalTests(TestCase):
             approved_by=self.user,
         )
 
+    def _detail(
+        self,
+        *,
+        sha,
+        covered_trucks,
+        replacement_batch_ids,
+    ):
+        detail_upload = self._upload(
+            "BIFA_Items_DETAIL_2026-04-04_to_2026-08-26.xlsx",
+            sha,
+        )
+
+        return ImportBatch.objects.create(
+            source_upload=detail_upload,
+            brand=self.brand,
+            report_type="ITEMS",
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+            original_filename=detail_upload.original_filename,
+            status=ImportBatchStatus.REVIEWED,
+            content_sha256="f" * 64,
+            uploaded_by=self.user,
+            reviewed_by=self.user,
+            review_summary={
+                "items_detail": {
+                    "transaction_level": True,
+                    "covered_trucks": list(covered_trucks),
+                    "replacement_batch_ids": list(
+                        replacement_batch_ids
+                    ),
+                }
+            },
+        )
+
     def test_approval_supersedes_all_covered_legacy_batches_atomically(self):
         first = self._legacy(
             "DCV-03 items_2026-04-04_to_2026-08-26.xlsx",
@@ -90,30 +128,16 @@ class RawItemsDetailApprovalTests(TestCase):
             "DCV-07 items_2026-04-04_to_2026-08-26.xlsx",
             "2" * 64,
         )
-        detail_upload = self._upload(
-            "BIFA_Items_DETAIL_2026-04-04_to_2026-08-26.xlsx",
-            "3" * 64,
-        )
-        detail = ImportBatch.objects.create(
-            source_upload=detail_upload,
-            brand=self.brand,
-            report_type="ITEMS",
-            period_start=date(2026, 4, 4),
-            period_end=date(2026, 8, 26),
-            original_filename=detail_upload.original_filename,
-            status=ImportBatchStatus.REVIEWED,
-            content_sha256="4" * 64,
-            uploaded_by=self.user,
-            reviewed_by=self.user,
-            review_summary={
-                "items_detail": {
-                    "transaction_level": True,
-                    "covered_trucks": [
-                        "BIFA LIV03",
-                        "BIFA LIV07",
-                    ],
-                }
-            },
+        detail = self._detail(
+            sha="3" * 64,
+            covered_trucks=(
+                "BIFA LIV03",
+                "BIFA LIV07",
+            ),
+            replacement_batch_ids=(
+                first.pk,
+                second.pk,
+            ),
         )
 
         result = approve_items_detail_batch(
@@ -124,6 +148,7 @@ class RawItemsDetailApprovalTests(TestCase):
         detail.refresh_from_db()
         first.refresh_from_db()
         second.refresh_from_db()
+
         self.assertEqual(
             detail.status,
             ImportBatchStatus.APPROVED,
@@ -139,4 +164,112 @@ class RawItemsDetailApprovalTests(TestCase):
         self.assertEqual(
             result.superseded_batch_ids,
             (first.pk, second.pk),
+        )
+
+    def test_approval_rejects_replacement_plan_changed_since_review(self):
+        first = self._legacy(
+            "DCV-03 items_2026-04-04_to_2026-08-26.xlsx",
+            "4" * 64,
+        )
+        detail = self._detail(
+            sha="5" * 64,
+            covered_trucks=("BIFA LIV03",),
+            replacement_batch_ids=(first.pk,),
+        )
+        second = self._legacy(
+            "DCV-03 items_2026-04-04_to_2026-08-26.xlsx",
+            "6" * 64,
+        )
+
+        with self.assertRaises(
+            ImportBatchApprovalError
+        ) as captured:
+            approve_items_detail_batch(
+                detail,
+                approved_by=self.user,
+            )
+
+        self.assertEqual(
+            captured.exception.code,
+            "replacement_plan_changed",
+        )
+        self.assertEqual(
+            captured.exception.details[
+                "reviewed_replacement_batch_ids"
+            ],
+            [first.pk],
+        )
+        self.assertEqual(
+            captured.exception.details[
+                "current_replacement_batch_ids"
+            ],
+            [first.pk, second.pk],
+        )
+
+        detail.refresh_from_db()
+        first.refresh_from_db()
+        second.refresh_from_db()
+
+        self.assertEqual(
+            detail.status,
+            ImportBatchStatus.REVIEWED,
+        )
+        self.assertEqual(
+            first.status,
+            ImportBatchStatus.APPROVED,
+        )
+        self.assertEqual(
+            second.status,
+            ImportBatchStatus.APPROVED,
+        )
+
+    def test_approval_requires_reviewed_replacement_plan_snapshot(self):
+        first = self._legacy(
+            "DCV-03 items_2026-04-04_to_2026-08-26.xlsx",
+            "7" * 64,
+        )
+        detail = self._detail(
+            sha="8" * 64,
+            covered_trucks=("BIFA LIV03",),
+            replacement_batch_ids=(first.pk,),
+        )
+
+        summary = dict(detail.review_summary)
+        summary["items_detail"] = dict(
+            summary["items_detail"]
+        )
+        summary["items_detail"].pop(
+            "replacement_batch_ids"
+        )
+        detail.review_summary = summary
+        detail.save(
+            update_fields=[
+                "review_summary",
+                "updated_at",
+            ]
+        )
+
+        with self.assertRaises(
+            ImportBatchApprovalError
+        ) as captured:
+            approve_items_detail_batch(
+                detail,
+                approved_by=self.user,
+            )
+
+        self.assertEqual(
+            captured.exception.code,
+            "missing_replacement_plan",
+        )
+
+        detail.refresh_from_db()
+        first.refresh_from_db()
+
+        self.assertEqual(
+            detail.status,
+            ImportBatchStatus.REVIEWED,
+        )
+        self.assertEqual(
+            first.status,
+            ImportBatchStatus.APPROVED,
         )
