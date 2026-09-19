@@ -42,6 +42,7 @@ def persist_raw_items_detail_brand_review(
     reviewer: Any,
     period_start: Any,
     period_end: Any,
+    batch: ImportBatch | None = None,
 ) -> RawItemsDetailDerivedReviewResult:
     """Persist one transaction-level Items brand partition for review.
 
@@ -80,7 +81,7 @@ def persist_raw_items_detail_brand_review(
         source_upload=source_upload,
         uploaded_by=uploaded_by,
         reviewer=reviewer,
-        batch=None,
+        batch=batch,
         brand_code=brand_review.brand_code,
         report_type="ITEMS",
         period_start=period_start,
