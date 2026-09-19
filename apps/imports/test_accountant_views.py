@@ -685,7 +685,7 @@ class AccountantImportViewTests(TestCase):
 
     @patch(
         "apps.imports.views."
-        "approve_import_batch"
+        "approve_reviewed_batch"
     )
     def test_accountant_can_approve_batch(
         self,
@@ -720,7 +720,7 @@ class AccountantImportViewTests(TestCase):
 
     @patch(
         "apps.imports.views."
-        "approve_import_batch"
+        "approve_reviewed_batch"
     )
     def test_approval_error_redirects_safely(
         self,
