@@ -22,6 +22,7 @@ from .forms import (
     ImportUploadForm,
     RawChargementUploadFormSet,
     RawSalesUploadFormSet,
+    RawItemsDetailUploadForm,
     RawItemsUploadForm,
     RawOpeningStockUploadForm,
 )
@@ -51,6 +52,10 @@ from .services.raw_chargement_derived_multi_review import (
 from .services.raw_sales_multi_review import (
     RawSalesImportRequest,
     create_raw_sales_multi_import_reviews,
+)
+from .services.raw_items_detail_multi_review import (
+    RawItemsDetailImportRequest,
+    create_raw_items_detail_multi_import_reviews,
 )
 from .services.raw_items_multi_review import (
     RawItemsImportRequest,
@@ -122,6 +127,8 @@ def _home_context(
     raw_upload_result=None,
     sales_upload_formset=None,
     sales_upload_result=None,
+    items_detail_upload_form=None,
+    items_detail_upload_result=None,
     items_upload_form=None,
     items_upload_result=None,
     opening_stock_upload_form=None,
@@ -173,6 +180,14 @@ def _home_context(
             )
         ),
         "sales_upload_result": sales_upload_result,
+        "items_detail_upload_form": (
+            items_detail_upload_form
+            if items_detail_upload_form is not None
+            else RawItemsDetailUploadForm()
+        ),
+        "items_detail_upload_result": (
+            items_detail_upload_result
+        ),
         "items_upload_form": (
             items_upload_form
             if items_upload_form is not None
@@ -541,6 +556,79 @@ def raw_opening_stock_upload(request):
                 RawOpeningStockUploadForm()
             ),
             opening_stock_upload_result=result,
+        ),
+    )
+
+
+@accountant_required
+@require_POST
+def raw_items_detail_upload(request):
+    form = RawItemsDetailUploadForm(
+        request.POST,
+        request.FILES,
+    )
+
+    if not form.is_valid():
+        return render(
+            request,
+            "imports/accountant_home.html",
+            _home_context(
+                items_detail_upload_form=form,
+            ),
+        )
+
+    period_start = form.cleaned_data[
+        "period_start"
+    ]
+    period_end = form.cleaned_data[
+        "period_end"
+    ]
+
+    import_requests = []
+
+    for field_name, source_system_code in (
+        ("bifa_file", "BIFA_MILA"),
+        ("aio_file", "AIO_WEB"),
+    ):
+        source_file = form.cleaned_data.get(
+            field_name
+        )
+
+        if source_file is None:
+            continue
+
+        source_file.seek(0)
+
+        import_requests.append(
+            RawItemsDetailImportRequest(
+                source=source_file,
+                source_system_code=(
+                    source_system_code
+                ),
+                period_start=period_start,
+                period_end=period_end,
+                original_filename=(
+                    source_file.name
+                ),
+            )
+        )
+
+    result = (
+        create_raw_items_detail_multi_import_reviews(
+            tuple(import_requests),
+            uploaded_by=request.user,
+            reviewed_by=request.user,
+        )
+    )
+
+    return render(
+        request,
+        "imports/accountant_home.html",
+        _home_context(
+            items_detail_upload_form=(
+                RawItemsDetailUploadForm()
+            ),
+            items_detail_upload_result=result,
         ),
     )
 
