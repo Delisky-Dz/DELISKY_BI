@@ -1,3 +1,4 @@
+from datetime import date
 from io import BytesIO
 from tempfile import TemporaryDirectory
 
