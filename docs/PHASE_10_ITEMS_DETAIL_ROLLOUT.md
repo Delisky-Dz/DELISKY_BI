@@ -108,16 +108,22 @@ A transaction-detail batch can be approved only when:
 - blocking error count is zero;
 - staged row counts still match the reviewed totals;
 - transaction-level truck scope exists;
+- the source mapping/exclusion scope fingerprint still matches the exact
+  fingerprint captured at review time;
 - the replacement-plan snapshot exists;
 - the replacement plan recomputed at approval is exactly the same as the one
   reviewed earlier;
 - every replacement target is still `APPROVED`.
 
-Review/refresh and approval for a source system are serialized through a
-source-system database lock. The lock order is intentionally consistent:
+Review/refresh and all source-backed Items approvals (legacy and DETAIL) are
+serialized through the same source-system database lock. The lock order is
+intentionally consistent:
 source system -> source upload -> derived batch -> replacement batches. This
-avoids refresh/approval deadlocks while keeping approval atomic. Approval then
-supersedes all covered replacement targets in the same transaction.
+avoids legacy/detail races and refresh/approval deadlocks while keeping
+approval atomic. If mapping or exclusion reference data changes after review,
+DETAIL approval stops and requires a fresh review instead of approving rows
+prepared under stale route scope. Approval then supersedes all covered
+replacement targets in the same transaction.
 
 The batch detail screen shows the covered trucks, source exclusions, immutable
 source-file hash and the prior batches that are expected to be replaced.
