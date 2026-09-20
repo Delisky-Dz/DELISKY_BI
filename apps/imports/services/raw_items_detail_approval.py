@@ -58,6 +58,30 @@ def _reviewed_replacement_batch_ids(
     return tuple(normalized)
 
 
+def _source_system_id_for_batch(
+    batch_id: int,
+) -> int | None:
+    row = (
+        ImportBatch.objects
+        .filter(pk=batch_id)
+        .values(
+            "source_upload__source_system_id",
+        )
+        .first()
+    )
+
+    if row is None:
+        raise ImportBatchApprovalError(
+            "batch_not_found",
+            "The requested ImportBatch does not exist.",
+            details={"batch_id": batch_id},
+        )
+
+    return row[
+        "source_upload__source_system_id"
+    ]
+
+
 def approve_items_detail_batch(
     batch: ImportBatch | int,
     *,
@@ -65,60 +89,127 @@ def approve_items_detail_batch(
 ) -> ItemsDetailApprovalResult:
     """Approve one transaction-level Items brand batch atomically.
 
-    The replacement plan is recomputed during approval and must still match
-    the exact replacement ids persisted at review time. Every covered
-    approved legacy/detail batch is then locked and superseded in the same
-    transaction. This deliberately avoids the legacy single
-    ``replaces_batch`` relation, which cannot represent a detail export
-    replacing several per-truck batches.
+    Source-system scope is locked before any batch row so review/refresh and
+    approval use the same lock order. The replacement plan is then recomputed
+    and must still match the exact ids persisted at review time. Every covered
+    approved legacy/detail batch is locked and superseded in the same
+    transaction.
     """
-    batch_id = batch.pk if isinstance(batch, ImportBatch) else batch
+    batch_id = (
+        batch.pk
+        if isinstance(batch, ImportBatch)
+        else batch
+    )
+
     if not batch_id:
         raise ImportBatchApprovalError(
             "unsaved_batch",
-            "The ImportBatch must be saved before approval.",
+            (
+                "The ImportBatch must be saved "
+                "before approval."
+            ),
         )
-    if approved_by is None or not getattr(approved_by, "pk", None):
+
+    if (
+        approved_by is None
+        or not getattr(approved_by, "pk", None)
+    ):
         raise ImportBatchApprovalError(
             "invalid_approver",
-            "A saved user is required to approve the import batch.",
+            (
+                "A saved user is required to "
+                "approve the import batch."
+            ),
         )
-    if not getattr(approved_by, "is_active", False):
+
+    if not getattr(
+        approved_by,
+        "is_active",
+        False,
+    ):
         raise ImportBatchApprovalError(
             "inactive_approver",
-            "An inactive user cannot approve the import batch.",
+            (
+                "An inactive user cannot approve "
+                "the import batch."
+            ),
         )
 
     with transaction.atomic():
+        source_system_id = (
+            _source_system_id_for_batch(
+                batch_id
+            )
+        )
+
+        locked_source_system = None
+
+        if source_system_id is not None:
+            locked_source_system = (
+                ImportSourceSystem.objects
+                .select_for_update()
+                .get(pk=source_system_id)
+            )
+
         target = (
             ImportBatch.objects
             .select_for_update()
+            .select_related(
+                "brand",
+                "source_upload",
+                "source_upload__source_system",
+            )
             .get(pk=batch_id)
         )
 
-        if target.status != ImportBatchStatus.REVIEWED:
+        if (
+            target.source_upload_id is not None
+            and locked_source_system is not None
+            and (
+                target.source_upload.source_system_id
+                != locked_source_system.pk
+            )
+        ):
+            raise ImportBatchApprovalError(
+                "source_scope_changed",
+                (
+                    "The Items detail source scope "
+                    "changed during approval."
+                ),
+            )
+
+        if (
+            target.status
+            != ImportBatchStatus.REVIEWED
+        ):
             raise ImportBatchApprovalError(
                 "batch_not_reviewed",
                 (
                     "Only a successfully reviewed "
-                    "transaction-level Items batch can be approved."
+                    "transaction-level Items batch "
+                    "can be approved."
                 ),
-                details={"status": target.status},
+                details={
+                    "status": target.status
+                },
             )
 
         if target.error_count:
             raise ImportBatchApprovalError(
                 "batch_has_errors",
                 (
-                    "A batch containing blocking errors "
-                    "cannot be approved."
+                    "A batch containing blocking "
+                    "errors cannot be approved."
                 ),
             )
 
         if not target.content_sha256:
             raise ImportBatchApprovalError(
                 "missing_content_hash",
-                "The reviewed content hash is missing.",
+                (
+                    "The reviewed content hash "
+                    "is missing."
+                ),
             )
 
         if (
@@ -134,49 +225,65 @@ def approve_items_detail_batch(
             )
 
         source_system = (
-            target.source_upload.source_system
-        )
-        ImportSourceSystem.objects.select_for_update().get(
-            pk=source_system.pk
+            locked_source_system
+            or target.source_upload.source_system
         )
 
-        covered_trucks = detail_batch_covered_trucks(target)
+        covered_trucks = (
+            detail_batch_covered_trucks(
+                target
+            )
+        )
+
         if not covered_trucks:
             raise ImportBatchApprovalError(
                 "not_items_detail_batch",
                 (
-                    "The batch review metadata does not identify "
-                    "transaction-level Items truck coverage."
+                    "The batch review metadata does "
+                    "not identify transaction-level "
+                    "Items truck coverage."
                 ),
             )
 
         reviewed_replacement_ids = (
-            _reviewed_replacement_batch_ids(target)
+            _reviewed_replacement_batch_ids(
+                target
+            )
         )
+
         if reviewed_replacement_ids is None:
             raise ImportBatchApprovalError(
                 "missing_replacement_plan",
                 (
-                    "The reviewed Items detail batch has no valid "
-                    "replacement-plan snapshot. Review it again "
-                    "before approval."
+                    "The reviewed Items detail batch "
+                    "has no valid replacement-plan "
+                    "snapshot. Review it again before "
+                    "approval."
                 ),
             )
 
         _validate_staged_rows(target)
 
         try:
-            plan = plan_items_detail_replacements(
-                source_system_code=(
-                    source_system.code
-                ),
-                brand_code=target.brand.code,
-                covered_trucks=covered_trucks,
-                period_start=target.period_start,
-                period_end=target.period_end,
-                current_source_upload_id=(
-                    target.source_upload_id
-                ),
+            plan = (
+                plan_items_detail_replacements(
+                    source_system_code=(
+                        source_system.code
+                    ),
+                    brand_code=target.brand.code,
+                    covered_trucks=(
+                        covered_trucks
+                    ),
+                    period_start=(
+                        target.period_start
+                    ),
+                    period_end=(
+                        target.period_end
+                    ),
+                    current_source_upload_id=(
+                        target.source_upload_id
+                    ),
+                )
             )
         except RawItemsDetailReplacementError as exc:
             raise ImportBatchApprovalError(
@@ -185,21 +292,33 @@ def approve_items_detail_batch(
                 details=dict(exc.details),
             ) from exc
 
-        replacement_ids = plan.replacement_batch_ids
+        replacement_ids = (
+            plan.replacement_batch_ids
+        )
 
-        if replacement_ids != reviewed_replacement_ids:
+        if (
+            replacement_ids
+            != reviewed_replacement_ids
+        ):
             raise ImportBatchApprovalError(
                 "replacement_plan_changed",
                 (
-                    "The Items replacement set changed since "
-                    "review. Review the batch again before "
+                    "The Items replacement set "
+                    "changed since review. Review "
+                    "the batch again before "
                     "approving it."
                 ),
                 details={
-                    "reviewed_replacement_batch_ids": list(
+                    (
+                        "reviewed_replacement_"
+                        "batch_ids"
+                    ): list(
                         reviewed_replacement_ids
                     ),
-                    "current_replacement_batch_ids": list(
+                    (
+                        "current_replacement_"
+                        "batch_ids"
+                    ): list(
                         replacement_ids
                     ),
                 },
@@ -208,32 +327,43 @@ def approve_items_detail_batch(
         locked_replacements = list(
             ImportBatch.objects
             .select_for_update()
-            .filter(pk__in=replacement_ids)
+            .filter(
+                pk__in=replacement_ids
+            )
             .order_by("id")
         )
 
         if (
             tuple(
                 replacement.pk
-                for replacement in locked_replacements
+                for replacement
+                in locked_replacements
             )
             != replacement_ids
         ):
             raise ImportBatchApprovalError(
                 "replacement_plan_changed",
                 (
-                    "The Items replacement set changed during "
-                    "approval; retry review before approving."
+                    "The Items replacement set "
+                    "changed during approval; "
+                    "retry review before approving."
                 ),
             )
 
         for replaced in locked_replacements:
-            if replaced.status != ImportBatchStatus.APPROVED:
+            if (
+                replaced.status
+                != ImportBatchStatus.APPROVED
+            ):
                 raise ImportBatchApprovalError(
-                    "replacement_target_not_approved",
                     (
-                        "Every Items detail replacement target "
-                        "must still be approved."
+                        "replacement_target_"
+                        "not_approved"
+                    ),
+                    (
+                        "Every Items detail "
+                        "replacement target must "
+                        "still be approved."
                     ),
                     details={
                         "batch_id": replaced.pk,
@@ -241,12 +371,19 @@ def approve_items_detail_batch(
                     },
                 )
 
-            replaced.status = ImportBatchStatus.SUPERSEDED
+            replaced.status = (
+                ImportBatchStatus.SUPERSEDED
+            )
             replaced.save(
-                update_fields=["status", "updated_at"]
+                update_fields=[
+                    "status",
+                    "updated_at",
+                ]
             )
 
-        target.status = ImportBatchStatus.APPROVED
+        target.status = (
+            ImportBatchStatus.APPROVED
+        )
         target.approved_by = approved_by
         target.approved_at = timezone.now()
         target.save(
@@ -260,5 +397,7 @@ def approve_items_detail_batch(
 
     return ItemsDetailApprovalResult(
         batch=target,
-        superseded_batch_ids=replacement_ids,
+        superseded_batch_ids=(
+            replacement_ids
+        ),
     )
