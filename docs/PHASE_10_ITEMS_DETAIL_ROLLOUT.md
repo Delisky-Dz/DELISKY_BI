@@ -90,8 +90,15 @@ batches keep:
 - content hash;
 - source audit metadata, including excluded source-user counts.
 
-Uploading the exact same source file again after it already has derived review
-batches is rejected instead of creating duplicate analytical data.
+Uploading the exact same raw source again is handled by batch state:
+
+- if every existing derived batch is still mutable (`PENDING`, `REVIEWED`,
+  `BLOCKED` or `FAILED`), the review is refreshed in place instead of
+  creating duplicate batches;
+- if any derived batch is already `APPROVED` or `SUPERSEDED`, the source is
+  treated as immutable history and the re-review is rejected;
+- if a refreshed source no longer produces a previously mutable brand
+  partition, that stale mutable batch is removed in the same transaction.
 
 ## Review and approval
 
@@ -106,9 +113,11 @@ A transaction-detail batch can be approved only when:
   reviewed earlier;
 - every replacement target is still `APPROVED`.
 
-Review and approval for a source system are serialized through a source-system
-database lock. Approval then supersedes all covered replacement targets in the
-same transaction.
+Review/refresh and approval for a source system are serialized through a
+source-system database lock. The lock order is intentionally consistent:
+source system -> source upload -> derived batch -> replacement batches. This
+avoids refresh/approval deadlocks while keeping approval atomic. Approval then
+supersedes all covered replacement targets in the same transaction.
 
 The batch detail screen shows the covered trucks, source exclusions, immutable
 source-file hash and the prior batches that are expected to be replaced.
