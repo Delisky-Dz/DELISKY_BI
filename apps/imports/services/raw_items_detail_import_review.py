@@ -10,7 +10,10 @@ from apps.imports.models import (
     ImportSourceUpload,
 )
 
-from .batch_review import _validate_user
+from .batch_review import (
+    MUTABLE_BATCH_STATUSES,
+    _validate_user,
+)
 from .raw_items_detail_multi_brand_review import (
     RawItemsDetailDerivedReviewResult,
     persist_raw_items_detail_review,
@@ -99,6 +102,87 @@ def _source_audit_metadata(
     }
 
 
+def _existing_mutable_batches_by_brand(
+    source_upload: ImportSourceUpload,
+) -> dict[str, ImportBatch]:
+    existing = list(
+        source_upload.derived_batches
+        .select_for_update()
+        .select_related("brand")
+        .order_by("pk")
+    )
+
+    if not existing:
+        return {}
+
+    invalid = [
+        batch
+        for batch in existing
+        if (
+            batch.report_type != "ITEMS"
+            or batch.status
+            not in MUTABLE_BATCH_STATUSES
+        )
+    ]
+
+    if invalid:
+        raise RawItemsDetailImportReviewError(
+            "source_upload_already_reviewed",
+            (
+                "This transaction-level Items source "
+                "file already has an immutable or "
+                "non-Items derived review."
+            ),
+            details={
+                "source_upload_id": source_upload.pk,
+                "existing_batches": [
+                    {
+                        "pk": batch.pk,
+                        "brand__code": batch.brand.code,
+                        "report_type": batch.report_type,
+                        "status": batch.status,
+                        "period_start": batch.period_start,
+                        "period_end": batch.period_end,
+                    }
+                    for batch in existing
+                ],
+            },
+        )
+
+    by_brand: dict[str, ImportBatch] = {}
+
+    for batch in existing:
+        brand_code = str(
+            batch.brand.code or ""
+        ).strip().upper()
+
+        if brand_code in by_brand:
+            raise RawItemsDetailImportReviewError(
+                "source_upload_ambiguous_mutable_review",
+                (
+                    "This Items detail source has more "
+                    "than one mutable batch for the same "
+                    "brand and cannot be refreshed safely."
+                ),
+                details={
+                    "source_upload_id": source_upload.pk,
+                    "brand_code": brand_code,
+                    "batch_ids": [
+                        item.pk
+                        for item in existing
+                        if str(
+                            item.brand.code or ""
+                        ).strip().upper()
+                        == brand_code
+                    ],
+                },
+            )
+
+        by_brand[brand_code] = batch
+
+    return by_brand
+
+
 def create_raw_items_detail_import_review(
     source: Any,
     *,
@@ -112,9 +196,11 @@ def create_raw_items_detail_import_review(
     """Review and persist one transaction-level Items export atomically.
 
     The raw source upload is stored once, then every derived brand batch is
-    persisted in the same database transaction. If later persistence fails,
-    a newly-created storage object is removed as well so the database rollback
-    does not leave an orphaned raw file behind.
+    persisted in the same database transaction. Re-uploading the exact same
+    source may refresh existing mutable derived batches in place; immutable
+    approved/superseded history is never rewritten. If later persistence
+    fails, a newly-created storage object is removed as well so the database
+    rollback does not leave an orphaned raw file behind.
     """
     _validate_user(
         uploaded_by,
@@ -172,37 +258,11 @@ def create_raw_items_detail_import_review(
                 pk=source_upload.source_system_id
             )
 
-            if (
-                not source_upload_result.created
-                and source_upload.derived_batches.exists()
-            ):
-                existing = list(
-                    source_upload.derived_batches
-                    .select_related("brand")
-                    .order_by("pk")
-                    .values(
-                        "pk",
-                        "brand__code",
-                        "report_type",
-                        "status",
-                        "period_start",
-                        "period_end",
-                    )
+            existing_batches_by_brand = (
+                _existing_mutable_batches_by_brand(
+                    source_upload
                 )
-
-                raise RawItemsDetailImportReviewError(
-                    "source_upload_already_reviewed",
-                    (
-                        "This transaction-level Items source "
-                        "file has already been reviewed."
-                    ),
-                    details={
-                        "source_upload_id": (
-                            source_upload.pk
-                        ),
-                        "existing_batches": existing,
-                    },
-                )
+            )
 
             audit_metadata = dict(
                 source_upload.audit_metadata or {}
@@ -224,6 +284,9 @@ def create_raw_items_detail_import_review(
                     review=review,
                     uploaded_by=uploaded_by,
                     reviewer=reviewer,
+                    existing_batches_by_brand=(
+                        existing_batches_by_brand
+                    ),
                 )
             )
 

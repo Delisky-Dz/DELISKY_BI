@@ -75,6 +75,37 @@ class RawItemsDetailImportReviewTests(TestCase):
             ),
         )
 
+    def _batch(
+        self,
+        upload,
+        *,
+        status=ImportBatchStatus.REVIEWED,
+        content_sha="3" * 64,
+    ):
+        return ImportBatch.objects.create(
+            source_upload=upload,
+            brand=self.brand,
+            report_type="ITEMS",
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+            original_filename=upload.original_filename,
+            worksheet_name="Classeur",
+            content_sha256=content_sha,
+            status=status,
+            total_rows=0,
+            accepted_rows=0,
+            excluded_rows=0,
+            stopped_rows=0,
+            uploaded_by=self.user,
+            reviewed_by=self.user,
+            approved_by=(
+                self.user
+                if status
+                == ImportBatchStatus.APPROVED
+                else None
+            ),
+        )
+
     @patch(
         "apps.imports.services.raw_items_detail_import_review."
         "persist_raw_items_detail_review"
@@ -136,6 +167,12 @@ class RawItemsDetailImportReviewTests(TestCase):
             ].pk,
             upload.pk,
         )
+        self.assertEqual(
+            persist_mock.call_args.kwargs[
+                "existing_batches_by_brand"
+            ],
+            {},
+        )
 
         upload.refresh_from_db()
         audit = upload.audit_metadata[
@@ -180,29 +217,84 @@ class RawItemsDetailImportReviewTests(TestCase):
         "apps.imports.services.raw_items_detail_import_review."
         "prepare_raw_items_detail_review"
     )
-    def test_existing_source_with_batches_is_not_duplicated(
+    def test_existing_mutable_source_refreshes_in_place(
         self,
         prepare_mock,
         source_store_mock,
         persist_mock,
     ):
         upload = self._source_upload("2" * 64)
-        ImportBatch.objects.create(
+        existing = self._batch(upload)
+
+        prepare_mock.return_value = self._prepared_review()
+        source_store_mock.return_value = SimpleNamespace(
             source_upload=upload,
-            brand=self.brand,
-            report_type="ITEMS",
-            period_start=date(2026, 4, 4),
-            period_end=date(2026, 8, 26),
-            original_filename=upload.original_filename,
-            worksheet_name="Classeur",
-            content_sha256="3" * 64,
-            status=ImportBatchStatus.REVIEWED,
-            total_rows=0,
-            accepted_rows=0,
-            excluded_rows=0,
-            stopped_rows=0,
+            created=False,
+        )
+        persisted = SimpleNamespace(
+            source_upload=upload,
+            brand_results=(
+                SimpleNamespace(batch=existing),
+            ),
+        )
+        persist_mock.return_value = persisted
+
+        result = create_raw_items_detail_import_review(
+            SimpleNamespace(
+                name="AIO_Items_DETAIL.xlsx"
+            ),
+            source_system_code="AIO_WEB",
             uploaded_by=self.user,
             reviewed_by=self.user,
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+            original_filename=(
+                "AIO_Items_DETAIL.xlsx"
+            ),
+        )
+
+        self.assertEqual(
+            result.batches,
+            (existing,),
+        )
+
+        refreshed = (
+            persist_mock.call_args.kwargs[
+                "existing_batches_by_brand"
+            ]
+        )
+        self.assertEqual(
+            set(refreshed),
+            {"DELISKY"},
+        )
+        self.assertEqual(
+            refreshed["DELISKY"].pk,
+            existing.pk,
+        )
+
+    @patch(
+        "apps.imports.services.raw_items_detail_import_review."
+        "persist_raw_items_detail_review"
+    )
+    @patch(
+        "apps.imports.services.raw_items_detail_import_review."
+        "create_import_source_upload"
+    )
+    @patch(
+        "apps.imports.services.raw_items_detail_import_review."
+        "prepare_raw_items_detail_review"
+    )
+    def test_existing_immutable_source_is_not_rewritten(
+        self,
+        prepare_mock,
+        source_store_mock,
+        persist_mock,
+    ):
+        upload = self._source_upload("4" * 64)
+        self._batch(
+            upload,
+            status=ImportBatchStatus.APPROVED,
+            content_sha="5" * 64,
         )
 
         prepare_mock.return_value = self._prepared_review()
