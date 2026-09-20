@@ -19,6 +19,13 @@ from .raw_items_detail_replacement import (
     detail_batch_covered_trucks,
     plan_items_detail_replacements,
 )
+from .source_truck_mapping_store import (
+    build_source_truck_exclusions,
+    build_source_truck_mapping,
+)
+from .source_truck_scope_snapshot import (
+    build_source_truck_scope_snapshot,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +63,58 @@ def _reviewed_replacement_batch_ids(
         return None
 
     return tuple(normalized)
+
+
+def _reviewed_source_scope_sha(
+    batch: ImportBatch,
+) -> str | None:
+    summary = batch.review_summary or {}
+    detail = summary.get("items_detail")
+
+    if not isinstance(detail, dict):
+        return None
+
+    scope = detail.get("source_truck_scope")
+    if not isinstance(scope, dict):
+        return None
+
+    value = scope.get("sha256")
+    if not isinstance(value, str):
+        return None
+
+    normalized = value.strip().lower()
+
+    if (
+        len(normalized) != 64
+        or any(
+            char not in "0123456789abcdef"
+            for char in normalized
+        )
+    ):
+        return None
+
+    return normalized
+
+
+def _current_source_scope_sha(
+    source_system_code: str,
+) -> str:
+    snapshot = (
+        build_source_truck_scope_snapshot(
+            mappings=(
+                build_source_truck_mapping(
+                    source_system_code
+                )
+            ),
+            exclusions=(
+                build_source_truck_exclusions(
+                    source_system_code
+                )
+            ),
+        )
+    )
+
+    return snapshot.sha256
 
 
 def _source_system_id_for_batch(
@@ -245,6 +304,51 @@ def approve_items_detail_batch(
                     "not identify transaction-level "
                     "Items truck coverage."
                 ),
+            )
+
+        reviewed_source_scope_sha = (
+            _reviewed_source_scope_sha(
+                target
+            )
+        )
+
+        if reviewed_source_scope_sha is None:
+            raise ImportBatchApprovalError(
+                "missing_source_truck_scope",
+                (
+                    "The reviewed Items detail batch "
+                    "has no valid source-truck scope "
+                    "snapshot. Review it again before "
+                    "approval."
+                ),
+            )
+
+        current_source_scope_sha = (
+            _current_source_scope_sha(
+                source_system.code
+            )
+        )
+
+        if (
+            current_source_scope_sha
+            != reviewed_source_scope_sha
+        ):
+            raise ImportBatchApprovalError(
+                "source_truck_scope_changed",
+                (
+                    "The source truck mapping or "
+                    "exclusion scope changed since "
+                    "review. Review the Items detail "
+                    "source again before approval."
+                ),
+                details={
+                    "reviewed_scope_sha256": (
+                        reviewed_source_scope_sha
+                    ),
+                    "current_scope_sha256": (
+                        current_source_scope_sha
+                    ),
+                },
             )
 
         reviewed_replacement_ids = (

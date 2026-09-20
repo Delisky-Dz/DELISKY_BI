@@ -18,6 +18,13 @@ from apps.imports.services.batch_approval import (
 from apps.imports.services.raw_items_detail_approval import (
     approve_items_detail_batch,
 )
+from apps.imports.services.source_truck_mapping_store import (
+    build_source_truck_exclusions,
+    build_source_truck_mapping,
+)
+from apps.imports.services.source_truck_scope_snapshot import (
+    build_source_truck_scope_snapshot,
+)
 
 
 class RawItemsDetailApprovalTests(TestCase):
@@ -97,6 +104,21 @@ class RawItemsDetailApprovalTests(TestCase):
             sha,
         )
 
+        source_scope = (
+            build_source_truck_scope_snapshot(
+                mappings=(
+                    build_source_truck_mapping(
+                        self.source_system.code
+                    )
+                ),
+                exclusions=(
+                    build_source_truck_exclusions(
+                        self.source_system.code
+                    )
+                ),
+            )
+        )
+
         return ImportBatch.objects.create(
             source_upload=detail_upload,
             brand=self.brand,
@@ -114,6 +136,9 @@ class RawItemsDetailApprovalTests(TestCase):
                     "covered_trucks": list(covered_trucks),
                     "replacement_batch_ids": list(
                         replacement_batch_ids
+                    ),
+                    "source_truck_scope": (
+                        source_scope.as_dict()
                     ),
                 }
             },
@@ -260,6 +285,50 @@ class RawItemsDetailApprovalTests(TestCase):
         self.assertEqual(
             captured.exception.code,
             "missing_replacement_plan",
+        )
+
+        detail.refresh_from_db()
+        first.refresh_from_db()
+
+        self.assertEqual(
+            detail.status,
+            ImportBatchStatus.REVIEWED,
+        )
+        self.assertEqual(
+            first.status,
+            ImportBatchStatus.APPROVED,
+        )
+
+
+    def test_approval_rejects_source_scope_changed_since_review(self):
+        first = self._legacy(
+            "DCV-03 items_2026-04-04_to_2026-08-26.xlsx",
+            "9" * 64,
+        )
+        detail = self._detail(
+            sha="a" * 63 + "b",
+            covered_trucks=("BIFA LIV03",),
+            replacement_batch_ids=(first.pk,),
+        )
+
+        SourceTruckMapping.objects.create(
+            source_system=self.source_system,
+            source_code="CV-99",
+            truck=self.liv03,
+            is_active=True,
+        )
+
+        with self.assertRaises(
+            ImportBatchApprovalError
+        ) as captured:
+            approve_items_detail_batch(
+                detail,
+                approved_by=self.user,
+            )
+
+        self.assertEqual(
+            captured.exception.code,
+            "source_truck_scope_changed",
         )
 
         detail.refresh_from_db()
