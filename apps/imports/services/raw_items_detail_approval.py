@@ -151,32 +151,34 @@ def approve_items_detail_batch(
                 .get(pk=source_system_id)
             )
 
+        # Lock only the batch table row here. source_upload is nullable,
+        # so joining it in the SELECT ... FOR UPDATE query would make
+        # PostgreSQL reject the lock on the nullable side of an outer join.
         target = (
             ImportBatch.objects
             .select_for_update()
-            .select_related(
-                "brand",
-                "source_upload",
-                "source_upload__source_system",
-            )
             .get(pk=batch_id)
         )
 
         if (
             target.source_upload_id is not None
             and locked_source_system is not None
-            and (
-                target.source_upload.source_system_id
-                != locked_source_system.pk
-            )
         ):
-            raise ImportBatchApprovalError(
-                "source_scope_changed",
-                (
-                    "The Items detail source scope "
-                    "changed during approval."
-                ),
+            current_source_system_id = (
+                target.source_upload.source_system_id
             )
+
+            if (
+                current_source_system_id
+                != locked_source_system.pk
+            ):
+                raise ImportBatchApprovalError(
+                    "source_scope_changed",
+                    (
+                        "The Items detail source scope "
+                        "changed during approval."
+                    ),
+                )
 
         if (
             target.status
