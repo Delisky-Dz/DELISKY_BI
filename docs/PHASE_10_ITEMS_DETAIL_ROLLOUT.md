@@ -254,6 +254,51 @@ The repository now also contains `scripts/install_backup_task.ps1` so the
 daily backup task can be checked/recreated reproducibly instead of relying on
 manual Task Scheduler configuration.
 
+### Reproducible backup task / restore commands
+
+From an Administrator PowerShell on the Production host:
+
+```powershell
+.\scripts\install_backup_task.ps1 -Mode Check
+```
+
+If the task is missing or its action does not match the repository definition:
+
+```powershell
+.\scripts\install_backup_task.ps1 -Mode Install -StartNow
+```
+
+A manual Production backup must be explicit:
+
+```powershell
+Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
+
+powershell.exe -ExecutionPolicy Bypass `
+    -File ".\scripts\backup_delisky.ps1" `
+    -DjangoSettings "config.settings.production"
+```
+
+The backup helper now requires the resolved database identity to match the
+settings-specific expected name before `pg_dump` can run. Production backup
+files remain prefixed `delisky_bi_`; development backup files are prefixed
+`delisky_bi_dev_` to avoid confusing the two archives.
+
+A restore test can be repeated without hand-written temporary scripts:
+
+```powershell
+Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
+
+.\.venv\Scripts\python.exe .\scripts\verify_backup_restore.py `
+    --backup "D:\DELISKY_BACKUPS\PostgreSQL\YYYY-MM-DD\delisky_bi_....dump" `
+    --settings config.settings.production `
+    --expected-source-database delisky_bi
+```
+
+The verifier checks the archive header database name, restores only into a
+generated `delisky_bi_restore_verify_...` database, validates public tables /
+Django migrations / extensions, and removes the temporary database in a
+`finally` cleanup.
+
 ## Hardened Production rollout order
 
 1. Confirm the exact approved release commit, branch and clean working tree.
