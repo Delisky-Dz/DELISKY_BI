@@ -245,6 +245,22 @@ The repository now also contains `scripts/install_backup_task.ps1` so the
 daily backup task can be checked/recreated reproducibly instead of relying on
 manual Task Scheduler configuration.
 
+Production service startup is also hardened in the feature branch:
+
+- `scripts/start_production_waitress.ps1` refuses to start the Production
+  application unless the checked-out branch is exactly `main`;
+- the Git working tree must be clean;
+- `HEAD` must match the locally fetched `origin/main` ref;
+- the production static manifest verifier must pass;
+- Django's Production system check must pass before Waitress is launched;
+- `scripts/install_waitress_task.ps1` now installs the scheduled task through
+  this guarded launcher instead of executing `waitress-serve.exe` directly.
+
+This guard is intentionally fail-closed: a reboot while a feature branch or
+dirty working tree is checked out must leave Production stopped rather than
+silently deploying unapproved code.
+
+
 ### Reproducible backup task / restore commands
 
 From an Administrator PowerShell on the Production host:
@@ -307,8 +323,9 @@ database in a `finally` cleanup.
    Django checks and the migration dry-run.
 7. Run:
    `python manage.py collectstatic --noinput --settings=config.settings.production`.
-8. Only after the correct release code and static manifest are in place,
-   restart/start Waitress and smoke-test `/login/` and `/manager/`.
+8. Reinstall/check the guarded Waitress task only after the approved release
+   is on clean `main` and `HEAD == origin/main`; then start Waitress and
+   smoke-test `/login/` and `/manager/`.
 9. Run base Phase 10 and Items-detail reference provisioning in dry-run mode.
 10. Apply both provisioning commands, in order, only if both dry-runs are
     clean.
