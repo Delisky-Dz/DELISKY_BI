@@ -10,6 +10,17 @@ $RequiredBranch = "main"
 $Waitress = Join-Path $Project ".venv\Scripts\waitress-serve.exe"
 $Python = Join-Path $Project ".venv\Scripts\python.exe"
 $StaticVerifier = Join-Path $Project "scripts\verify_static_manifest.py"
+$Git = "C:\Program Files\Git\cmd\git.exe"
+
+if (-not (Test-Path -LiteralPath $Git)) {
+    $gitCommand = Get-Command git.exe -ErrorAction SilentlyContinue
+
+    if ($null -eq $gitCommand) {
+        throw "GIT_NOT_FOUND"
+    }
+
+    $Git = $gitCommand.Source
+}
 
 function Invoke-GitText {
     param(
@@ -18,7 +29,7 @@ function Invoke-GitText {
     )
 
     $output = @(
-        & git -C $Project @Arguments 2>&1
+        & $Git -C $Project @Arguments 2>&1
     )
     $exitCode = $LASTEXITCODE
 
@@ -47,9 +58,7 @@ foreach ($requiredFile in @(
     }
 }
 
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    throw "GIT_NOT_FOUND"
-}
+Write-Host "GIT=$Git"
 
 $currentBranch = Invoke-GitText -Arguments @(
     "branch",
