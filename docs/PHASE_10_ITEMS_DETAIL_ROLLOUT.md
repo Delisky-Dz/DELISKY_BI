@@ -234,6 +234,10 @@ A preflight incident exposed two safeguards that are now required:
    from `.env`. Production settings therefore reject every database name
    except `delisky_bi`, and the backup helper receives an explicit expected
    database name and fails before `pg_dump` on any mismatch.
+   WSGI and ASGI startup are also fail-closed: if
+   `DJANGO_SETTINGS_MODULE` is inherited as anything other than
+   `config.settings.production`, application startup is rejected instead of
+   silently booting with development settings.
 2. Production uses
    `CompressedManifestStaticFilesStorage`. New templates that reference new
    static assets require a fresh `collectstatic` before the new application
