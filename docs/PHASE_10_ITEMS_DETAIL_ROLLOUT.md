@@ -282,13 +282,18 @@ Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
 .\.venv\Scripts\python.exe .\scripts\verify_backup_restore.py `
     --backup "D:\DELISKY_BACKUPS\PostgreSQL\YYYY-MM-DD\delisky_bi_....dump" `
     --settings config.settings.production `
-    --expected-source-database delisky_bi
+    --expected-source-database delisky_bi `
+    --minimum-public-tables 31 `
+    --minimum-django-migrations 48 `
+    --required-extension btree_gist `
+    --required-extension plpgsql
 ```
 
 The verifier checks the archive header database name, restores only into a
-generated `delisky_bi_restore_verify_...` database, validates public tables /
-Django migrations / extensions, and removes the temporary database in a
-`finally` cleanup.
+generated `delisky_bi_restore_verify_...` database, enforces the current
+minimum schema baseline (31 public tables / 48 Django migrations) plus the
+required `btree_gist` and `plpgsql` extensions, and removes the temporary
+database in a `finally` cleanup.
 
 ## Hardened Production rollout order
 
