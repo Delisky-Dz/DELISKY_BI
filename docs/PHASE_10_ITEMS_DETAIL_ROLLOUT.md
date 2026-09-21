@@ -208,3 +208,75 @@ Also confirm:
 12. Re-enable normal import operations and monitor the dashboard.
 
 No Production action is authorized by this document itself.
+
+## Production preflight evidence — 2026-09-21
+
+The release-candidate DEV database was rechecked after bounding the four
+historical generic BIFA seller assignments:
+
+- BIFA detail batch 94 remained APPROVED.
+- Source rows: 130,446.
+- Included rows: 130,446.
+- Full-period quantity: 5,092,600 total units.
+- Attribution issues: 0.
+- Historical generic assignment windows matched the observed accepted-row
+  windows exactly.
+- The local full project suite passed 1,142/1,142 tests at commit
+  `7014b0b` before the production-safety follow-up changes.
+
+Production backup/recovery was also exercised without changing Production
+business data:
+
+- the missing `DELISKY Daily Backup` scheduled task was recreated under
+  `SYSTEM` for 23:00 daily;
+- a scheduled smoke run completed with task result 0;
+- the scheduled archive identified its source database as `delisky_bi`;
+- `pg_restore --list` passed;
+- the archive was restored into a temporary database successfully;
+- the restore contained 31 public base tables, 48 Django migrations and the
+  `btree_gist` / `plpgsql` extensions;
+- the temporary restore database was deleted after verification.
+
+A preflight incident exposed two safeguards that are now required:
+
+1. An inherited shell `DB_NAME=delisky_bi_dev` can override values loaded
+   from `.env`. Production settings therefore reject every database name
+   except `delisky_bi`, and the backup helper receives an explicit expected
+   database name and fails before `pg_dump` on any mismatch.
+2. Production uses
+   `CompressedManifestStaticFilesStorage`. New templates that reference new
+   static assets require a fresh `collectstatic` before the new application
+   process is started. A stale manifest produced a 500 for the manager page
+   until `collectstatic` was run; the currently running Production process
+   was intentionally not restarted as part of this feature preflight.
+
+The repository now also contains `scripts/install_backup_task.ps1` so the
+daily backup task can be checked/recreated reproducibly instead of relying on
+manual Task Scheduler configuration.
+
+## Hardened Production rollout order
+
+1. Confirm the exact approved release commit, branch and clean working tree.
+2. Freeze imports briefly.
+3. Run `scripts/install_backup_task.ps1 -Mode Check` from Administrator
+   PowerShell and confirm the action matches the expected Production command.
+4. Create a fresh Production backup and perform a restore verification.
+5. Deploy the reviewed code only after explicit approval.
+6. Ensure no inherited `DB_NAME` override is present, then run Production
+   Django checks and the migration dry-run.
+7. Run:
+   `python manage.py collectstatic --noinput --settings=config.settings.production`.
+8. Only after the correct release code and static manifest are in place,
+   restart/start Waitress and smoke-test `/login/` and `/manager/`.
+9. Run base Phase 10 and Items-detail reference provisioning in dry-run mode.
+10. Apply both provisioning commands, in order, only if both dry-runs are
+    clean.
+11. Upload BIFA and AIO detail sources through the accountant workflow.
+12. Review derived batches and replacement plans before approval.
+13. Approve one source/brand scope at a time.
+14. Reconcile full-period and sample sub-period totals.
+15. Confirm zero unexpected attribution issues.
+16. Re-enable normal import operations and monitor the dashboard.
+
+No Production data provisioning, Items approval, merge to `main`, or
+Production application restart is authorized by this document itself.
