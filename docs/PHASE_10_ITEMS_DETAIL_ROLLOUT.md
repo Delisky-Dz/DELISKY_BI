@@ -261,6 +261,21 @@ dirty working tree is checked out must leave Production stopped rather than
 silently deploying unapproved code.
 
 
+### One-command read-only Production host status
+
+For routine maintenance, the repository now provides a read-only host status
+script that reports Git branch / HEAD / working-tree state, Production settings
+database identity, Waitress task configuration, port 8080, cloudflared,
+backup-task configuration and the newest Production archive header:
+
+```powershell
+.\scripts\check_production_host.ps1
+```
+
+It does not change the database, scheduled tasks, Git refs or application
+processes. Run it from Administrator PowerShell when full scheduled-task
+visibility is required.
+
 ### Reproducible backup task / restore commands
 
 From an Administrator PowerShell on the Production host:
