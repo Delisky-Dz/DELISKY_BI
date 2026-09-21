@@ -91,6 +91,25 @@ jobs:
       - name: Verify no missing migrations
         run: python manage.py makemigrations --check --dry-run --settings=config.settings.development
 
+      - name: Build production static manifest
+        env:
+          DB_NAME: delisky_bi
+          DJANGO_DEBUG: "False"
+          DJANGO_ALLOWED_HOSTS: app.delisky-dz.com
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://app.delisky-dz.com
+        run: >-
+          python manage.py collectstatic
+          --noinput
+          --settings=config.settings.production
+
+      - name: Verify production static manifest
+        env:
+          DB_NAME: delisky_bi
+          DJANGO_DEBUG: "False"
+          DJANGO_ALLOWED_HOSTS: app.delisky-dz.com
+          DJANGO_CSRF_TRUSTED_ORIGINS: https://app.delisky-dz.com
+        run: python scripts/verify_static_manifest.py
+
       - name: Focused Items detail tests
         run: >
           python manage.py test
