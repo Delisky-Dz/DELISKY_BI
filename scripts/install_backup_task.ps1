@@ -86,8 +86,12 @@ if ($Mode -eq "Check") {
         Write-Host "ACTION_WORKING_DIRECTORY=$($action.WorkingDirectory)"
     }
     catch {
-        Write-Host "TASK_FOUND=False"
-        Write-Host "Run this script from an Administrator PowerShell for full task visibility."
+        Write-Host "TASK_CHECK_FAILED=True"
+        Write-Host "TASK_CHECK_ERROR=$($_.Exception.Message)"
+        Write-Host (
+            "Run this script from an Administrator PowerShell for " +
+            "authoritative task visibility."
+        )
     }
 
     exit 0
