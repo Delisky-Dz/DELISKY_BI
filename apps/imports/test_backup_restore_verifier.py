@@ -82,6 +82,33 @@ class BackupRestoreVerifierTests(SimpleTestCase):
             "delisky_bi",
         )
 
+    def test_validate_restored_metadata_accepts_expected_baseline(self):
+        self.verifier.validate_restored_metadata(
+            public_tables=31,
+            migration_count=48,
+            extensions=["btree_gist", "plpgsql"],
+            minimum_public_tables=31,
+            minimum_django_migrations=48,
+            required_extensions=["btree_gist", "plpgsql"],
+        )
+
+    def test_validate_restored_metadata_rejects_missing_extension(self):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "missing required extension",
+        ):
+            self.verifier.validate_restored_metadata(
+                public_tables=31,
+                migration_count=48,
+                extensions=["plpgsql"],
+                minimum_public_tables=31,
+                minimum_django_migrations=48,
+                required_extensions=[
+                    "btree_gist",
+                    "plpgsql",
+                ],
+            )
+
     def test_archive_database_name_requires_header_database(self):
         completed = SimpleNamespace(
             stdout="; archive without database metadata\n"
