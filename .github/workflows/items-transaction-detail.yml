@@ -99,6 +99,7 @@ jobs:
           scripts/backup_database.py
           scripts/verify_backup_restore.py
           scripts/verify_static_manifest.py
+          scripts/smoke_manager_page.py
 
       - name: Build production static manifest
         env:
