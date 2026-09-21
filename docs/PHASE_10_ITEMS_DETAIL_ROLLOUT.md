@@ -311,6 +311,25 @@ minimum schema baseline (31 public tables / 48 Django migrations) plus the
 required `btree_gist` and `plpgsql` extensions, and removes the temporary
 database in a `finally` cleanup.
 
+### Read-only manager render smoke test
+
+After `collectstatic` and before restarting the Production service, the
+manager landing page can be rendered through Django without changing business
+data:
+
+```powershell
+Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
+
+.\.venv\Scripts\python.exe .\scripts\smoke_manager_page.py `
+    --username rachidone1 `
+    --settings config.settings.production
+```
+
+The command verifies that the account still has Manager access and that the
+manager template renders with HTTP 200 under Production settings. This catches
+template/static-manifest failures before the browser-facing service is
+restarted.
+
 ## Hardened Production rollout order
 
 1. Confirm the exact approved release commit, branch and clean working tree.
@@ -324,8 +343,10 @@ database in a `finally` cleanup.
 7. Run:
    `python manage.py collectstatic --noinput --settings=config.settings.production`.
 8. Reinstall/check the guarded Waitress task only after the approved release
-   is on clean `main` and `HEAD == origin/main`; then start Waitress and
-   smoke-test `/login/` and `/manager/`.
+   is on clean `main` and `HEAD == origin/main`. Before exposing the
+   service, run the read-only manager render smoke test:
+   `python scripts/smoke_manager_page.py --username rachidone1 --settings config.settings.production`.
+   Then start Waitress and smoke-test `/login/` and `/manager/` externally.
 9. Run base Phase 10 and Items-detail reference provisioning in dry-run mode.
 10. Apply both provisioning commands, in order, only if both dry-runs are
     clean.
