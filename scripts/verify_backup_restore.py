@@ -40,6 +40,27 @@ def parse_args():
         default=r"C:\Program Files\PostgreSQL\18\bin\pg_restore.exe",
         help="Path to pg_restore.",
     )
+    parser.add_argument(
+        "--minimum-public-tables",
+        type=int,
+        default=1,
+        help="Minimum number of public base tables required after restore.",
+    )
+    parser.add_argument(
+        "--minimum-django-migrations",
+        type=int,
+        default=1,
+        help="Minimum django_migrations row count required after restore.",
+    )
+    parser.add_argument(
+        "--required-extension",
+        action="append",
+        default=[],
+        help=(
+            "PostgreSQL extension that must exist after restore. "
+            "Repeat the option for multiple extensions."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -116,6 +137,39 @@ def drop_database(admin_connection, database_name):
         )
 
 
+def validate_restored_metadata(
+    *,
+    public_tables,
+    migration_count,
+    extensions,
+    minimum_public_tables,
+    minimum_django_migrations,
+    required_extensions,
+):
+    if public_tables < minimum_public_tables:
+        raise RuntimeError(
+            "Restored database public table count is below the required "
+            f"minimum: {public_tables} < {minimum_public_tables}."
+        )
+
+    if migration_count < minimum_django_migrations:
+        raise RuntimeError(
+            "Restored database migration count is below the required "
+            f"minimum: {migration_count} < {minimum_django_migrations}."
+        )
+
+    extension_set = set(extensions)
+    missing_extensions = sorted(
+        set(required_extensions) - extension_set
+    )
+
+    if missing_extensions:
+        raise RuntimeError(
+            "Restored database is missing required extension(s): "
+            f"{', '.join(missing_extensions)}."
+        )
+
+
 def main():
     args = parse_args()
 
@@ -125,6 +179,22 @@ def main():
 
     if not expected_database:
         raise RuntimeError("Expected source database name is empty.")
+
+    if args.minimum_public_tables < 1:
+        raise RuntimeError(
+            "Minimum public table count must be at least 1."
+        )
+
+    if args.minimum_django_migrations < 1:
+        raise RuntimeError(
+            "Minimum Django migration count must be at least 1."
+        )
+
+    required_extensions = [
+        extension.strip()
+        for extension in args.required_extension
+        if extension.strip()
+    ]
 
     if not backup_path.is_file():
         raise FileNotFoundError(
@@ -277,15 +347,18 @@ def main():
         finally:
             restored.close()
 
-        if public_tables <= 0:
-            raise RuntimeError(
-                "Restored database has no public base tables."
-            )
-
-        if migration_count <= 0:
-            raise RuntimeError(
-                "Restored database has no Django migrations."
-            )
+        validate_restored_metadata(
+            public_tables=public_tables,
+            migration_count=migration_count,
+            extensions=extensions,
+            minimum_public_tables=(
+                args.minimum_public_tables
+            ),
+            minimum_django_migrations=(
+                args.minimum_django_migrations
+            ),
+            required_extensions=required_extensions,
+        )
 
         print(f"PUBLIC_TABLES={public_tables}")
         print(
