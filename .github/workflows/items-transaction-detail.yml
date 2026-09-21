@@ -140,6 +140,7 @@ jobs:
           apps.imports.test_items_detail_reference_provisioning
           apps.imports.test_phase10_provisioning
           apps.imports.test_production_settings_safety
+          apps.imports.test_production_runtime_safety
           apps.imports.test_backup_database_safety
           apps.imports.test_backup_restore_verifier
           --settings=config.settings.development
