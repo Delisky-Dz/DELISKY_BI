@@ -192,22 +192,13 @@ Also confirm:
 - a controlled smoke import uses copied/test data before the first real
   Production approval.
 
-## Production rollout order
+## Production rollout gate
 
-1. Freeze imports briefly.
-2. Create and verify the Production backup.
-3. Deploy the reviewed code only after explicit approval.
-4. Run Django checks and migration check.
-5. Run base Phase 10 and Items-detail reference provisioning in dry-run mode.
-6. Apply both provisioning commands, in order, only if both dry-runs are clean.
-7. Upload BIFA and AIO detail sources through the accountant workflow.
-8. Review derived batches and replacement plans before approval.
-9. Approve one source/brand scope at a time.
-10. Reconcile full-period and sample sub-period totals.
-11. Confirm zero unexpected attribution issues.
-12. Re-enable normal import operations and monitor the dashboard.
-
-No Production action is authorized by this document itself.
+Production remains frozen until the exact release commit, current backup /
+restore health, static manifest, service restart plan and both provisioning
+dry-runs have been checked. The authoritative rollout sequence is the hardened
+order recorded below; this document does not authorize Production changes by
+itself.
 
 ## Production preflight evidence — 2026-09-21
 
