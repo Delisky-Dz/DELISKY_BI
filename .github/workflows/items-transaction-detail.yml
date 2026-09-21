@@ -70,7 +70,8 @@ jobs:
             "scripts/backup_delisky.ps1",
             "scripts/install_backup_task.ps1",
             "scripts/install_waitress_task.ps1",
-            "scripts/start_production_waitress.ps1"
+            "scripts/start_production_waitress.ps1",
+            "scripts/check_production_host.ps1"
           )
 
           foreach ($file in $files) {
