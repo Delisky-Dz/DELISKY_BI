@@ -91,6 +91,13 @@ jobs:
       - name: Verify no missing migrations
         run: python manage.py makemigrations --check --dry-run --settings=config.settings.development
 
+      - name: Compile safety helper scripts
+        run: >-
+          python -m py_compile
+          scripts/backup_database.py
+          scripts/verify_backup_restore.py
+          scripts/verify_static_manifest.py
+
       - name: Build production static manifest
         env:
           DB_NAME: delisky_bi
@@ -130,6 +137,7 @@ jobs:
           apps.imports.test_phase10_provisioning
           apps.imports.test_production_settings_safety
           apps.imports.test_backup_database_safety
+          apps.imports.test_backup_restore_verifier
           --settings=config.settings.development
           -v 2
 
