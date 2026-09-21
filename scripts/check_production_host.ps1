@@ -147,10 +147,11 @@ else {
                 Select-Object -First 1
 
             if ($null -ne $databaseLine) {
-                Write-Host (
-                    "BACKUP_ARCHIVE_" +
-                    $databaseLine.TrimStart(";").Trim()
-                )
+                $archiveDatabase = (
+                    $databaseLine -replace "^;\s+dbname:\s*", ""
+                ).Trim()
+
+                Write-Host "BACKUP_ARCHIVE_DB=$archiveDatabase"
             }
             else {
                 Write-Host "BACKUP_ARCHIVE_DB=UNKNOWN"
