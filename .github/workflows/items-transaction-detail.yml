@@ -18,6 +18,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: items-transaction-detail-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   items-detail-tests:
     runs-on: ubuntu-latest
