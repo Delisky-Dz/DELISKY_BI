@@ -378,3 +378,59 @@ restarted.
 
 No Production data provisioning, Items approval, merge to `main`, or
 Production application restart is authorized by this document itself.
+
+## DEV Release Candidate closure — 2026-09-22
+
+The transaction-level Items feature is closed as a DEV release candidate on
+code commit `28255548de01a48069a140938828c1f5721162bc`.
+
+Final local validation on the Production host's DEV database completed with:
+
+- clean feature working tree before validation;
+- local branch and remote feature synchronized at `2825554`;
+- Django system check: PASS;
+- migration drift check: PASS;
+- full local regression: **1,156 / 1,156 PASS**;
+- GitHub Actions on the exact code commit: SUCCESS;
+- base Phase 10 reference provisioning dry-run: PASS;
+- Items DETAIL reference provisioning dry-run: PASS.
+
+A final read-only Items overlap audit confirmed:
+
+| Batch | Brand | Status | Accepted rows | Remaining non-superseded overlap |
+| --- | --- | --- | ---: | --- |
+| 94 | BIFA | APPROVED | 130,446 | none |
+| 95 | DELISKY | APPROVED | 23,020 | none |
+| 96 | NITA | APPROVED | 31,998 | none |
+
+All three batches retained zero blocking errors and valid transaction-level
+truck scopes. The audit finished with `PHASE_10_ITEMS_AUDIT: PASS`.
+
+The accountant workflow was also rendered read-only against DEV using the
+existing Accountant account:
+
+- accountant landing page: HTTP 200;
+- Items DETAIL panel present;
+- batch 94 detail: HTTP 200;
+- batch 95 detail: HTTP 200;
+- batch 96 detail: HTTP 200;
+- final result: `PHASE_10_ACCOUNTANT_UI_SMOKE: PASS`.
+
+No further DEV blocker was found for the Items DETAIL release candidate.
+
+### Production remains intentionally separate
+
+This DEV closure does **not** authorize a Production restart, merge, reference
+provisioning, upload, or approval.
+
+The currently running Production Waitress process predates the latest static
+manifest and is known to return HTTP 500 on the manager page because it still
+holds stale static-manifest state in memory. The corrected static files and
+read-only manager render have already passed in a fresh process, but the live
+service is intentionally left untouched while development work continues.
+
+The permanent Production fix is therefore deferred to a dedicated deployment
+session where DEV and Production runtime concerns can be separated safely,
+the approved release can be placed on clean `main`, static files can be
+rebuilt for that exact release, and Waitress can be restarted only after all
+preflight gates pass.
