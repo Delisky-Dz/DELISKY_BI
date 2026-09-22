@@ -1,0 +1,507 @@
+# Phase 10 — Items Transaction Detail Rollout Runbook
+
+## Purpose
+
+This runbook covers the safe rollout of transaction-level Items imports for
+BIFA, DELISKY and NITA. It is intentionally separate from the current
+Production environment until the feature branch is reviewed and approved.
+
+The detail pipeline keeps the raw export, maps each source user to a route,
+stores the exact sale datetime per accepted row, derives one reviewed batch per
+brand, and replaces the covered legacy per-truck Items batches only at approval
+time.
+
+## Safety rules
+
+- Never run DEV commands against `delisky_bi`.
+- Never hard-code DEV batch or database ids in Production procedures.
+- Keep `main` and Production unchanged until the feature PR is explicitly
+  approved for deployment.
+- Take and verify a database backup before any Production provisioning or
+  import.
+- Run reference provisioning in dry-run mode first.
+- Approval is the point that supersedes previous analytical Items batches;
+  review alone must not change approved analytics.
+
+## Reference data
+
+The detail provisioning extends the existing Phase 10 reference baseline; it
+does not replace it.
+
+For **DEV**, explicitly point `DB_NAME` at `delisky_bi_dev` and run both
+dry-runs in this order:
+
+```powershell
+$env:DB_NAME = "delisky_bi_dev"
+python manage.py provision_phase10_reference_data --settings=config.settings.development
+python manage.py provision_items_detail_reference_data --settings=config.settings.development
+```
+
+Both dry-runs must finish with `DRY RUN: PASS`.
+
+Apply to DEV only after those checks:
+
+```powershell
+$env:DB_NAME = "delisky_bi_dev"
+python manage.py provision_phase10_reference_data --apply --settings=config.settings.development
+python manage.py provision_items_detail_reference_data --apply --settings=config.settings.development
+```
+
+For **Production**, do not reuse the DEV commands or `delisky_bi_dev`.
+After backup verification and explicit deployment approval, use
+`config.settings.production` with the Production environment variables and
+first verify that the resolved database is `delisky_bi` before any
+`--apply` command.
+
+The base command provisions the confirmed Phase 10 product aliases, exclusions
+and generic route workers. The detail command adds transaction-detail route
+mappings/exclusions and the historical BIFA route identities required by the
+new exports.
+
+Both commands are designed to be idempotent. The detail command validates
+mapping/exclusion and primary-seller assignment conflicts before writing.
+Historical generic BIFA seller assignments are evidence-bounded to
+the accepted transaction-detail activity:
+
+| Worker | Route | Start | End |
+| --- | --- | --- | --- |
+| GEN-BIFA-LIV04 | BIFA LIV04 | 2026-04-04 | 2026-06-20 |
+| GEN-BIFA-LIV05 | BIFA LIV05 | 2026-04-04 | 2026-04-15 |
+| GEN-BIFA-PLIV07 | BIFA PLIV07 | 2026-05-13 | 2026-06-23 |
+| GEN-BIFA-PSLIV01 | BIFA PSLIV01 | 2026-04-08 | 2026-04-08 |
+
+These identities are analytical placeholders, not real employee identities.
+
+## Accountant upload flow
+
+Use the **Items DETAIL** panel for transaction-level exports:
+
+- BIFA detail export -> source system `BIFA_MILA`.
+- AIO detail export -> source system `AIO_WEB`; the system partitions it into
+  DELISKY and NITA derived batches.
+- The legacy per-truck Items panel remains available only for old-style files.
+
+Each raw file is stored once as an immutable source upload. Derived brand
+batches keep:
+
+- covered truck scope;
+- exact mapping/exclusion snapshot used at review time;
+- reviewed replacement batch ids;
+- content hash;
+- source audit metadata, including excluded source-user counts.
+
+Uploading the exact same raw source again is handled by batch state:
+
+- if every existing derived batch is still mutable (`PENDING`, `REVIEWED`,
+  `BLOCKED` or `FAILED`), the review is refreshed in place instead of
+  creating duplicate batches;
+- if any derived batch is already `APPROVED` or `SUPERSEDED`, the source is
+  treated as immutable history and the re-review is rejected;
+- if a refreshed source no longer produces a previously mutable brand
+  partition, that stale mutable batch is removed in the same transaction.
+
+## Review and approval
+
+A transaction-detail batch can be approved only when:
+
+- status is `REVIEWED`;
+- blocking error count is zero;
+- staged row counts still match the reviewed totals;
+- transaction-level truck scope exists;
+- the source mapping/exclusion scope fingerprint still matches the exact
+  fingerprint captured at review time;
+- the replacement-plan snapshot exists;
+- the replacement plan recomputed at approval is exactly the same as the one
+  reviewed earlier;
+- every replacement target is still `APPROVED`.
+
+Review/refresh and all source-backed Items approvals (legacy and DETAIL) are
+serialized through the same source-system database lock. The lock order is
+intentionally consistent:
+source system -> source upload -> derived batch -> replacement batches. This
+avoids legacy/detail races and refresh/approval deadlocks while keeping
+approval atomic. If mapping or exclusion reference data changes after review,
+DETAIL approval stops and requires a fresh review instead of approving rows
+prepared under stale route scope. Approval then supersedes all covered
+replacement targets in the same transaction.
+
+The batch detail screen shows the covered trucks, source exclusions, immutable
+source-file hash and the prior batches that are expected to be replaced.
+
+## Confirmed DEV evidence
+
+Real protected exports were validated in DEV for the period
+2026-04-04 through 2026-08-26.
+
+### BIFA
+
+- Detail batch: 94.
+- Accepted rows: 130,446.
+- Excluded recognized negative rows: 2.
+- Source-excluded ADV rows: 280.
+- Full-period quantity: 5,092,600 total units.
+- Final worker attribution issues: 0.
+- Legacy Items batches 52-58 were superseded in DEV.
+
+### DELISKY
+
+- Detail batch: 95.
+- Accepted rows: 23,020.
+- Full-period quantity: 45,152 total units.
+- July quantity: 5,745.
+- Final attribution issues: 0.
+- Legacy Items batches 59, 61 and 63 were superseded in DEV.
+
+### NITA
+
+- Detail batch: 96.
+- Accepted rows: 31,998.
+- Full-period quantity: 65,470 total units.
+- July quantity: 10,857.
+- Final attribution issues: 0.
+- Legacy Items batches 60, 62 and 64 were superseded in DEV.
+
+The AIO source excluded 1,182 non-route rows from distribution analytics:
+RACHIDONE 590, RACHID 580 and ADV 12. Six NITA transactions with no client
+remain valid for product/truck/seller/period analytics and are omitted from
+client attribution.
+
+DEV ids above are evidence only and must not be copied into Production logic.
+
+## Required verification before Production
+
+Run all of the following on the DEV release candidate:
+
+```powershell
+$env:DB_NAME = "delisky_bi_dev"
+python manage.py check --settings=config.settings.development
+python manage.py makemigrations --check --dry-run --settings=config.settings.development
+python manage.py test --settings=config.settings.development
+```
+
+Before Production provisioning, separately confirm the Production settings
+resolve the expected database name without changing data.
+
+Also confirm:
+
+- feature CI is green at the exact release commit;
+- reference-data dry-run passes on the target database;
+- backup restore verification is current;
+- no unexpected mutable/approved Items overlap exists;
+- the accountant Items DETAIL screen renders and review links open correctly;
+- a controlled smoke import uses copied/test data before the first real
+  Production approval.
+
+## Production rollout gate
+
+Production remains frozen until the exact release commit, current backup /
+restore health, static manifest, service restart plan and both provisioning
+dry-runs have been checked. The authoritative rollout sequence is the hardened
+order recorded below; this document does not authorize Production changes by
+itself.
+
+## Production preflight evidence — 2026-09-21
+
+The release-candidate DEV database was rechecked after bounding the four
+historical generic BIFA seller assignments:
+
+- BIFA detail batch 94 remained APPROVED.
+- Source rows: 130,446.
+- Included rows: 130,446.
+- Full-period quantity: 5,092,600 total units.
+- Attribution issues: 0.
+- Historical generic assignment windows matched the observed accepted-row
+  windows exactly.
+- The local full project suite passed 1,142/1,142 tests at commit
+  `7014b0b` before the production-safety follow-up changes.
+
+Production backup/recovery was also exercised without changing Production
+business data:
+
+- the missing `DELISKY Daily Backup` scheduled task was recreated under
+  `SYSTEM` for 23:00 daily;
+- a scheduled smoke run completed with task result 0;
+- the scheduled archive identified its source database as `delisky_bi`;
+- `pg_restore --list` passed;
+- the archive was restored into a temporary database successfully;
+- the restore contained 31 public base tables, 48 Django migrations and the
+  `btree_gist` / `plpgsql` extensions;
+- the temporary restore database was deleted after verification.
+
+A preflight incident exposed two safeguards that are now required:
+
+1. An inherited shell `DB_NAME=delisky_bi_dev` can override values loaded
+   from `.env`. Production settings therefore reject every database name
+   except `delisky_bi`, and the backup helper receives an explicit expected
+   database name and fails before `pg_dump` on any mismatch.
+   WSGI and ASGI startup are also fail-closed: if
+   `DJANGO_SETTINGS_MODULE` is inherited as anything other than
+   `config.settings.production`, application startup is rejected instead of
+   silently booting with development settings.
+2. Production uses
+   `CompressedManifestStaticFilesStorage`. New templates that reference new
+   static assets require a fresh `collectstatic` before the new application
+   process is started. A stale manifest produced a 500 for the manager page
+   until `collectstatic` was run; the currently running Production process
+   was intentionally not restarted as part of this feature preflight.
+
+The repository now also contains `scripts/install_backup_task.ps1` so the
+daily backup task can be checked/recreated reproducibly instead of relying on
+manual Task Scheduler configuration.
+
+Production service startup is also hardened in the feature branch:
+
+- `scripts/start_production_waitress.ps1` refuses to start the Production
+  application unless the checked-out branch is exactly `main`;
+- the Git working tree must be clean;
+- `HEAD` must match the locally fetched `origin/main` ref;
+- the production static manifest verifier must pass;
+- Django's Production system check must pass before Waitress is launched;
+- `scripts/install_waitress_task.ps1` now installs the scheduled task through
+  this guarded launcher instead of executing `waitress-serve.exe` directly.
+
+This guard is intentionally fail-closed: a reboot while a feature branch or
+dirty working tree is checked out must leave Production stopped rather than
+silently deploying unapproved code.
+
+
+### One-command read-only Production host status
+
+For routine maintenance, the repository now provides a read-only host status
+script that reports Git branch / HEAD / working-tree state, Production settings
+database identity, Waitress task configuration, port 8080, cloudflared,
+backup-task configuration and the newest Production archive header:
+
+```powershell
+.\scripts\check_production_host.ps1
+```
+
+It does not change the database, scheduled tasks, Git refs or application
+processes. Run it from Administrator PowerShell when full scheduled-task
+visibility is required.
+
+### Reproducible backup task / restore commands
+
+From an Administrator PowerShell on the Production host:
+
+```powershell
+.\scripts\install_backup_task.ps1 -Mode Check
+```
+
+If the task is missing or its action does not match the repository definition:
+
+```powershell
+.\scripts\install_backup_task.ps1 -Mode Install -StartNow
+```
+
+A manual Production backup must be explicit:
+
+```powershell
+Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
+
+powershell.exe -ExecutionPolicy Bypass `
+    -File ".\scripts\backup_delisky.ps1" `
+    -DjangoSettings "config.settings.production"
+```
+
+The backup helper now requires the resolved database identity to match the
+settings-specific expected name before `pg_dump` can run. Production backup
+files remain prefixed `delisky_bi_`; development backup files are prefixed
+`delisky_bi_dev_` to avoid confusing the two archives.
+
+A restore test can be repeated without hand-written temporary scripts:
+
+```powershell
+Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
+
+.\.venv\Scripts\python.exe .\scripts\verify_backup_restore.py `
+    --backup "D:\DELISKY_BACKUPS\PostgreSQL\YYYY-MM-DD\delisky_bi_....dump" `
+    --settings config.settings.production `
+    --expected-source-database delisky_bi `
+    --minimum-public-tables 31 `
+    --minimum-django-migrations 48 `
+    --required-extension btree_gist `
+    --required-extension plpgsql
+```
+
+The verifier checks the archive header database name, restores only into a
+generated `delisky_bi_restore_verify_...` database, enforces the current
+minimum schema baseline (31 public tables / 48 Django migrations) plus the
+required `btree_gist` and `plpgsql` extensions, and removes the temporary
+database in a `finally` cleanup.
+
+### Read-only manager render smoke test
+
+After `collectstatic` and before restarting the Production service, the
+manager landing page can be rendered through Django without changing business
+data:
+
+```powershell
+Remove-Item Env:DB_NAME -ErrorAction SilentlyContinue
+
+.\.venv\Scripts\python.exe .\scripts\smoke_manager_page.py `
+    --username rachidone1 `
+    --settings config.settings.production
+```
+
+The command verifies that the account still has Manager access and that the
+manager template renders with HTTP 200 under Production settings. This catches
+template/static-manifest failures before the browser-facing service is
+restarted.
+
+## Hardened Production rollout order
+
+1. Confirm the exact approved release commit, branch and clean working tree.
+2. Freeze imports briefly.
+3. Run `scripts/install_backup_task.ps1 -Mode Check` from Administrator
+   PowerShell and confirm the action matches the expected Production command.
+4. Create a fresh Production backup and perform a restore verification.
+5. Deploy the reviewed code only after explicit approval.
+6. Ensure no inherited `DB_NAME` override is present, then run Production
+   Django checks and the migration dry-run.
+7. Run:
+   `python manage.py collectstatic --noinput --settings=config.settings.production`.
+8. Reinstall/check the guarded Waitress task only after the approved release
+   is on clean `main` and `HEAD == origin/main`. Before exposing the
+   service, run the read-only manager render smoke test:
+   `python scripts/smoke_manager_page.py --username rachidone1 --settings config.settings.production`.
+   Then start Waitress and smoke-test `/login/` and `/manager/` externally.
+9. Run base Phase 10 and Items-detail reference provisioning in dry-run mode.
+10. Apply both provisioning commands, in order, only if both dry-runs are
+    clean.
+11. Upload BIFA and AIO detail sources through the accountant workflow.
+12. Review derived batches and replacement plans before approval.
+13. Approve one source/brand scope at a time.
+14. Reconcile full-period and sample sub-period totals.
+15. Confirm zero unexpected attribution issues.
+16. Re-enable normal import operations and monitor the dashboard.
+
+No Production data provisioning, Items approval, merge to `main`, or
+Production application restart is authorized by this document itself.
+
+## DEV Release Candidate closure — 2026-09-22
+
+The transaction-level Items feature is closed as a DEV release candidate on
+code commit `28255548de01a48069a140938828c1f5721162bc`.
+
+Final local validation on the Production host's DEV database completed with:
+
+- clean feature working tree before validation;
+- local branch and remote feature synchronized at `2825554`;
+- Django system check: PASS;
+- migration drift check: PASS;
+- full local regression: **1,156 / 1,156 PASS**;
+- GitHub Actions on the exact code commit: SUCCESS;
+- base Phase 10 reference provisioning dry-run: PASS;
+- Items DETAIL reference provisioning dry-run: PASS.
+
+A final read-only Items overlap audit confirmed:
+
+| Batch | Brand | Status | Accepted rows | Remaining non-superseded overlap |
+| --- | --- | --- | ---: | --- |
+| 94 | BIFA | APPROVED | 130,446 | none |
+| 95 | DELISKY | APPROVED | 23,020 | none |
+| 96 | NITA | APPROVED | 31,998 | none |
+
+All three batches retained zero blocking errors and valid transaction-level
+truck scopes. The audit finished with `PHASE_10_ITEMS_AUDIT: PASS`.
+
+The accountant workflow was also rendered read-only against DEV using the
+existing Accountant account:
+
+- accountant landing page: HTTP 200;
+- Items DETAIL panel present;
+- batch 94 detail: HTTP 200;
+- batch 95 detail: HTTP 200;
+- batch 96 detail: HTTP 200;
+- final result: `PHASE_10_ACCOUNTANT_UI_SMOKE: PASS`.
+
+No further DEV blocker was found for the Items DETAIL release candidate.
+
+### Production remains intentionally separate
+
+This DEV closure does **not** authorize a Production restart, merge, reference
+provisioning, upload, or approval.
+
+The currently running Production Waitress process predates the latest static
+manifest and is known to return HTTP 500 on the manager page because it still
+holds stale static-manifest state in memory. The corrected static files and
+read-only manager render have already passed in a fresh process, but the live
+service is intentionally left untouched while development work continues.
+
+The permanent Production fix is therefore deferred to a dedicated deployment
+session where DEV and Production runtime concerns can be separated safely,
+the approved release can be placed on clean `main`, static files can be
+rebuilt for that exact release, and Waitress can be restarted only after all
+preflight gates pass.
+
+## Phase 10 DEV data-quality closure — 2026-09-22
+
+A read-only global DEV audit found no remaining mutable or blocked import state:
+
+- CHARGEMENT: 3 APPROVED, 9 SUPERSEDED;
+- ITEMS: 3 APPROVED, 15 SUPERSEDED;
+- OPENING_STOCK: 5 APPROVED;
+- POS: 13 APPROVED;
+- SALES: 13 APPROVED, 13 SUPERSEDED;
+- no PENDING, REVIEWED, BLOCKED or FAILED non-superseded batch remained.
+
+All non-superseded approved batches had zero blocking errors.
+
+### Warning review
+
+The remaining warnings were reviewed by code and by stored row evidence.
+
+Expected non-blocking warning classes included:
+
+- BIFA Items negative quantities: 2 rows; intentionally excluded from
+  calculations while retained for audit;
+- NITA Items missing client: 6 rows; valid for product/truck/seller/period
+  analytics and omitted only from client attribution;
+- Opening Stock stopped indicators: 2 rows; retained as operational STOPPED
+  evidence;
+- DELISKY POS blank-client source artifact: 11 rows;
+- small SALES zero/negative/missing-client warnings retained for audit.
+
+The only high-volume warning class was Product Master identity ambiguity with
+packaging consensus:
+
+| Scope | Product | Warning rows |
+| --- | --- | ---: |
+| DELISKY Chargement | LA POUDRE CHOCOLAT | 4 |
+| NITA Chargement | NITA SELECTION LAIT | 61 |
+| NITA Chargement | NITA MINI BROWNIE CHOCOLAT | 41 |
+| NITA Chargement | NITA SELECTION NOIR | 23 |
+| NITA Chargement | LA POUDRE CHOCOLAT | 1 |
+| DELISKY Items | LA POUDRE CHOCOLAT | 2 |
+| NITA Items | NITA SELECTION LAIT | 229 |
+| NITA Items | NITA SELECTION NOIR | 210 |
+| NITA Items | NITA MINI BROWNIE CHOCOLAT | 140 |
+| NITA Items | LA POUDRE CHOCOLAT | 1 |
+
+Product Master inspection confirmed two active AIO_WEB candidates for each of
+the four designations. In every case, all candidates agree on the same confirmed
+units-per-carton and have `needs_review=False`:
+
+- NITA SELECTION LAIT: UPC 28;
+- NITA SELECTION NOIR: UPC 28;
+- NITA MINI BROWNIE CHOCOLAT: UPC 8;
+- LA POUDRE CHOCOLAT: UPC 15.
+
+The raw ambiguous Items and Chargement rows contain no barcode, so the source
+itself provides no reliable discriminator between the duplicate Product Master
+records. The resolver therefore correctly keeps product-record identity
+ambiguous while accepting quantity conversion only through packaging consensus.
+
+This is the intended fail-safe behavior: quantity, carton/piece presentation,
+truck, worker and period analytics remain valid, while the system refuses to
+invent a specific Product Master identity. Product analytics aggregate by the
+normalized article designation, so these rows remain grouped under the correct
+business designation.
+
+No Product Master record was deleted or disabled because the duplicate source
+codes may represent legitimate historical/source identities and the available
+raw files do not prove which record should be preferred.
+
+Result: **Phase 10 DEV data-quality audit PASS; no remaining data-quality
+blocker identified.**

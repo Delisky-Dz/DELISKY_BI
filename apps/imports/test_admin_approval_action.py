@@ -75,7 +75,7 @@ class ImportBatchAdminApprovalActionTests(TestCase):
 
         return request
 
-    @patch("apps.imports.admin.approve_import_batch")
+    @patch("apps.imports.admin.approve_reviewed_batch")
     def test_action_calls_approval_service(
         self,
         mocked_approval,
@@ -101,7 +101,7 @@ class ImportBatchAdminApprovalActionTests(TestCase):
         )
 
     @patch(
-        "apps.imports.admin.approve_import_batch",
+        "apps.imports.admin.approve_reviewed_batch",
         side_effect=ImportBatchApprovalError(
             "test_error",
             "Approval failed",

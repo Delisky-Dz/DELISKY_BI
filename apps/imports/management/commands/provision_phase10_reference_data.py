@@ -2,6 +2,7 @@
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from django.db.models import Q
 
 from apps.fleet.models import Truck, TruckCrewAssignment
 from apps.imports.models import (
@@ -9,6 +10,7 @@ from apps.imports.models import (
     SourceProductAlias,
     SourceProductPackaging,
     SourceTruckExclusion,
+    SourceTruckMapping,
 )
 from apps.workforce.models import Worker
 
@@ -384,6 +386,23 @@ class Command(BaseCommand):
         self.stdout.write("Source truck exclusions:")
 
         for source_code, reason, notes in TRUCK_EXCLUSIONS:
+            mapping = (
+                SourceTruckMapping.objects
+                .filter(
+                    source_system=source,
+                    source_code__iexact=source_code,
+                    is_active=True,
+                )
+                .first()
+            )
+            if mapping is not None:
+                raise CommandError(
+                    (
+                        "Mapping/exclusion conflict: "
+                        f"{SOURCE_SYSTEM_CODE}:{source_code}."
+                    )
+                )
+
             existing = (
                 SourceTruckExclusion.objects
                 .filter(
@@ -459,9 +478,9 @@ class Command(BaseCommand):
             worker = self.find_worker(employee_code)
             truck = trucks[truck_code]
 
-            if worker is None:
-                state = "CREATE"
-            else:
+            assignment = None
+
+            if worker is not None:
                 assignment = (
                     TruckCrewAssignment.objects
                     .filter(
@@ -472,19 +491,29 @@ class Command(BaseCommand):
                     .first()
                 )
 
-                if assignment is None:
-                    state = "CREATE"
-                elif (
-                    assignment.crew_role
-                    == TruckCrewAssignment.CrewRole.SELLER
-                    and assignment.is_primary_seller
-                    and assignment.end_date == end_date
-                    and assignment.notes
-                    == ASSIGNMENT_NOTES
-                ):
-                    state = "OK"
-                else:
-                    state = "UPDATE"
+            conflict = self.assignment_overlap(
+                truck=truck,
+                end_date=end_date,
+                exclude_assignment=assignment,
+            )
+            if conflict is not None:
+                raise CommandError(
+                    f"Primary seller conflict for {truck_code}."
+                )
+
+            if worker is None or assignment is None:
+                state = "CREATE"
+            elif (
+                assignment.crew_role
+                == TruckCrewAssignment.CrewRole.SELLER
+                and assignment.is_primary_seller
+                and assignment.end_date == end_date
+                and assignment.notes
+                == ASSIGNMENT_NOTES
+            ):
+                state = "OK"
+            else:
+                state = "UPDATE"
 
             self.stdout.write(
                 (
@@ -539,6 +568,23 @@ class Command(BaseCommand):
 
     def apply_exclusions(self, source):
         for source_code, reason, notes in TRUCK_EXCLUSIONS:
+            mapping = (
+                SourceTruckMapping.objects
+                .filter(
+                    source_system=source,
+                    source_code__iexact=source_code,
+                    is_active=True,
+                )
+                .first()
+            )
+            if mapping is not None:
+                raise CommandError(
+                    (
+                        "Mapping/exclusion conflict: "
+                        f"{SOURCE_SYSTEM_CODE}:{source_code}."
+                    )
+                )
+
             exclusion = (
                 SourceTruckExclusion.objects
                 .filter(
@@ -603,6 +649,37 @@ class Command(BaseCommand):
 
         return result
 
+    def assignment_overlap(
+        self,
+        *,
+        truck,
+        end_date,
+        exclude_assignment=None,
+    ):
+        qs = (
+            TruckCrewAssignment.objects
+            .filter(
+                truck=truck,
+                is_primary_seller=True,
+            )
+            .filter(
+                Q(end_date__isnull=True)
+                | Q(end_date__gte=START_DATE)
+            )
+        )
+
+        if end_date is not None:
+            qs = qs.filter(
+                start_date__lte=end_date
+            )
+
+        if exclude_assignment is not None:
+            qs = qs.exclude(
+                pk=exclude_assignment.pk
+            )
+
+        return qs.first()
+
     def apply_assignments(
         self,
         workers,
@@ -627,6 +704,16 @@ class Command(BaseCommand):
                 )
                 .first()
             )
+
+            conflict = self.assignment_overlap(
+                truck=truck,
+                end_date=end_date,
+                exclude_assignment=assignment,
+            )
+            if conflict is not None:
+                raise CommandError(
+                    f"Primary seller conflict for {truck_code}."
+                )
 
             if assignment is None:
                 assignment = TruckCrewAssignment(

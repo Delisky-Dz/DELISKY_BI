@@ -17,8 +17,10 @@ from .models import (
 from .services import (
     ImportBatchApprovalError,
     ImportBatchReviewError,
-    approve_import_batch,
     create_or_update_import_review,
+)
+from .services.approval_dispatch import (
+    approve_reviewed_batch,
 )
 
 
@@ -514,7 +516,7 @@ class ImportBatchAdmin(admin.ModelAdmin):
 
         for batch in queryset.order_by("pk"):
             try:
-                approve_import_batch(
+                approve_reviewed_batch(
                     batch,
                     approved_by=request.user,
                 )

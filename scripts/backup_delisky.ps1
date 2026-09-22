@@ -1,4 +1,8 @@
 param(
+    [ValidateSet(
+        "config.settings.development",
+        "config.settings.production"
+    )]
     [string]$DjangoSettings = "config.settings.development"
 )
 
@@ -15,6 +19,20 @@ $mediaBackupRoot = Join-Path $backupRoot "Media"
 $logRoot = Join-Path $backupRoot "Logs"
 
 $expectedDiskSerial = "WD-WXH1EA64AK1P"
+
+$expectedDatabaseName = switch ($DjangoSettings) {
+    "config.settings.production" {
+        "delisky_bi"
+        break
+    }
+    "config.settings.development" {
+        "delisky_bi_dev"
+        break
+    }
+    default {
+        throw "Unsupported Django settings module: $DjangoSettings"
+    }
+}
 
 $python = Join-Path $projectRoot ".venv\Scripts\python.exe"
 $pythonHelper = Join-Path $projectRoot "scripts\backup_database.py"
@@ -90,12 +108,16 @@ try {
     Write-BackupLog "DELISKY backup started."
     Write-BackupLog "Backup disk: $($disk.FriendlyName)"
     Write-BackupLog "Backup disk serial verified: $expectedDiskSerial"
+    Write-BackupLog "Django settings: $DjangoSettings"
+    Write-BackupLog "Expected database: $expectedDatabaseName"
 
     # ---------------------------------------------------------------
     # PostgreSQL
     # ---------------------------------------------------------------
 
-    $dbBackupFile = Join-Path $dbDayDir "delisky_bi_$timestamp.dump"
+    $dbBackupFile = Join-Path `
+        $dbDayDir `
+        "${expectedDatabaseName}_$timestamp.dump"
 
     $env:DELISKY_BACKUP_DJANGO_SETTINGS = $DjangoSettings
 
@@ -104,7 +126,8 @@ try {
     try {
         & $python $pythonHelper `
             --output $dbBackupFile `
-            --pg-dump $pgDump
+            --pg-dump $pgDump `
+            --expected-database $expectedDatabaseName
 
         if ($LASTEXITCODE -ne 0) {
             throw "PostgreSQL backup helper failed with exit code $LASTEXITCODE."

@@ -18,6 +18,11 @@ urlpatterns = [
         name="raw_chargement_upload",
     ),
     path(
+        "raw-items-detail/",
+        views.raw_items_detail_upload,
+        name="raw_items_detail_upload",
+    ),
+    path(
         "raw-items/",
         views.raw_items_upload,
         name="raw_items_upload",
