@@ -434,3 +434,74 @@ session where DEV and Production runtime concerns can be separated safely,
 the approved release can be placed on clean `main`, static files can be
 rebuilt for that exact release, and Waitress can be restarted only after all
 preflight gates pass.
+
+## Phase 10 DEV data-quality closure — 2026-09-22
+
+A read-only global DEV audit found no remaining mutable or blocked import state:
+
+- CHARGEMENT: 3 APPROVED, 9 SUPERSEDED;
+- ITEMS: 3 APPROVED, 15 SUPERSEDED;
+- OPENING_STOCK: 5 APPROVED;
+- POS: 13 APPROVED;
+- SALES: 13 APPROVED, 13 SUPERSEDED;
+- no PENDING, REVIEWED, BLOCKED or FAILED non-superseded batch remained.
+
+All non-superseded approved batches had zero blocking errors.
+
+### Warning review
+
+The remaining warnings were reviewed by code and by stored row evidence.
+
+Expected non-blocking warning classes included:
+
+- BIFA Items negative quantities: 2 rows; intentionally excluded from
+  calculations while retained for audit;
+- NITA Items missing client: 6 rows; valid for product/truck/seller/period
+  analytics and omitted only from client attribution;
+- Opening Stock stopped indicators: 2 rows; retained as operational STOPPED
+  evidence;
+- DELISKY POS blank-client source artifact: 11 rows;
+- small SALES zero/negative/missing-client warnings retained for audit.
+
+The only high-volume warning class was Product Master identity ambiguity with
+packaging consensus:
+
+| Scope | Product | Warning rows |
+| --- | --- | ---: |
+| DELISKY Chargement | LA POUDRE CHOCOLAT | 4 |
+| NITA Chargement | NITA SELECTION LAIT | 61 |
+| NITA Chargement | NITA MINI BROWNIE CHOCOLAT | 41 |
+| NITA Chargement | NITA SELECTION NOIR | 23 |
+| NITA Chargement | LA POUDRE CHOCOLAT | 1 |
+| DELISKY Items | LA POUDRE CHOCOLAT | 2 |
+| NITA Items | NITA SELECTION LAIT | 229 |
+| NITA Items | NITA SELECTION NOIR | 210 |
+| NITA Items | NITA MINI BROWNIE CHOCOLAT | 140 |
+| NITA Items | LA POUDRE CHOCOLAT | 1 |
+
+Product Master inspection confirmed two active AIO_WEB candidates for each of
+the four designations. In every case, all candidates agree on the same confirmed
+units-per-carton and have `needs_review=False`:
+
+- NITA SELECTION LAIT: UPC 28;
+- NITA SELECTION NOIR: UPC 28;
+- NITA MINI BROWNIE CHOCOLAT: UPC 8;
+- LA POUDRE CHOCOLAT: UPC 15.
+
+The raw ambiguous Items and Chargement rows contain no barcode, so the source
+itself provides no reliable discriminator between the duplicate Product Master
+records. The resolver therefore correctly keeps product-record identity
+ambiguous while accepting quantity conversion only through packaging consensus.
+
+This is the intended fail-safe behavior: quantity, carton/piece presentation,
+truck, worker and period analytics remain valid, while the system refuses to
+invent a specific Product Master identity. Product analytics aggregate by the
+normalized article designation, so these rows remain grouped under the correct
+business designation.
+
+No Product Master record was deleted or disabled because the duplicate source
+codes may represent legitimate historical/source identities and the available
+raw files do not prove which record should be preferred.
+
+Result: **Phase 10 DEV data-quality audit PASS; no remaining data-quality
+blocker identified.**
