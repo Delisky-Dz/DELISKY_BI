@@ -1,9 +1,9 @@
-import re
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
 
+from .client_identity import split_sales_client_identity
 from .items_aggregation import (
     ItemsAggregationResult,
     aggregate_items,
@@ -13,10 +13,6 @@ from .sales_aggregation import (
     aggregate_sales,
 )
 
-
-_SALES_CLIENT_CODE_RE = re.compile(
-    r"^(?P<code>\d+)\s+(?P<name>.+)$"
-)
 
 
 class ClientIdentityStatus(StrEnum):
@@ -171,48 +167,6 @@ class _ClientAccumulator:
     ] = field(default_factory=dict)
 
 
-def _split_sales_client_identity(
-    *,
-    client: str,
-    client_normalized: str,
-) -> tuple[str | None, str, str]:
-    normalized = client_normalized.strip()
-    display = client.strip()
-
-    normalized_match = (
-        _SALES_CLIENT_CODE_RE.match(normalized)
-    )
-
-    if normalized_match is None:
-        return (
-            None,
-            display,
-            normalized,
-        )
-
-    code = normalized_match.group("code")
-    canonical_normalized = (
-        normalized_match.group("name").strip()
-    )
-
-    display_match = (
-        _SALES_CLIENT_CODE_RE.match(display)
-    )
-
-    if display_match is not None:
-        canonical_display = (
-            display_match.group("name").strip()
-        )
-    else:
-        canonical_display = display
-
-    return (
-        code,
-        canonical_display,
-        canonical_normalized,
-    )
-
-
 def _validate_periods(
     *,
     items_result: ItemsAggregationResult,
@@ -361,7 +315,7 @@ def combine_client_purchase_performance(
             customer_code,
             canonical_display,
             canonical_normalized,
-        ) = _split_sales_client_identity(
+        ) = split_sales_client_identity(
             client=sale.client,
             client_normalized=(
                 sale.client_normalized
