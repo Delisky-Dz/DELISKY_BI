@@ -92,7 +92,7 @@ class AskManagerDeliskyRuntimeTests(SimpleTestCase):
 
         self.assertEqual(
             payload["schema_version"],
-            "1",
+            "2",
         )
         self.assertEqual(
             payload["scope"]["period_start"],
@@ -125,7 +125,7 @@ class AskManagerDeliskyRuntimeTests(SimpleTestCase):
         )
         self.assertEqual(
             response.context_schema_version,
-            "1",
+            "2",
         )
 
     @patch(
