@@ -3,6 +3,7 @@ from datetime import date
 
 from .manager_dashboard import (
     ManagerDashboardResult,
+    ManagerDashboardSummary,
     build_manager_dashboard,
 )
 from .manager_insights import (
@@ -25,6 +26,7 @@ class ManagerInsightsResult:
     requested_period_end: date | None
     brand_id: int | None
     insights: tuple[ManagerInsight, ...]
+    summary: ManagerDashboardSummary | None = None
 
     @property
     def has_insights(self) -> bool:
@@ -154,6 +156,11 @@ def combine_manager_insights(
         ),
         brand_id=dashboard_result.brand_id,
         insights=tuple(insights),
+        summary=getattr(
+            dashboard_result,
+            "summary",
+            None,
+        ),
     )
 
 
