@@ -243,3 +243,25 @@ class AskDeliskyPlainTextOutputTests(
             "Do not use Markdown formatting",
             ASK_DELISKY_SYSTEM_PROMPT,
         )
+
+
+class AskDeliskySmokeRegressionPromptTests(SimpleTestCase):
+    def test_missing_internal_metrics_are_not_marketing_questions(self):
+        self.assertIn(
+            "do not route it to Marketing Helper",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Marketing Helper cannot supply missing internal facts",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+
+    def test_analytical_observations_prioritize_evidence_and_limitations(self):
+        self.assertIn(
+            "at most two short sentences and 30 words total",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "include the relevant limitation",
+            ASK_DELISKY_SYSTEM_PROMPT,
+        )

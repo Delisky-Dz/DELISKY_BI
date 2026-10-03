@@ -12,6 +12,10 @@ from .ollama_transport import OllamaTransport
 from .provider import AskDeliskyProvider
 
 
+# Allow a short analysis to include its evidence and limitations.
+ASK_DELISKY_NUM_PREDICT = 256
+
+
 class AskDeliskyProviderDisabledError(RuntimeError):
     """Ask DELISKY provider execution is disabled."""
 
@@ -50,7 +54,9 @@ def build_ask_delisky_provider(
         transport = local_transport
 
         if transport is None:
-            transport = OllamaTransport()
+            transport = OllamaTransport(
+                num_predict=ASK_DELISKY_NUM_PREDICT
+            )
 
         return LocalAskDeliskyProvider(
             config=config,
