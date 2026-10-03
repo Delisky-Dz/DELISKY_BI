@@ -1,6 +1,9 @@
 from time import perf_counter
 
+from django.conf import settings
 from django.http import JsonResponse
+
+from apps.assistant.streaming import stream_ask_response
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
@@ -693,93 +696,116 @@ def ask_delisky_api(request):
         )
         return response
 
-    try:
-        response = ask_manager_delisky(
-            question=form.cleaned_data["question"],
+    def execute():
+        try:
+            response = ask_manager_delisky(
+                question=form.cleaned_data["question"],
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+            )
+        except AskDeliskyProviderConfigurationError:
+            record_audit(
+                outcome=(
+                    AskDeliskyAuditOutcome
+                    .PROVIDER_CONFIGURATION_ERROR
+                ),
+                http_status=503,
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+            )
+
+            return _assistant_error_response(
+                code="PROVIDER_CONFIGURATION_ERROR",
+                message=(
+                    "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
+                    "\u0625\u0639\u062f\u0627\u062f\u0627\u062a Ask DELISKY."
+                ),
+                status=503,
+            )
+        except AskDeliskyProviderDisabledError:
+            record_audit(
+                outcome=(
+                    AskDeliskyAuditOutcome.PROVIDER_DISABLED
+                ),
+                http_status=503,
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+            )
+
+            return _assistant_error_response(
+                code="PROVIDER_DISABLED",
+                message=(
+                    "Ask DELISKY "
+                    "\u063a\u064a\u0631 \u0645\u0641\u0639\u0644 \u062d\u0627\u0644\u064a\u0627."
+                ),
+                status=503,
+            )
+        except OllamaTransportError:
+            record_audit(
+                outcome=(
+                    AskDeliskyAuditOutcome
+                    .PROVIDER_UNAVAILABLE
+                ),
+                http_status=503,
+                period_start=period_start,
+                period_end=period_end,
+                brand_id=brand_id,
+            )
+
+            return _assistant_error_response(
+                code="PROVIDER_UNAVAILABLE",
+                message=(
+                    "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
+                    "\u0628\u0645\u0633\u0627\u0639\u062f Ask DELISKY "
+                    "\u062d\u0627\u0644\u064a\u0627."
+                ),
+                status=503,
+            )
+
+        record_audit(
+            outcome=AskDeliskyAuditOutcome.SUCCESS,
+            http_status=200,
             period_start=period_start,
             period_end=period_end,
             brand_id=brand_id,
         )
-    except AskDeliskyProviderConfigurationError:
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "answer": response.answer,
+                "provider": response.provider_name,
+                "model": response.model_name,
+                "context_schema_version": (
+                    response.context_schema_version
+                ),
+            }
+        )
+
+    def unavailable():
         record_audit(
-            outcome=(
-                AskDeliskyAuditOutcome
-                .PROVIDER_CONFIGURATION_ERROR
-            ),
+            outcome=AskDeliskyAuditOutcome.PROVIDER_UNAVAILABLE,
             http_status=503,
             period_start=period_start,
             period_end=period_end,
             brand_id=brand_id,
         )
-
         return _assistant_error_response(
-            code="PROVIDER_CONFIGURATION_ERROR",
-            message=(
-                "\u062a\u0639\u0630\u0631 \u062a\u062d\u0645\u064a\u0644 "
-                "\u0625\u0639\u062f\u0627\u062f\u0627\u062a Ask DELISKY."
-            ),
-            status=503,
-        )
-    except AskDeliskyProviderDisabledError:
-        record_audit(
-            outcome=(
-                AskDeliskyAuditOutcome.PROVIDER_DISABLED
-            ),
-            http_status=503,
-            period_start=period_start,
-            period_end=period_end,
-            brand_id=brand_id,
-        )
-
-        return _assistant_error_response(
-            code="PROVIDER_DISABLED",
-            message=(
-                "Ask DELISKY "
-                "\u063a\u064a\u0631 \u0645\u0641\u0639\u0644 \u062d\u0627\u0644\u064a\u0627."
-            ),
-            status=503,
-        )
-    except OllamaTransportError:
-        record_audit(
-            outcome=(
-                AskDeliskyAuditOutcome
-                .PROVIDER_UNAVAILABLE
-            ),
-            http_status=503,
-            period_start=period_start,
-            period_end=period_end,
-            brand_id=brand_id,
-        )
-
-        return _assistant_error_response(
-            code="PROVIDER_UNAVAILABLE",
-            message=(
-                "\u062a\u0639\u0630\u0631 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 "
-                "\u0628\u0645\u0633\u0627\u0639\u062f Ask DELISKY "
-                "\u062d\u0627\u0644\u064a\u0627."
-            ),
+            code="ASSISTANT_UNAVAILABLE",
+            message="Ask DELISKY غير متاح الآن. أعد المحاولة بعد قليل.",
             status=503,
         )
 
-    record_audit(
-        outcome=AskDeliskyAuditOutcome.SUCCESS,
-        http_status=200,
-        period_start=period_start,
-        period_end=period_end,
-        brand_id=brand_id,
-    )
-
-    return JsonResponse(
-        {
-            "ok": True,
-            "answer": response.answer,
-            "provider": response.provider_name,
-            "model": response.model_name,
-            "context_schema_version": (
-                response.context_schema_version
-            ),
-        }
-    )
+    if getattr(settings, "ASK_DELISKY_STREAMING_ENABLED", False):
+        response = stream_ask_response(execute, on_failure=unavailable)
+        if response is None:
+            response = unavailable()
+            response["Retry-After"] = "10"
+        return response
+    return execute()
 
 
 

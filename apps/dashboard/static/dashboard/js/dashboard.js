@@ -435,6 +435,39 @@
         };
     }
 
+    // POST preserves CSRF/authentication; there is deliberately no automatic retry.
+    async function readAssistantResponse(response, onProgress) {
+        if (!(response.headers.get("Content-Type") || "").includes("text/event-stream")) {
+            return response.json();
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let pending = "";
+        try {
+            while (true) {
+                const chunk = await reader.read();
+                pending += decoder.decode(chunk.value || new Uint8Array(), {stream: !chunk.done});
+                let boundary;
+                while ((boundary = pending.indexOf("\n\n")) !== -1) {
+                    const frame = pending.slice(0, boundary);
+                    pending = pending.slice(boundary + 2);
+                    const lines = frame.split("\n");
+                    const event = lines.find(line => line.startsWith("event: "));
+                    const data = lines.filter(line => line.startsWith("data: "))
+                        .map(line => line.slice(6)).join("\n");
+                    if (!event || !data) continue;
+                    const payload = JSON.parse(data);
+                    if (event === "event: result" || event === "event: error") return payload;
+                    if (event === "event: accepted" || event === "event: progress") onProgress();
+                }
+                if (chunk.done) throw new Error("انقطع الاتصال قبل اكتمال الإجابة. أعد المحاولة يدويًا.");
+            }
+        } finally {
+            await reader.cancel();
+            reader.releaseLock();
+        }
+    }
+
     assistants.forEach(function (assistant) {
         const form = assistant.querySelector(
             "[data-ai-form]"
@@ -541,7 +574,9 @@
                     let payload = null;
 
                     try {
-                        payload = await response.json();
+                        payload = await readAssistantResponse(response, function () {
+                            showStatus("الطلب قيد المعالجة والاتصال نشط. قد يستغرق التحليل البارد عدة دقائق.", "loading");
+                        });
                     } catch (error) {
                         throw new Error(
                             messages.readError

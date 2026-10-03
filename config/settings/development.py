@@ -33,3 +33,6 @@ ASK_DELISKY_CONTEXT_CACHE_ENABLED = True
 # changing the shared/Marketing timeout. The Ask-specific environment key
 # takes precedence in the provider factory and is available to future hosts.
 ASK_DELISKY_REQUEST_TIMEOUT_SECONDS = 180
+
+# DEV rollout: immediate SSE acknowledgement and heartbeats across both stages.
+ASK_DELISKY_STREAMING_ENABLED = True

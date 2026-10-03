@@ -6,7 +6,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from apps.assistant.contracts import (
@@ -61,6 +61,7 @@ class AskDeliskyFormTests(TestCase):
         )
 
 
+@override_settings(ASK_DELISKY_STREAMING_ENABLED=False)
 class AskDeliskyApiTests(TestCase):
     @classmethod
     def setUpTestData(cls):
@@ -544,6 +545,7 @@ class AskDeliskyApiTests(TestCase):
 
 
 
+@override_settings(ASK_DELISKY_STREAMING_ENABLED=False)
 class AskDeliskyEndpointAuditTests(TestCase):
     @classmethod
     def setUpTestData(cls):
