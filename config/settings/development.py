@@ -24,3 +24,7 @@ if configured_database_name != DEV_DATABASE_NAME:
 # Safety guard: development tests must use their own database.
 DEV_TEST_DATABASE_NAME = "test_delisky_bi_dev"
 DATABASES["default"]["TEST"]["NAME"] = DEV_TEST_DATABASE_NAME
+
+
+# DEV-only deterministic context cache; production retains uncached behavior.
+ASK_DELISKY_CONTEXT_CACHE_ENABLED = True

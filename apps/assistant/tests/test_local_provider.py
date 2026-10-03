@@ -265,3 +265,24 @@ class AskDeliskySmokeRegressionPromptTests(SimpleTestCase):
             "include the relevant limitation",
             ASK_DELISKY_SYSTEM_PROMPT,
         )
+
+
+class AskDeliskyPromptPrefixTests(SimpleTestCase):
+    def test_different_questions_keep_identical_full_context_prefix(self):
+        from apps.assistant.local_provider import _build_user_prompt
+
+        context_json = '{"schema_version":"2","insights":[{"evidence":[1],"limitations":[2]}]}'
+        prompts = [
+            _build_user_prompt(AskDeliskyProviderRequest(
+                question=question,
+                context_json=context_json,
+                context_schema_version="2",
+            ))
+            for question in ("Question one", "Question two")
+        ]
+        prefix = prompts[0].split("USER_QUESTION_BEGIN")[0]
+        self.assertEqual(prefix, prompts[1].split("USER_QUESTION_BEGIN")[0])
+        self.assertIn(context_json, prefix)
+        self.assertIn("ANALYTICAL_CONTEXT_JSON_END", prefix)
+        self.assertTrue(prompts[0].endswith("Question one\nUSER_QUESTION_END"))
+        self.assertTrue(prompts[1].endswith("Question two\nUSER_QUESTION_END"))

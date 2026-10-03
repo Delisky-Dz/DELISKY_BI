@@ -8,6 +8,7 @@ from apps.analytics.services.manager_insights_orchestrator import (
     build_manager_insights,
 )
 
+from .context_cache import get_manager_context
 from .contracts import (
     AskDeliskyRequest,
     AskDeliskyResponse,
@@ -36,14 +37,21 @@ def ask_manager_delisky(
         environ=environ
     )
 
-    insights_result = build_manager_insights(
+    def build_context():
+        insights_result = build_manager_insights(
+            period_start=period_start,
+            period_end=period_end,
+            brand_id=brand_id,
+        )
+        return build_ask_delisky_context(
+            insights_result=insights_result
+        )
+
+    context = get_manager_context(
         period_start=period_start,
         period_end=period_end,
         brand_id=brand_id,
-    )
-
-    context = build_ask_delisky_context(
-        insights_result=insights_result
+        build=build_context,
     )
 
     request = AskDeliskyRequest(

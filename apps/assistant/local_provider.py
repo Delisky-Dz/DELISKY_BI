@@ -71,14 +71,14 @@ def _build_user_prompt(
     request: AskDeliskyProviderRequest,
 ) -> str:
     return (
-        "USER_QUESTION_BEGIN\n"
-        f"{request.question}\n"
-        "USER_QUESTION_END\n\n"
         "CONTEXT_SCHEMA_VERSION\n"
         f"{request.context_schema_version}\n\n"
         "ANALYTICAL_CONTEXT_JSON_BEGIN\n"
         f"{request.context_json}\n"
-        "ANALYTICAL_CONTEXT_JSON_END"
+        "ANALYTICAL_CONTEXT_JSON_END\n\n"
+        "USER_QUESTION_BEGIN\n"
+        f"{request.question}\n"
+        "USER_QUESTION_END"
     )
 
 
