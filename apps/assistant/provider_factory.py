@@ -1,4 +1,7 @@
+import os
 from collections.abc import Mapping
+
+from django.conf import settings
 
 from .config import (
     AskDeliskyProviderMode,
@@ -36,9 +39,16 @@ def build_ask_delisky_provider(
     explicit mapping is supplied. Network access does not occur
     while building the provider.
     """
+    # Ask-only override; the legacy shared timeout and Marketing are unchanged.
+    source = os.environ if environ is None else environ
+    timeout = source.get("ASK_DELISKY_REQUEST_TIMEOUT_SECONDS")
+    if timeout is None and environ is None and settings.configured:
+        timeout = getattr(settings, "ASK_DELISKY_REQUEST_TIMEOUT_SECONDS", None)
+    if timeout is not None:
+        source = {**source, "ASK_DELISKY_TIMEOUT_SECONDS": str(timeout)}
     try:
         config = load_ask_delisky_provider_config(
-            environ=environ
+            environ=source
         )
     except ValueError as exc:
         raise AskDeliskyProviderConfigurationError(

@@ -12,6 +12,7 @@ from django.conf import settings
 from django.db import connection
 
 from .models import AskDeliskyDataRevision
+from .revision_tracking import tracking_installed
 
 
 CACHE_TTL_SECONDS = 300
@@ -29,6 +30,8 @@ def clear_context_cache():
 
 
 def _data_revision():
+    if not tracking_installed():
+        return None
     revision, _ = AskDeliskyDataRevision.objects.get_or_create(pk=1)
     return revision.token
 
@@ -67,6 +70,8 @@ def get_manager_context(*, period_start, period_end, brand_id, build):
     )
     with _build_locks[hash(scope) % len(_build_locks)]:
         revision = _data_revision()
+        if revision is None:
+            return build()
         key = (scope, revision)
         now = monotonic()
         with _entries_lock:

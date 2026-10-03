@@ -28,3 +28,8 @@ DATABASES["default"]["TEST"]["NAME"] = DEV_TEST_DATABASE_NAME
 
 # DEV-only deterministic context cache; production retains uncached behavior.
 ASK_DELISKY_CONTEXT_CACHE_ENABLED = True
+
+# Measured cold local Ask inference: 126.277 s. Allow headroom without
+# changing the shared/Marketing timeout. The Ask-specific environment key
+# takes precedence in the provider factory and is available to future hosts.
+ASK_DELISKY_REQUEST_TIMEOUT_SECONDS = 180

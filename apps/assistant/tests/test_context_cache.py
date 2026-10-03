@@ -5,6 +5,8 @@ from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from django.core.management import call_command
+from io import StringIO
 from django.db import close_old_connections, connection, transaction
 from django.test import SimpleTestCase, TransactionTestCase, override_settings
 
@@ -165,12 +167,13 @@ class ContextCacheUnitTests(SimpleTestCase):
 @override_settings(ASK_DELISKY_CONTEXT_CACHE_ENABLED=True)
 class ContextRevisionDatabaseTests(TransactionTestCase):
     def setUp(self):
+        call_command("configure_ask_context_cache", enable=True, stdout=StringIO())
         cache.clear_context_cache()
         self.addCleanup(cache.clear_context_cache)
         self.brand = DistributionBrand.objects.create(code="CACHE", name="Cache test")
 
     def test_all_source_tables_have_statement_triggers(self):
-        migration = import_module("apps.assistant.migrations.0004_askdeliskydatarevision")
+        migration = import_module("apps.assistant.revision_tracking")
         with connection.cursor() as cursor:
             cursor.execute("""
                 SELECT c.relname FROM pg_trigger t
