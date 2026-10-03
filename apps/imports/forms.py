@@ -711,6 +711,110 @@ class RawItemsUploadForm(forms.Form):
         return cleaned_data
 
 
+class RawItemsDetailUploadForm(forms.Form):
+    period_start = forms.DateField(
+        label="تاريخ البداية",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+            }
+        ),
+    )
+
+    period_end = forms.DateField(
+        label="تاريخ النهاية",
+        widget=forms.DateInput(
+            attrs={
+                "type": "date",
+            }
+        ),
+    )
+
+    bifa_file = forms.FileField(
+        required=False,
+        label="ملف BIFA التفصيلي",
+        help_text=(
+            "ملف Items DETAIL واحد من BIFA_MILA "
+            "يحتوي على العمليات وتاريخ البيع والمستخدم."
+        ),
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": (
+                    ".xlsx,"
+                    "application/vnd.openxmlformats-"
+                    "officedocument.spreadsheetml.sheet"
+                ),
+                "class": "accountant-file-input",
+            }
+        ),
+    )
+
+    aio_file = forms.FileField(
+        required=False,
+        label="ملف AIO WEB التفصيلي",
+        help_text=(
+            "ملف Items DETAIL واحد من AIO_WEB "
+            "ويُقسَّم تلقائيًا إلى DELISKY وNITA."
+        ),
+        widget=forms.ClearableFileInput(
+            attrs={
+                "accept": (
+                    ".xlsx,"
+                    "application/vnd.openxmlformats-"
+                    "officedocument.spreadsheetml.sheet"
+                ),
+                "class": "accountant-file-input",
+            }
+        ),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+
+        period_start = cleaned_data.get(
+            "period_start"
+        )
+        period_end = cleaned_data.get(
+            "period_end"
+        )
+
+        if (
+            period_start is not None
+            and period_end is not None
+            and period_end < period_start
+        ):
+            raise ValidationError(
+                "تاريخ النهاية لا يمكن أن يكون قبل تاريخ البداية."
+            )
+
+        bifa_file = cleaned_data.get("bifa_file")
+        aio_file = cleaned_data.get("aio_file")
+
+        if not bifa_file and not aio_file:
+            raise ValidationError(
+                "يجب اختيار ملف Items DETAIL واحد على الأقل."
+            )
+
+        for field_name, source_file in (
+            ("bifa_file", bifa_file),
+            ("aio_file", aio_file),
+        ):
+            if (
+                source_file is not None
+                and not str(
+                    source_file.name
+                ).lower().endswith(".xlsx")
+            ):
+                self.add_error(
+                    field_name,
+                    ValidationError(
+                        "يُسمح فقط بملفات XLSX."
+                    ),
+                )
+
+        return cleaned_data
+
+
 class RawOpeningStockUploadForm(forms.Form):
     stock_date = forms.DateField(
         label="\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0645\u062e\u0632\u0648\u0646 \u0627\u0644\u0627\u0641\u062a\u062a\u0627\u062d\u064a",

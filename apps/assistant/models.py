@@ -1,5 +1,7 @@
 """Database models for the DELISKY assistant."""
 
+import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -125,3 +127,12 @@ class AskDeliskyAuditEvent(models.Model):
             f"{self.user_id}:"
             f"{self.outcome}"
         )
+
+
+class AskDeliskyDataRevision(models.Model):
+    """Committed source-data token maintained by database triggers."""
+
+    id = models.PositiveSmallIntegerField(
+        primary_key=True, default=1, editable=False,
+    )
+    token = models.UUIDField(default=uuid.uuid4, editable=False)

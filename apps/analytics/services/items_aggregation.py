@@ -14,6 +14,8 @@ from .assignment_resolver import (
     build_assignment_index,
     resolve_worker_for_period,
 )
+from .items_detail_period import resolve_items_row_period_scope
+from .items_period_filter import ItemsRowPeriodStatus
 from .report_rows import parse_item_row
 from .truck_resolver import (
     TruckCodeIndex,
@@ -329,10 +331,11 @@ def aggregate_items(
     """
     Aggregate approved and accepted ITEMS rows.
 
-    ITEMS rows have period-level precision only. A row is included
-    in a requested period only when its entire batch period is
-    contained in that requested period. Partial overlaps are not
-    apportioned or assigned to invented dates.
+    Transaction-level ITEMS rows use their exact sale date for
+    requested-period filtering and worker attribution. Legacy rows
+    without a sale datetime retain conservative batch-period
+    behaviour: partial overlaps are excluded rather than apportioned
+    to invented dates.
     """
     if (
         period_start is not None
@@ -408,18 +411,22 @@ def aggregate_items(
         source_row_count += 1
         item = parse_item_row(import_row)
 
-        period_status = _period_status(
+        period_scope = resolve_items_row_period_scope(
             batch_period_start=item.period_start,
             batch_period_end=item.period_end,
+            sale_datetime=item.sale_datetime,
             requested_period_start=period_start,
             requested_period_end=period_end,
         )
 
-        if period_status == ItemsPeriodStatus.OUTSIDE:
+        if period_scope.status == ItemsRowPeriodStatus.OUTSIDE:
             outside_requested_period_count += 1
             continue
 
-        if period_status == ItemsPeriodStatus.PARTIAL_OVERLAP:
+        if (
+            period_scope.status
+            == ItemsRowPeriodStatus.PARTIAL_OVERLAP
+        ):
             partial_overlap_excluded_count += 1
             continue
 
@@ -442,63 +449,67 @@ def aggregate_items(
             item.quantity_sold
         )
 
-        brand_van_client = _get_named_accumulator(
-            brand_van_client_buckets,
-            (
-                item.brand_id,
-                item.van_normalized,
-                item.client_normalized,
-            ),
-            item.client,
-        )
-        brand_van_client.accumulator.add(
-            item.quantity_sold
-        )
-
-        brand_van_client_product = (
-            _get_client_product_accumulator(
-                brand_van_client_product_buckets,
+        if (
+            item.client is not None
+            and item.client_normalized is not None
+        ):
+            brand_van_client = _get_named_accumulator(
+                brand_van_client_buckets,
                 (
                     item.brand_id,
                     item.van_normalized,
                     item.client_normalized,
-                    item.article_normalized,
                 ),
                 item.client,
-                item.article,
             )
-        )
-        brand_van_client_product.accumulator.add(
-            item.quantity_sold
-        )
+            brand_van_client.accumulator.add(
+                item.quantity_sold
+            )
 
-        brand_client = _get_named_accumulator(
-            brand_client_buckets,
-            (
-                item.brand_id,
-                item.client_normalized,
-            ),
-            item.client,
-        )
-        brand_client.accumulator.add(
-            item.quantity_sold
-        )
+            brand_van_client_product = (
+                _get_client_product_accumulator(
+                    brand_van_client_product_buckets,
+                    (
+                        item.brand_id,
+                        item.van_normalized,
+                        item.client_normalized,
+                        item.article_normalized,
+                    ),
+                    item.client,
+                    item.article,
+                )
+            )
+            brand_van_client_product.accumulator.add(
+                item.quantity_sold
+            )
 
-        brand_client_product = (
-            _get_client_product_accumulator(
-                brand_client_product_buckets,
+            brand_client = _get_named_accumulator(
+                brand_client_buckets,
                 (
                     item.brand_id,
                     item.client_normalized,
-                    item.article_normalized,
                 ),
                 item.client,
-                item.article,
             )
-        )
-        brand_client_product.accumulator.add(
-            item.quantity_sold
-        )
+            brand_client.accumulator.add(
+                item.quantity_sold
+            )
+
+            brand_client_product = (
+                _get_client_product_accumulator(
+                    brand_client_product_buckets,
+                    (
+                        item.brand_id,
+                        item.client_normalized,
+                        item.article_normalized,
+                    ),
+                    item.client,
+                    item.article,
+                )
+            )
+            brand_client_product.accumulator.add(
+                item.quantity_sold
+            )
 
         truck_resolution = resolve_truck_by_van(
             item.van_normalized,
@@ -515,8 +526,12 @@ def aggregate_items(
                     excel_row_number=item.excel_row_number,
                     brand_id=item.brand_id,
                     normalized_van=item.van_normalized,
-                    period_start=item.period_start,
-                    period_end=item.period_end,
+                    period_start=(
+                        period_scope.attribution_period_start
+                    ),
+                    period_end=(
+                        period_scope.attribution_period_end
+                    ),
                     quantity_sold=item.quantity_sold,
                     matching_entity_ids=(
                         truck_resolution.matching_truck_ids
@@ -548,8 +563,8 @@ def aggregate_items(
 
         assignment_resolution = resolve_worker_for_period(
             truck,
-            item.period_start,
-            item.period_end,
+            period_scope.attribution_period_start,
+            period_scope.attribution_period_end,
             assignment_index=assignment_index,
         )
 
@@ -563,8 +578,12 @@ def aggregate_items(
                     excel_row_number=item.excel_row_number,
                     brand_id=item.brand_id,
                     normalized_van=item.van_normalized,
-                    period_start=item.period_start,
-                    period_end=item.period_end,
+                    period_start=(
+                        period_scope.attribution_period_start
+                    ),
+                    period_end=(
+                        period_scope.attribution_period_end
+                    ),
                     quantity_sold=item.quantity_sold,
                     matching_entity_ids=(
                         assignment_resolution

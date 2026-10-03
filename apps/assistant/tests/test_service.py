@@ -154,7 +154,7 @@ class AskDeliskyServiceTests(SimpleTestCase):
 
         self.assertEqual(
             provider.request.context_schema_version,
-            "1",
+            "2",
         )
 
     def test_response_preserves_provider_metadata(self):
@@ -182,7 +182,7 @@ class AskDeliskyServiceTests(SimpleTestCase):
         )
         self.assertEqual(
             response.context_schema_version,
-            "1",
+            "2",
         )
 
     def test_empty_provider_answer_is_rejected(self):

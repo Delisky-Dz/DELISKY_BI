@@ -43,6 +43,15 @@ def main():
         help="Full path to pg_dump.exe.",
     )
 
+    parser.add_argument(
+        "--expected-database",
+        required=True,
+        help=(
+            "Exact database name that this backup is allowed to read. "
+            "The command fails before pg_dump if settings resolve another DB."
+        ),
+    )
+
     args = parser.parse_args()
 
     database = settings.DATABASES["default"]
@@ -55,6 +64,17 @@ def main():
 
     if not database_name:
         raise RuntimeError("Database NAME is empty.")
+
+    expected_database_name = str(args.expected_database or "").strip()
+
+    if not expected_database_name:
+        raise RuntimeError("Expected database name is empty.")
+
+    if database_name != expected_database_name:
+        raise RuntimeError(
+            "Unsafe backup database configuration: "
+            f"expected '{expected_database_name}', got '{database_name}'."
+        )
 
     if not database_user:
         raise RuntimeError("Database USER is empty.")
@@ -127,6 +147,7 @@ def main():
         partial_path.unlink(missing_ok=True)
         raise
 
+    print(f"BACKUP_DATABASE={database_name}")
     print(f"BACKUP_CREATED={output_path}")
     print(f"BACKUP_SIZE={output_path.stat().st_size}")
 

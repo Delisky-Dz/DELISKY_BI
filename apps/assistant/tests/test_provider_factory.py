@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import SimpleTestCase
@@ -97,7 +98,9 @@ class AskDeliskyProviderFactoryTests(SimpleTestCase):
                 environ=self.local_environment()
             )
 
-        transport_class.assert_called_once_with()
+        transport_class.assert_called_once_with(
+            num_predict=256
+        )
 
         self.assertIsInstance(
             provider,
@@ -113,3 +116,36 @@ class AskDeliskyProviderFactoryTests(SimpleTestCase):
                     "ASK_DELISKY_PROVIDER": "unknown",
                 }
             )
+
+    def test_analytical_answer_budget_reaches_ollama_request(self):
+        # Regression: the 96-token default cut real Arabic analysis
+        # mid-sentence before the evidence limitations were returned.
+        from apps.assistant.tests.test_ollama_transport import (
+            FakeOpener,
+            FakeResponse,
+        )
+
+        opener = FakeOpener(
+            response=FakeResponse(
+                b'{"response":"Complete analysis.","done":true}'
+            )
+        )
+        provider = build_ask_delisky_provider(
+            environ=self.local_environment()
+        )
+        with patch(
+            "apps.assistant.ollama_transport.build_opener",
+            return_value=opener,
+        ):
+            result = provider.generate(
+                AskDeliskyProviderRequest(
+                    question="Give one insight, evidence and limitations.",
+                    context_json='{"schema_version":"2","insights":[]}',
+                    context_schema_version="2",
+                )
+            )
+
+        payload = json.loads(opener.request.data.decode("utf-8"))
+        self.assertEqual(payload["options"]["num_predict"], 256)
+        self.assertEqual(result.answer, "Complete analysis.")
+        self.assertEqual(opener.timeout, 120)

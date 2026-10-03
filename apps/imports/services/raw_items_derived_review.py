@@ -26,6 +26,9 @@ from .derived_batch_review import (
 from .raw_items_cleaning_enrichment import (
     enrich_raw_items_cleaning_result,
 )
+from .raw_items_detail_replacement import (
+    detail_batch_covered_trucks,
+)
 from .raw_items_file import (
     RawItemsFileError,
     source_truck_code_from_filename,
@@ -116,6 +119,58 @@ def _logical_items_scope_batches(
         matched.append(candidate)
 
     return tuple(matched)
+
+
+def _transaction_detail_scope_conflicts(
+    *,
+    source_system_code: str,
+    brand_code: str,
+    internal_truck_code: str,
+    period_start: Any,
+    period_end: Any,
+) -> tuple[ImportBatch, ...]:
+    canonical_truck = " ".join(
+        str(internal_truck_code or "").split()
+    ).upper()
+
+    if not canonical_truck:
+        return ()
+
+    candidates = (
+        ImportBatch.objects
+        .select_related(
+            "source_upload",
+            "source_upload__source_system",
+        )
+        .filter(
+            source_upload__isnull=False,
+            source_upload__source_system__code__iexact=(
+                source_system_code
+            ),
+            brand__code__iexact=brand_code,
+            report_type="ITEMS",
+            period_start__lte=period_end,
+            period_end__gte=period_start,
+        )
+        .exclude(
+            status=ImportBatchStatus.SUPERSEDED
+        )
+        .order_by("id")
+    )
+
+    conflicts: list[ImportBatch] = []
+
+    for candidate in candidates:
+        detail_scope = set(
+            detail_batch_covered_trucks(
+                candidate
+            )
+        )
+
+        if canonical_truck in detail_scope:
+            conflicts.append(candidate)
+
+    return tuple(conflicts)
 
 
 def _resolve_items_brand_code(
@@ -307,6 +362,14 @@ def create_raw_items_derived_import_review(
         review
     )
 
+    internal_truck_code = " ".join(
+        str(
+            review.adapted.rows[0]
+            .values.get("VAN")
+            or ""
+        ).split()
+    ).upper()
+
     source_system = (
         ImportSourceSystem.objects.get(
             code__iexact=source_system_code,
@@ -360,6 +423,50 @@ def create_raw_items_derived_import_review(
             ImportSourceSystem.objects.select_for_update().get(
                 pk=source_upload.source_system_id
             )
+
+            detail_conflicts = (
+                _transaction_detail_scope_conflicts(
+                    source_system_code=(
+                        source_system_code
+                    ),
+                    brand_code=brand_code,
+                    internal_truck_code=(
+                        internal_truck_code
+                    ),
+                    period_start=(
+                        review.period_start
+                    ),
+                    period_end=(
+                        review.period_end
+                    ),
+                )
+            )
+
+            if detail_conflicts:
+                raise RawItemsDerivedReviewError(
+                    "legacy_items_detail_overlap_conflict",
+                    (
+                        "A legacy per-truck Items file "
+                        "cannot overlap an existing "
+                        "transaction-level Items batch "
+                        "for the same truck and period."
+                    ),
+                    details={
+                        "truck_code": (
+                            internal_truck_code
+                        ),
+                        "batch_ids": [
+                            candidate.pk
+                            for candidate
+                            in detail_conflicts
+                        ],
+                        "statuses": [
+                            candidate.status
+                            for candidate
+                            in detail_conflicts
+                        ],
+                    },
+                )
 
             logical_scope_batches = (
                 _logical_items_scope_batches(
