@@ -6,6 +6,8 @@ on:
     branches:
       - feature/manager-dashboard-restructure
     paths:
+      - "apps/assistant/**"
+      - "apps/dashboard/**"
       - "apps/imports/**"
       - "apps/analytics/**"
       - "apps/fleet/**"
@@ -149,6 +151,9 @@ jobs:
           apps.imports.test_backup_restore_verifier
           --settings=config.settings.development
           -v 2
+
+      - name: Assistant SSE frontend tests
+        run: node --test apps/dashboard/tests_js/ask_streaming.test.cjs
 
       - name: Full project test suite
         run: python manage.py test --settings=config.settings.development -v 1

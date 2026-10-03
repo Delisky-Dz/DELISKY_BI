@@ -127,11 +127,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "DJANGO_CHECK=PASS"
+Write-Host "WAITRESS_THREADS=4"
 Write-Host "WAITRESS_STARTING=True"
 Write-Host "LISTEN=$Listen"
 
 & $Waitress `
     "--listen=$Listen" `
+    "--threads=4" `
     "--trusted-proxy=127.0.0.1" `
     "--trusted-proxy-headers=x-forwarded-proto" `
     "config.wsgi:application"

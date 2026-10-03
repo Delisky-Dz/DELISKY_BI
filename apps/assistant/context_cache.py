@@ -1,4 +1,4 @@
-"""Bounded DEV cache of immutable, provider-safe deterministic context.
+"""Bounded opt-in cache of immutable, provider-safe deterministic context.
 
 The database revision changes transactionally via statement triggers, including
 bulk/SQL writes. Questions, answers, users and ORM objects are never cached.
@@ -48,9 +48,6 @@ def get_manager_context(*, period_start, period_end, brand_id, build):
         return build()
     if (
         connection.vendor != "postgresql"
-        or connection.settings_dict["NAME"] not in {
-            "delisky_bi_dev", "test_delisky_bi_dev"
-        }
         or connection.in_atomic_block
         or not connection.get_autocommit()
     ):

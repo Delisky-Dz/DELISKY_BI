@@ -132,20 +132,23 @@ class ContextCacheUnitTests(SimpleTestCase):
         get(build)
         self.assertEqual(build.call_count, 2)
 
-    def test_disabled_production_and_transactions_bypass_cache(self):
+    def test_disabled_and_transactions_bypass_cache(self):
         build = Mock(side_effect=context)
         with override_settings(ASK_DELISKY_CONTEXT_CACHE_ENABLED=False):
             get(build)
             get(build)
-        self.db.settings_dict["NAME"] = "delisky_bi"
-        get(build)
-        get(build)
-        self.db.settings_dict["NAME"] = "delisky_bi_dev"
         self.db.in_atomic_block = True
         get(build)
         get(build)
         self.revision.assert_not_called()
-        self.assertEqual(build.call_count, 6)
+        self.assertEqual(build.call_count, 4)
+
+    def test_opted_in_production_name_uses_revision_cache_without_real_database(self):
+        self.db.settings_dict["NAME"] = "delisky_bi"
+        build = Mock(side_effect=context)
+        self.assertIs(get(build), get(build))
+        build.assert_called_once()
+        self.revision.assert_called()
 
     def test_concurrent_same_scope_builds_once(self):
         entered, release = Event(), Event()
