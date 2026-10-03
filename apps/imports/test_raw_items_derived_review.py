@@ -1,3 +1,4 @@
+from datetime import date
 from io import BytesIO
 from tempfile import TemporaryDirectory
 
@@ -891,4 +892,92 @@ class RawItemsDerivedReviewTests(TestCase):
         self.assertEqual(
             replacement.batch.status,
             ImportBatchStatus.REVIEWED,
+        )
+
+
+    def test_legacy_review_rejects_transaction_detail_overlap(
+        self,
+    ):
+        detail_upload = ImportSourceUpload.objects.create(
+            source_system=self.bifa_source,
+            original_filename=(
+                "BIFA_Items_DETAIL_"
+                "2026-04-04_to_2026-08-26.xlsx"
+            ),
+            worksheet_name="Classeur",
+            file_size_bytes=1,
+            file_sha256="d" * 64,
+            uploaded_by=self.user,
+        )
+        detail = ImportBatch.objects.create(
+            source_upload=detail_upload,
+            brand=self.bifa,
+            report_type="ITEMS",
+            period_start=date(2026, 4, 4),
+            period_end=date(2026, 8, 26),
+            original_filename=(
+                detail_upload.original_filename
+            ),
+            worksheet_name="Classeur",
+            content_sha256="e" * 64,
+            status=ImportBatchStatus.APPROVED,
+            total_rows=0,
+            accepted_rows=0,
+            excluded_rows=0,
+            stopped_rows=0,
+            uploaded_by=self.user,
+            reviewed_by=self.user,
+            approved_by=self.user,
+            review_summary={
+                "items_detail": {
+                    "transaction_level": True,
+                    "covered_trucks": [
+                        "BIFA LIV03",
+                    ],
+                    "replacement_batch_ids": [],
+                }
+            },
+        )
+
+        payload = self.make_payload(
+            [
+                [
+                    "ARTICLE A",
+                    10,
+                    1000,
+                    "ABC",
+                    "CLIENT A",
+                ],
+            ]
+        )
+
+        with self.assertRaises(
+            RawItemsDerivedReviewError
+        ) as captured:
+            self.create_review(
+                filename=(
+                    "DCV-03 items_"
+                    "2026-04-04_to_2026-08-26.xlsx"
+                ),
+                payload=payload,
+                source_system_code="BIFA_MILA",
+                period_start="2026-04-04",
+                period_end="2026-08-26",
+            )
+
+        self.assertEqual(
+            captured.exception.code,
+            "legacy_items_detail_overlap_conflict",
+        )
+        self.assertEqual(
+            captured.exception.details[
+                "batch_ids"
+            ],
+            [detail.pk],
+        )
+
+        detail.refresh_from_db()
+        self.assertEqual(
+            detail.status,
+            ImportBatchStatus.APPROVED,
         )

@@ -5,6 +5,9 @@ from urllib.parse import quote
 
 from django.shortcuts import render
 
+from apps.analytics.services.client_identity import (
+    build_sales_client_identity_index,
+)
 from apps.analytics.services.assignment_resolver import (
     build_assignment_index,
 )
@@ -124,7 +127,7 @@ def _brand_names(*results):
 def _brand_name(brand_id, names):
     return names.get(
         brand_id,
-        f"العلامة رقم {brand_id}",
+        f"Ø§Ù„Ø¹Ù„Ø§Ù…Ø© Ø±Ù‚Ù… {brand_id}",
     )
 
 
@@ -145,20 +148,58 @@ def _client_sales_rows(
     visits=None,
 ):
     brand_names = _brand_names(sales, visits)
-    visit_map = {
-        (item.brand_id, item.client_normalized): item.metrics
-        for item in (
-            getattr(visits, "by_brand_client", ()) or ()
+    identity_index = build_sales_client_identity_index(
+        getattr(
+            sales,
+            "by_brand_truck_client",
+            (),
+        ) or ()
+    )
+    visit_totals = {}
+
+    for item in (
+        getattr(
+            visits,
+            "by_brand_truck_client",
+            (),
+        ) or ()
+    ):
+        sales_client_normalized = (
+            identity_index.resolve(
+                brand_id=item.brand_id,
+                truck_id=item.truck_id,
+                client_normalized=(
+                    item.client_normalized
+                ),
+            )
         )
-    }
+
+        if sales_client_normalized is None:
+            continue
+
+        key = (
+            item.brand_id,
+            sales_client_normalized,
+        )
+        totals = visit_totals.setdefault(
+            key,
+            [0, 0, 0],
+        )
+        totals[0] += item.metrics.total_record_count
+        totals[1] += item.metrics.visited_record_count
+        totals[2] += (
+            item.metrics.not_visited_record_count
+        )
+
     rows = []
 
     for item in sales.by_brand_client:
-        visit_metrics = visit_map.get(
+        visit_counts = visit_totals.get(
             (
                 item.brand_id,
                 item.client_normalized,
-            )
+            ),
+            (0, 0, 0),
         )
 
         rows.append(
@@ -176,21 +217,9 @@ def _client_sales_rows(
                 sale_record_count=(
                     item.metrics.sale_record_count
                 ),
-                visit_record_count=(
-                    visit_metrics.total_record_count
-                    if visit_metrics is not None
-                    else 0
-                ),
-                visited_record_count=(
-                    visit_metrics.visited_record_count
-                    if visit_metrics is not None
-                    else 0
-                ),
-                not_visited_record_count=(
-                    visit_metrics.not_visited_record_count
-                    if visit_metrics is not None
-                    else 0
-                ),
+                visit_record_count=visit_counts[0],
+                visited_record_count=visit_counts[1],
+                not_visited_record_count=visit_counts[2],
             )
         )
 
@@ -400,11 +429,64 @@ def _visited_without_sales(
     sales,
     visits,
 ):
-    sales_keys = {
+    identity_index = build_sales_client_identity_index(
+        getattr(
+            sales,
+            "by_brand_truck_client",
+            (),
+        ) or ()
+    )
+    positive_sales_keys = {
         (item.brand_id, item.client_normalized)
         for item in sales.by_brand_client
         if item.metrics.total_sales > 0
     }
+    client_states = {}
+
+    for item in visits.by_brand_truck_client:
+        if item.metrics.visited_record_count <= 0:
+            continue
+
+        client_key = (
+            item.brand_id,
+            item.client_normalized,
+        )
+        states = client_states.setdefault(
+            client_key,
+            set(),
+        )
+
+        if identity_index.is_ambiguous(
+            brand_id=item.brand_id,
+            truck_id=item.truck_id,
+            client_normalized=item.client_normalized,
+        ):
+            states.add("AMBIGUOUS")
+            continue
+
+        sales_client_normalized = identity_index.resolve(
+            brand_id=item.brand_id,
+            truck_id=item.truck_id,
+            client_normalized=item.client_normalized,
+        )
+
+        if (
+            sales_client_normalized is not None
+            and (
+                item.brand_id,
+                sales_client_normalized,
+            ) in positive_sales_keys
+        ):
+            states.add("SALE")
+        else:
+            states.add("NO_SALE")
+
+    confirmed_keys = {
+        key
+        for key, states in client_states.items()
+        if states == {"NO_SALE"}
+    }
+
     brand_names = _brand_names(sales, visits)
     rows = []
 
@@ -414,10 +496,7 @@ def _visited_without_sales(
             item.client_normalized,
         )
 
-        if (
-            item.metrics.visited_record_count <= 0
-            or key in sales_keys
-        ):
+        if key not in confirmed_keys:
             continue
 
         rows.append(
@@ -458,8 +537,6 @@ def _visited_without_sales(
             ),
         )
     )
-
-
 def _overview(sales, visits):
     return ClientOverviewPresentation(
         distinct_client_count=len(
@@ -542,6 +619,7 @@ def build_client_section_response(
 
             if item in {
                 "overview",
+                "top",
                 "visited-no-sale",
                 "visits",
                 "card",
@@ -570,7 +648,7 @@ def build_client_section_response(
 
             elif item == "top":
                 context_data["client_rows"] = (
-                    _top_clients(current_sales)
+                    _top_clients(current_sales, visits=current_visits)
                 )
 
             elif item in {"declining", "stopped"}:
@@ -672,7 +750,7 @@ def build_client_section_response(
         "can_use_ai_assistants": can_use_ai_assistants(
             request.user
         ),
-        "section_label": "الزبائن",
+        "section_label": "Ø§Ù„Ø²Ø¨Ø§Ø¦Ù†",
         "item_label": item_label,
         "client_item": item,
         "decline_threshold_percentage": (

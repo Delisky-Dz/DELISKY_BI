@@ -555,6 +555,7 @@ document.querySelectorAll(
 
     const DATE_SELECTOR = [
         "#raw-chargement-form input[type='date']",
+        "#raw-items-detail-form input[type='date']",
         "#raw-items-form input[type='date']",
         "#raw-sales-form input[type='date']",
     ].join(",");

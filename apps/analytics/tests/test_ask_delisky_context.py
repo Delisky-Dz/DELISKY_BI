@@ -91,7 +91,7 @@ class AskDeliskyContextTests(SimpleTestCase):
 
         self.assertEqual(
             payload["schema_version"],
-            "1",
+            "2",
         )
         self.assertEqual(
             payload["scope"],

@@ -1,4 +1,4 @@
-﻿import os
+import os
 
 from .base import *
 
@@ -46,3 +46,13 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+# Safety guard: production must never use a non-production database.
+PRODUCTION_DATABASE_NAME = "delisky_bi"
+configured_database_name = str(DATABASES["default"]["NAME"]).strip()
+
+if configured_database_name != PRODUCTION_DATABASE_NAME:
+    raise RuntimeError(
+        "Unsafe production database configuration: "
+        f"expected '{PRODUCTION_DATABASE_NAME}', got '{configured_database_name}'."
+    )

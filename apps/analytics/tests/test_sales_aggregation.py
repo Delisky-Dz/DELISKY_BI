@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -210,6 +210,28 @@ class SalesAggregationTests(TestCase):
         self.assertEqual(
             result.by_worker[0].worker_id,
             worker.pk,
+        )
+
+        self.assertEqual(
+            len(result.by_brand_truck_client),
+            2,
+        )
+        first_client = result.by_brand_truck_client[0]
+        self.assertEqual(
+            first_client.brand_id,
+            self.first_brand.pk,
+        )
+        self.assertEqual(
+            first_client.truck_id,
+            truck.pk,
+        )
+        self.assertEqual(
+            first_client.client_normalized,
+            "test client 1",
+        )
+        self.assertEqual(
+            first_client.metrics.total_sales,
+            Decimal("100.10"),
         )
 
         combined = result.by_brand_truck_worker[0]
