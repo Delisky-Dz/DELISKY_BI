@@ -1,0 +1,127 @@
+<template id="manager-navigation-template">
+    <div class="manager-navigation">
+        <p class="sidebar__section-title">
+            لوحة المدير
+        </p>
+
+        <ul class="manager-navigation__list">
+            <li>
+                <a
+                    class="manager-navigation__link{% if active_section == 'overview' %} manager-navigation__link--active{% endif %}"
+                    href="{% url 'dashboard:manager_dashboard' %}{% if manager_query %}?{{ manager_query }}{% endif %}"
+                    {% if active_section == 'overview' %}aria-current="page"{% endif %}
+                >
+                    <span aria-hidden="true">⌂</span>
+                    <span>نظرة عامة</span>
+                </a>
+            </li>
+
+            <li class="manager-navigation__group{% if active_section == 'sales' %} manager-navigation__group--open{% endif %}">
+                <button
+                    class="manager-navigation__toggle"
+                    type="button"
+                    data-manager-nav-toggle
+                    aria-expanded="{% if active_section == 'sales' %}true{% else %}false{% endif %}"
+                >
+                    <span class="manager-navigation__toggle-label">
+                        <span aria-hidden="true">دج</span>
+                        <span>المبيعات</span>
+                    </span>
+                    <span class="manager-navigation__chevron" aria-hidden="true">⌄</span>
+                </button>
+
+                <ul class="manager-navigation__submenu">
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sales-summary' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_sales' 'summary' %}{% if manager_query %}?{{ manager_query }}{% endif %}">ملخص المبيعات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sales-timeline' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_sales' 'timeline' %}{% if manager_query %}?{{ manager_query }}{% endif %}">تطور المبيعات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sales-brands' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_sales' 'brands' %}{% if manager_query %}?{{ manager_query }}{% endif %}">حسب العلامة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sales-trucks' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_sales' 'trucks' %}{% if manager_query %}?{{ manager_query }}{% endif %}">حسب الشاحنة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sales-daily' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_sales' 'daily' %}{% if manager_query %}?{{ manager_query }}{% endif %}">التفاصيل اليومية</a></li>
+                </ul>
+            </li>
+
+            <li class="manager-navigation__group{% if active_section == 'sellers' %} manager-navigation__group--open{% endif %}">
+                <button class="manager-navigation__toggle" type="button" data-manager-nav-toggle aria-expanded="{% if active_section == 'sellers' %}true{% else %}false{% endif %}">
+                    <span class="manager-navigation__toggle-label"><span aria-hidden="true">ب</span><span>البائعون</span></span>
+                    <span class="manager-navigation__chevron" aria-hidden="true">⌄</span>
+                </button>
+                <ul class="manager-navigation__submenu">
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sellers-rankings' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'sellers' 'rankings' %}{% if manager_query %}?{{ manager_query }}{% endif %}">ترتيب البائعين</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sellers-visits' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'sellers' 'visits' %}{% if manager_query %}?{{ manager_query }}{% endif %}">أداء الزيارات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sellers-lowest-sales' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'sellers' 'lowest-sales' %}{% if manager_query %}?{{ manager_query }}{% endif %}">أقل البائعين مبيعًا</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sellers-not-sold' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'sellers' 'not-sold' %}{% if manager_query %}?{{ manager_query }}{% endif %}">المنتجات غير المباعة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'sellers-card' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'sellers' 'card' %}{% if manager_query %}?{{ manager_query }}{% endif %}">بطاقة بائع</a></li>
+                </ul>
+            </li>
+
+            <li class="manager-navigation__group{% if active_section == 'clients' %} manager-navigation__group--open{% endif %}">
+                <button class="manager-navigation__toggle" type="button" data-manager-nav-toggle aria-expanded="{% if active_section == 'clients' %}true{% else %}false{% endif %}">
+                    <span class="manager-navigation__toggle-label"><span aria-hidden="true">ز</span><span>الزبائن</span></span>
+                    <span class="manager-navigation__chevron" aria-hidden="true">⌄</span>
+                </button>
+                <ul class="manager-navigation__submenu">
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-overview' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'overview' %}{% if manager_query %}?{{ manager_query }}{% endif %}">نظرة عامة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-top' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'top' %}{% if manager_query %}?{{ manager_query }}{% endif %}">أهم الزبائن</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-declining' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'declining' %}{% if manager_query %}?{{ manager_query }}{% endif %}">الزبائن المتراجعون</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-stopped' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'stopped' %}{% if manager_query %}?{{ manager_query }}{% endif %}">الزبائن المتوقفون</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-visited-no-sale' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'visited-no-sale' %}{% if manager_query %}?{{ manager_query }}{% endif %}">زار ولم يشترِ</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-visits' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'visits' %}{% if manager_query %}?{{ manager_query }}{% endif %}">متابعة الزيارات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'clients-card' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'clients' 'card' %}{% if manager_query %}?{{ manager_query }}{% endif %}">بطاقة زبون</a></li>
+                </ul>
+            </li>
+
+            <li class="manager-navigation__group{% if active_section == 'fleet-products' %} manager-navigation__group--open{% endif %}">
+                <button class="manager-navigation__toggle" type="button" data-manager-nav-toggle aria-expanded="{% if active_section == 'fleet-products' %}true{% else %}false{% endif %}">
+                    <span class="manager-navigation__toggle-label"><span aria-hidden="true">▣</span><span>الشاحنات والمنتجات</span></span>
+                    <span class="manager-navigation__chevron" aria-hidden="true">⌄</span>
+                </button>
+                <ul class="manager-navigation__submenu">
+                    <li><a class="manager-navigation__sublink{% if active_item == 'fleet-products-not-sold' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'fleet-products' 'not-sold' %}{% if manager_query %}?{{ manager_query }}{% endif %}">المنتجات غير المباعة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'fleet-products-slow-moving' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'fleet-products' 'slow-moving' %}{% if manager_query %}?{{ manager_query }}{% endif %}">المنتجات ضعيفة الحركة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'fleet-products-load-vs-sales' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'fleet-products' 'load-vs-sales' %}{% if manager_query %}?{{ manager_query }}{% endif %}">التحميل مقابل البيع</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'fleet-products-truck-status' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'fleet-products' 'truck-status' %}{% if manager_query %}?{{ manager_query }}{% endif %}">حالة الشاحنات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'fleet-products-truck' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'fleet-products' 'truck' %}{% if manager_query %}?{{ manager_query }}{% endif %}">تفاصيل شاحنة</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'fleet-products-product' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'fleet-products' 'product' %}{% if manager_query %}?{{ manager_query }}{% endif %}">تفاصيل منتج</a></li>
+                </ul>
+            </li>
+
+            <li class="manager-navigation__group{% if active_section == 'follow-up' %} manager-navigation__group--open{% endif %}">
+                <button class="manager-navigation__toggle" type="button" data-manager-nav-toggle aria-expanded="{% if active_section == 'follow-up' %}true{% else %}false{% endif %}">
+                    <span class="manager-navigation__toggle-label"><span aria-hidden="true">!</span><span>المتابعة</span></span>
+                    <span class="manager-navigation__chevron" aria-hidden="true">⌄</span>
+                </button>
+                <ul class="manager-navigation__submenu">
+                    <li><a class="manager-navigation__sublink{% if active_item == 'follow-up-attention' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'follow-up' 'attention' %}{% if manager_query %}?{{ manager_query }}{% endif %}">مركز الانتباه</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'follow-up-data-quality' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'follow-up' 'data-quality' %}{% if manager_query %}?{{ manager_query }}{% endif %}">جودة البيانات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'follow-up-gaps' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'follow-up' 'gaps' %}{% if manager_query %}?{{ manager_query }}{% endif %}">الفجوات الحسابية</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'follow-up-coverage' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'follow-up' 'coverage' %}{% if manager_query %}?{{ manager_query }}{% endif %}">التغطية الزمنية</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'follow-up-exclusions' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'follow-up' 'exclusions' %}{% if manager_query %}?{{ manager_query }}{% endif %}">الاستبعادات</a></li>
+                    <li><a class="manager-navigation__sublink{% if active_item == 'follow-up-sources' %} manager-navigation__sublink--active{% endif %}" href="{% url 'dashboard:manager_section' 'follow-up' 'sources' %}{% if manager_query %}?{{ manager_query }}{% endif %}">حالة مصادر البيانات</a></li>
+                </ul>
+            </li>
+
+            {% if can_use_ai_assistants %}
+                <li>
+                    <a class="manager-navigation__link{% if active_section == 'ask-delisky' %} manager-navigation__link--active{% endif %}" href="{% url 'dashboard:manager_tool' 'ask-delisky' %}{% if manager_query %}?{{ manager_query }}{% endif %}">
+                        <span aria-hidden="true">◇</span>
+                        <span>Ask DELISKY</span>
+                    </a>
+                </li>
+                <li>
+                    <a class="manager-navigation__link{% if active_section == 'marketing-helper' %} manager-navigation__link--active{% endif %}" href="{% url 'dashboard:manager_tool' 'marketing-helper' %}{% if manager_query %}?{{ manager_query }}{% endif %}">
+                        <span aria-hidden="true">✦</span>
+                        <span>المستشار التجاري</span>
+                    </a>
+                </li>
+            {% endif %}
+
+            {% if request.user.is_superuser %}
+                <li class="manager-navigation__admin-separator">
+                    <a class="manager-navigation__link" href="{% url 'admin:index' %}">
+                        <span aria-hidden="true">⚙</span>
+                        <span>لوحة الإدارة</span>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </div>
+</template>

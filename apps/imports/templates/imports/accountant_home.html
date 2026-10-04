@@ -1034,31 +1034,275 @@
 
 <section
     class="panel raw-upload-panel"
+    id="raw-items-detail-import"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                Items DETAIL
+            </span>
+
+            <h2>
+                رفع المبيعات التفصيلية بالعملية
+            </h2>
+        </div>
+
+        <span class="secure-pill">
+            Transaction-level
+        </span>
+    </div>
+
+    <p>
+        هذا هو المسار المعتمد للملفات التفصيلية الجديدة.
+        ارفع ملف BIFA DETAIL و/أو ملف AIO WEB DETAIL،
+        وسيقسم النظام العمليات حسب العلامة والشاحنة
+        ويحتفظ بتاريخ البيع الدقيق لكل سطر.
+    </p>
+
+    <form
+        method="post"
+        action="{% url 'imports:raw_items_detail_upload' %}"
+        enctype="multipart/form-data"
+        class="upload-form"
+        id="raw-items-detail-form"
+        novalidate
+    >
+        {% csrf_token %}
+
+        {% if items_detail_upload_form.non_field_errors %}
+            <div class="form-alert error">
+                {% for error in items_detail_upload_form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="import-meta-grid">
+            <div class="form-field">
+                <label for="{{ items_detail_upload_form.period_start.id_for_label }}">
+                    {{ items_detail_upload_form.period_start.label }}
+                </label>
+
+                {{ items_detail_upload_form.period_start }}
+
+                {% for error in items_detail_upload_form.period_start.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+
+            <div class="form-field">
+                <label for="{{ items_detail_upload_form.period_end.id_for_label }}">
+                    {{ items_detail_upload_form.period_end.label }}
+                </label>
+
+                {{ items_detail_upload_form.period_end }}
+
+                {% for error in items_detail_upload_form.period_end.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="raw-file-row">
+            <div class="panel-heading">
+                <strong>BIFA DETAIL</strong>
+                <span class="secure-pill">BIFA_MILA</span>
+            </div>
+
+            <div class="form-field">
+                <label for="{{ items_detail_upload_form.bifa_file.id_for_label }}">
+                    {{ items_detail_upload_form.bifa_file.label }}
+                </label>
+
+                {{ items_detail_upload_form.bifa_file }}
+
+                {% if items_detail_upload_form.bifa_file.help_text %}
+                    <small>
+                        {{ items_detail_upload_form.bifa_file.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in items_detail_upload_form.bifa_file.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="raw-file-row">
+            <div class="panel-heading">
+                <strong>AIO WEB DETAIL</strong>
+                <span class="secure-pill">DELISKY / NITA</span>
+            </div>
+
+            <div class="form-field">
+                <label for="{{ items_detail_upload_form.aio_file.id_for_label }}">
+                    {{ items_detail_upload_form.aio_file.label }}
+                </label>
+
+                {{ items_detail_upload_form.aio_file }}
+
+                {% if items_detail_upload_form.aio_file.help_text %}
+                    <small>
+                        {{ items_detail_upload_form.aio_file.help_text }}
+                    </small>
+                {% endif %}
+
+                {% for error in items_detail_upload_form.aio_file.errors %}
+                    <span class="field-error">
+                        {{ error }}
+                    </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="upload-actions">
+            <span>
+                الملف الخام يُحفظ مرة واحدة،
+                وكل علامة تُنشأ لها دفعة مراجعة مستقلة.
+            </span>
+
+            <button
+                type="submit"
+                class="primary-button"
+            >
+                فحص ملفات Items DETAIL
+            </button>
+        </div>
+    </form>
+
+    {% if items_detail_upload_result %}
+        <div class="raw-upload-results">
+            <div class="panel-heading">
+                <strong>
+                    نتيجة فحص Items DETAIL
+                </strong>
+
+                <span>
+                    نجح:
+                    {{ items_detail_upload_result.succeeded_count }}
+                    /
+                    فشل:
+                    {{ items_detail_upload_result.failed_count }}
+                </span>
+            </div>
+
+            {% for item in items_detail_upload_result.files %}
+                <article class="raw-file-row">
+                    <div class="panel-heading">
+                        <strong dir="ltr">
+                            {{ item.filename|default:"?" }}
+                        </strong>
+
+                        {% if item.succeeded %}
+                            <span class="status-badge status-reviewed">
+                                ناجح
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-blocked">
+                                مرفوض
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.succeeded %}
+                        {% for batch in item.batches %}
+                            <div class="raw-upload-result">
+                                <div class="import-meta-grid">
+                                    <span>
+                                        العلامة:
+                                        <strong>{{ batch.brand.code }}</strong>
+                                    </span>
+
+                                    <span>
+                                        الحالة:
+                                        <strong>{{ batch.status }}</strong>
+                                    </span>
+
+                                    <span>
+                                        الصفوف:
+                                        <strong>{{ batch.total_rows }}</strong>
+                                    </span>
+
+                                    <span>
+                                        مقبول:
+                                        <strong>{{ batch.accepted_rows }}</strong>
+                                    </span>
+
+                                    <span>
+                                        مستبعد:
+                                        <strong>{{ batch.excluded_rows }}</strong>
+                                    </span>
+
+                                    <span>
+                                        تحذيرات:
+                                        <strong>{{ batch.warning_count }}</strong>
+                                    </span>
+
+                                    <span>
+                                        أخطاء:
+                                        <strong>{{ batch.error_count }}</strong>
+                                    </span>
+                                </div>
+
+                                <a
+                                    href="{% url 'imports:batch_detail' batch.id %}"
+                                    class="secondary-button"
+                                >
+                                    فتح مراجعة {{ batch.brand.code }}
+                                </a>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="form-alert error">
+                            <span>
+                                {{ item.error_message|default:"تعذر معالجة الملف." }}
+                            </span>
+
+                            {% if item.error_code %}
+                                <code dir="ltr">
+                                    {{ item.error_code }}
+                                </code>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+
+<section
+    class="panel raw-upload-panel"
     id="raw-items-import"
 >
     <div class="panel-heading">
         <div>
             <span class="section-kicker">
-                المبيعات حسب الصنف والزبون
+                Items Legacy
             </span>
 
             <h2>
-                رفع المبيعات حسب الصنف والزبون
+                رفع ملفات Items القديمة حسب الشاحنة
             </h2>
         </div>
 
         <span class="secure-pill">
-            رفع متعدد الملفات
+            Legacy
         </span>
     </div>
 
     <p>
-        اختر الفترة مرة واحدة،
-        ثم ارفع ملفات
-        <strong>حسب الصنف والزبون</strong>
-        الخاصة بـ BIFA و AIO WEB.
-        يتعرف النظام على الشاحنة
-        تلقائيًا من اسم الملف.
+        هذا المسار مخصص للملفات القديمة المنفصلة حسب الشاحنة.
+        للملفات الجديدة التي تحتوي على تاريخ البيع والمستخدم لكل عملية،
+        استعمل قسم
+        <strong>Items DETAIL</strong>
+        الموجود أعلاه.
     </p>
 
     <form

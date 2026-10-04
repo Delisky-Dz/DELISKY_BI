@@ -1,0 +1,31 @@
+{% load static %}
+
+<section
+    class="manager-welcome"
+    aria-labelledby="manager-welcome-title"
+>
+    <div
+        class="manager-welcome__watermark"
+        aria-hidden="true"
+    >
+        <img
+            src="{% static 'accounts/images/delisky-logo.png' %}"
+            alt=""
+        >
+    </div>
+
+    <div class="manager-welcome__content">
+        <p class="manager-welcome__eyebrow">
+            DELISKY BI
+        </p>
+
+        <h2 id="manager-welcome-title">
+            مرحبًا بك في لوحة إدارة DELISKY
+        </h2>
+
+        <p>
+            اختر الفترة والعلامة من الأعلى،
+            ثم اضغط «عرض التحليل» لعرض المؤشرات المطلوبة فقط.
+        </p>
+    </div>
+</section>

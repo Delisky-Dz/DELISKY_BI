@@ -1,48 +1,28 @@
 {% extends "dashboard/base.html" %}
+{% load static %}
 
 {% block title %}
     لوحة المدير | DELISKY BI
 {% endblock %}
 
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-overview-2"
+    >
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_overview.css' %}?v=20260914-overview-2"
+    >
+{% endblock %}
+
 {% block content %}
-    {% if dashboard_result and summary %}
-        {% include "dashboard/partials/executive_overview.html" %}
-    {% endif %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
 
     {% include "dashboard/partials/filter_form.html" %}
 
-    {% if can_use_ai_assistants %}
-        {% if not filter_form.errors %}
-            {% include "dashboard/partials/ask_delisky.html" %}
-        {% endif %}
-
-        {% include "dashboard/partials/marketing_helper.html" %}
-    {% endif %}
-
-    {% if dashboard_result %}
-        {% if summary %}
-            {% include "dashboard/partials/sales_summary.html" %}
-            {% include "dashboard/partials/visits_summary.html" %}
-            {% include "dashboard/partials/workers_summary.html" %}
-            {% include "dashboard/partials/attention_summary.html" %}
-            {% include "dashboard/partials/truck_status.html" %}
-        {% endif %}
-
-        {% if top_sales_workers or lowest_sales_workers or highest_visit_workers or highest_non_visit_workers or most_not_sold_workers %}
-            {% include "dashboard/partials/worker_rankings.html" %}
-        {% endif %}
-
-        {% if worker_cards %}
-            {% include "dashboard/partials/worker_cards.html" %}
-        {% endif %}
-
-        {% if coverage %}
-            {% include "dashboard/partials/coverage_summary.html" %}
-        {% endif %}
-
-        {% if data_quality %}
-            {% include "dashboard/partials/data_quality_summary.html" %}
-        {% endif %}
+    {% if not filter_requested %}
+        {% include "dashboard/partials/welcome_state.html" %}
     {% elif filter_form.errors %}
         <section
             class="dashboard-empty-state dashboard-empty-state--error"
@@ -53,11 +33,11 @@
             </h2>
 
             <p>
-                صحح الأخطاء
-                الظاهرة ثم
-                أعد المحاولة.
+                صحح الأخطاء الظاهرة ثم أعد المحاولة.
             </p>
         </section>
+    {% elif overview_summary %}
+        {% include "dashboard/partials/manager_overview_core.html" %}
     {% else %}
         <section
             class="dashboard-empty-state"
@@ -68,11 +48,15 @@
             </h2>
 
             <p>
-                غيّر الفترة
-                أو العلامة
-                لعرض البيانات
-                المتاحة.
+                غيّر الفترة أو العلامة لعرض البيانات المتاحة.
             </p>
         </section>
     {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script
+        src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-overview-2"
+        defer
+    ></script>
 {% endblock %}

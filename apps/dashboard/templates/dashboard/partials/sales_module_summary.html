@@ -1,0 +1,40 @@
+<div class="metric-grid">
+    <article class="metric-card">
+        <h3>إجمالي المبيعات</h3>
+        <p>
+            {{ sales_summary.total_sales|floatformat:2 }}
+            دج
+        </p>
+    </article>
+
+    <article class="metric-card">
+        <h3>عمليات البيع الإيجابية</h3>
+        <p>
+            {{ sales_summary.positive_sale_record_count }}
+            من
+            {{ sales_summary.sale_record_count }}
+        </p>
+    </article>
+
+    <article class="metric-card">
+        <h3>السجلات ذات القيمة الصفرية</h3>
+        <p>{{ sales_summary.zero_total_record_count }}</p>
+    </article>
+
+    <article class="metric-card">
+        <h3>متوسط البيع الإيجابي</h3>
+        {% if sales_summary.average_positive_sale_value == None %}
+            <p class="metric-empty">لا توجد بيانات كافية</p>
+        {% else %}
+            <p>
+                {{ sales_summary.average_positive_sale_value|floatformat:2 }}
+                دج
+            </p>
+        {% endif %}
+    </article>
+
+    <article class="metric-card">
+        <h3>أيام البيع المسجلة</h3>
+        <p>{{ sales_summary.recorded_day_count }}</p>
+    </article>
+</div>

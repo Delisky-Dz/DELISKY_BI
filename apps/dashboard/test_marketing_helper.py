@@ -126,60 +126,41 @@ class MarketingHelperApiTests(TestCase):
             "dashboard:marketing_helper"
         )
 
-    def test_manager_dashboard_renders_both_ai_assistants(
-        self
-    ):
-        self.client.force_login(
-            self.manager
-        )
+    def test_manager_dashboard_renders_both_ai_assistants(self):
+        self.client.force_login(self.manager)
 
-        response = self.client.get(
-            reverse(
-                "dashboard:manager_dashboard"
-            )
+        dashboard = self.client.get(
+            reverse("dashboard:manager_dashboard")
         )
+        self.assertEqual(dashboard.status_code, 200)
+        dashboard_html = dashboard.content.decode("utf-8")
 
-        self.assertEqual(
-            response.status_code,
-            200,
+        ask_url = reverse(
+            "dashboard:manager_tool",
+            args=("ask-delisky",),
         )
-
-        html = response.content.decode(
-            "utf-8"
+        marketing_url = reverse(
+            "dashboard:manager_tool",
+            args=("marketing-helper",),
         )
+        self.assertIn(f'href="{ask_url}"', dashboard_html)
+        self.assertIn(f'href="{marketing_url}"', dashboard_html)
+        self.assertNotIn("data-ask-delisky", dashboard_html)
+        self.assertNotIn("data-marketing-helper", dashboard_html)
 
+        ask_page = self.client.get(ask_url)
+        marketing_page = self.client.get(marketing_url)
+        self.assertEqual(ask_page.status_code, 200)
+        self.assertEqual(marketing_page.status_code, 200)
         self.assertIn(
             "data-ask-delisky",
-            html,
+            ask_page.content.decode("utf-8"),
         )
         self.assertIn(
             "data-marketing-helper",
-            html,
+            marketing_page.content.decode("utf-8"),
         )
-        self.assertIn(
-            'data-assistant-kind="analytics"',
-            html,
-        )
-        self.assertIn(
-            'data-assistant-kind="marketing"',
-            html,
-        )
-        self.assertIn(
-            'href="#marketing-helper-title"',
-            html,
-        )
-        self.assertIn(
-            reverse(
-                "dashboard:marketing_helper"
-            ),
-            html,
-        )
-        self.assertGreaterEqual(
-            html.count(
-                "data-robot-icon"
-            ),
-            2,
-        )
+
 
     def test_super_admin_dashboards_hide_ai_assistants(
         self

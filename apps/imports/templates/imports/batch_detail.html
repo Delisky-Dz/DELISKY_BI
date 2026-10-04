@@ -117,6 +117,92 @@
     </section>
 {% endif %}
 
+{% if items_detail %}
+    <section class="panel replacement-notice">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    Items DETAIL
+                </span>
+
+                <h2>
+                    نطاق العمليات وخطة الاستبدال
+                </h2>
+            </div>
+        </div>
+
+        <p>
+            هذه دفعة معاملات تفصيلية تعتمد تاريخ البيع
+            الموجود داخل كل سطر، وليس فترة الملف فقط.
+        </p>
+
+        <dl class="technical-list">
+            <div>
+                <dt>الشاحنات المغطاة</dt>
+                <dd dir="ltr">
+                    {{ items_detail.covered_trucks|join:", " }}
+                </dd>
+            </div>
+
+            <div>
+                <dt>صفوف المصدر المستبعدة</dt>
+                <dd>
+                    {{ items_detail_source_audit.excluded_source_row_count|default:0 }}
+                </dd>
+            </div>
+
+            {% if items_detail_source_audit.excluded_source_groups %}
+                <div>
+                    <dt>مصادر مستبعدة من التحليلات</dt>
+                    <dd dir="ltr">
+                        {% for group in items_detail_source_audit.excluded_source_groups %}
+                            {{ group.source_code }}
+                            ({{ group.count }})
+                            {% if not forloop.last %}، {% endif %}
+                        {% endfor %}
+                    </dd>
+                </div>
+            {% endif %}
+        </dl>
+
+        {% if detail_replacement_batches %}
+            <div class="issues-list">
+                {% for replaced in detail_replacement_batches %}
+                    <article class="issue-card issue-info">
+                        <div>
+                            <strong>
+                                دفعة #{{ replaced.id }}
+                                —
+                                {{ replaced.brand.code }}
+                            </strong>
+
+                            <p dir="ltr">
+                                {{ replaced.original_filename }}
+                            </p>
+                        </div>
+
+                        <span>
+                            {{ replaced.get_status_display }}
+                        </span>
+
+                        <a
+                            href="{% url 'imports:batch_detail' replaced.id %}"
+                            class="back-link"
+                        >
+                            فتح الدفعة السابقة
+                        </a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>
+                لا توجد دفعات معتمدة سابقة ضمن هذا النطاق
+                مطلوب استبدالها.
+            </p>
+        {% endif %}
+    </section>
+{% endif %}
+
 <section class="review-metrics">
     <article>
         <span>إجمالي الصفوف</span>
@@ -295,7 +381,7 @@
                 <dt>بصمة الملف</dt>
                 <dd>
                     <code dir="ltr">
-                        {{ batch.file_sha256|slice:":16" }}…
+                        {{ source_file_sha256|slice:":16"|default:"—" }}{% if source_file_sha256 %}…{% endif %}
                     </code>
                 </dd>
             </div>

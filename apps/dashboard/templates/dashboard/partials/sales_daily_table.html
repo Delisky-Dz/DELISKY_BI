@@ -1,0 +1,40 @@
+<div class="manager-section-card">
+    <header class="manager-section-card__header">
+        <h3>التفاصيل اليومية</h3>
+        <p>
+            يعرض الجدول الأيام الموجودة فعليًا في بيانات المبيعات.
+            غياب يوم لا يعني أن مبيعاته صفر.
+        </p>
+    </header>
+
+    {% if daily_sales %}
+        <div class="manager-data-table-wrap">
+            <table class="manager-data-table">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>إجمالي المبيعات</th>
+                        <th>العمليات الإيجابية</th>
+                        <th>إجمالي السجلات</th>
+                        <th>السجلات الصفرية</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in daily_sales %}
+                        <tr>
+                            <td><strong>{{ row.sale_date|date:"Y/m/d" }}</strong></td>
+                            <td>{{ row.metrics.total_sales|floatformat:2 }} دج</td>
+                            <td>{{ row.metrics.positive_sale_record_count }}</td>
+                            <td>{{ row.metrics.sale_record_count }}</td>
+                            <td>{{ row.metrics.zero_total_record_count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="manager-daily-empty">
+            لا توجد تفاصيل يومية ضمن النطاق الحالي.
+        </div>
+    {% endif %}
+</div>

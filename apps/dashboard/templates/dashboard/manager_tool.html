@@ -1,0 +1,37 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ tool_label }} | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-modules-1"
+    >
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% elif tool == 'ask-delisky' %}
+        {% include "dashboard/partials/ask_delisky.html" %}
+    {% elif tool == 'marketing-helper' %}
+        {% include "dashboard/partials/marketing_helper.html" %}
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script
+        src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-modules-1"
+        defer
+    ></script>
+{% endblock %}

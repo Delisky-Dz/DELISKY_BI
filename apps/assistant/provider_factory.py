@@ -1,4 +1,7 @@
+import os
 from collections.abc import Mapping
+
+from django.conf import settings
 
 from .config import (
     AskDeliskyProviderMode,
@@ -10,6 +13,10 @@ from .local_provider import (
 )
 from .ollama_transport import OllamaTransport
 from .provider import AskDeliskyProvider
+
+
+# Allow a short analysis to include its evidence and limitations.
+ASK_DELISKY_NUM_PREDICT = 256
 
 
 class AskDeliskyProviderDisabledError(RuntimeError):
@@ -32,9 +39,16 @@ def build_ask_delisky_provider(
     explicit mapping is supplied. Network access does not occur
     while building the provider.
     """
+    # Ask-only override; the legacy shared timeout and Marketing are unchanged.
+    source = os.environ if environ is None else environ
+    timeout = source.get("ASK_DELISKY_REQUEST_TIMEOUT_SECONDS")
+    if timeout is None and environ is None and settings.configured:
+        timeout = getattr(settings, "ASK_DELISKY_REQUEST_TIMEOUT_SECONDS", None)
+    if timeout is not None:
+        source = {**source, "ASK_DELISKY_TIMEOUT_SECONDS": str(timeout)}
     try:
         config = load_ask_delisky_provider_config(
-            environ=environ
+            environ=source
         )
     except ValueError as exc:
         raise AskDeliskyProviderConfigurationError(
@@ -50,7 +64,9 @@ def build_ask_delisky_provider(
         transport = local_transport
 
         if transport is None:
-            transport = OllamaTransport()
+            transport = OllamaTransport(
+                num_predict=ASK_DELISKY_NUM_PREDICT
+            )
 
         return LocalAskDeliskyProvider(
             config=config,

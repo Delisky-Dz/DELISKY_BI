@@ -1,0 +1,90 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}
+    {{ sales_tab_label }} | المبيعات | DELISKY BI
+{% endblock %}
+
+{% block extra_head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'dashboard/css/manager_restructure.css' %}?v=20260914-modules-1"
+    >
+{% endblock %}
+
+{% block content %}
+    {% include "dashboard/partials/manager_sidebar_navigation.html" %}
+
+    {% include "dashboard/partials/filter_form.html" %}
+
+    {% if filter_requested and filter_form.errors %}
+        <section class="dashboard-empty-state dashboard-empty-state--error">
+            <h2>تعذر تطبيق الفلتر</h2>
+            <p>صحح الأخطاء الظاهرة ثم أعد المحاولة.</p>
+        </section>
+    {% elif not filter_requested %}
+        <section class="manager-placeholder">
+            <strong>اختر الفترة والعلامة لعرض المبيعات</strong>
+            <p>
+                هذه الصفحة لا تحمّل بيانات المبيعات قبل الضغط على
+                «عرض التحليل».
+            </p>
+        </section>
+    {% else %}
+        <section class="dashboard-section">
+            <header class="manager-module-header">
+                <div>
+                    <p class="manager-module-header__eyebrow">
+                        المبيعات
+                    </p>
+                    <h2>{{ sales_tab_label }}</h2>
+                    <p>
+                        يتم تحميل بيانات المبيعات فقط في هذا القسم،
+                        دون تشغيل تحليلات الزبائن أو المنتجات أو جودة البيانات.
+                    </p>
+                </div>
+            </header>
+
+            <nav class="manager-module-tabs" aria-label="أقسام المبيعات">
+                <a href="{% url 'dashboard:manager_sales' 'summary' %}{% if manager_query %}?{{ manager_query }}{% endif %}" {% if sales_tab == 'summary' %}aria-current="page"{% endif %}>ملخص المبيعات</a>
+                <a href="{% url 'dashboard:manager_sales' 'timeline' %}{% if manager_query %}?{{ manager_query }}{% endif %}" {% if sales_tab == 'timeline' %}aria-current="page"{% endif %}>تطور المبيعات</a>
+                <a href="{% url 'dashboard:manager_sales' 'brands' %}{% if manager_query %}?{{ manager_query }}{% endif %}" {% if sales_tab == 'brands' %}aria-current="page"{% endif %}>حسب العلامة</a>
+                <a href="{% url 'dashboard:manager_sales' 'trucks' %}{% if manager_query %}?{{ manager_query }}{% endif %}" {% if sales_tab == 'trucks' %}aria-current="page"{% endif %}>حسب الشاحنة</a>
+                <a href="{% url 'dashboard:manager_sales' 'daily' %}{% if manager_query %}?{{ manager_query }}{% endif %}" {% if sales_tab == 'daily' %}aria-current="page"{% endif %}>التفاصيل اليومية</a>
+            </nav>
+
+            {% if sales_tab == 'summary' %}
+                {% include "dashboard/partials/sales_module_summary.html" %}
+            {% elif sales_tab == 'timeline' %}
+                {% include "dashboard/partials/sales_timeline.html" %}
+            {% elif sales_tab == 'brands' %}
+                {% if single_brand_scope %}
+                    <div class="manager-scope-notice">
+                        <strong>
+                            تم اختيار علامة واحدة: {{ filter_form.cleaned_data.brand }}
+                        </strong>
+                        <p>
+                            بدل عرض مساهمة علامة واحدة بنسبة 100%،
+                            نعرض هنا مقارنة الشاحنات داخل العلامة المختارة.
+                        </p>
+                    </div>
+                    <br>
+                    {% include "dashboard/partials/sales_truck_table.html" %}
+                {% else %}
+                    {% include "dashboard/partials/brand_sales_chart.html" %}
+                {% endif %}
+            {% elif sales_tab == 'trucks' %}
+                {% include "dashboard/partials/sales_truck_table.html" %}
+            {% elif sales_tab == 'daily' %}
+                {% include "dashboard/partials/sales_daily_table.html" %}
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+    <script
+        src="{% static 'dashboard/js/manager_restructure.js' %}?v=20260914-modules-1"
+        defer
+    ></script>
+{% endblock %}

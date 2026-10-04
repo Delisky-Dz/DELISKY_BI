@@ -1,0 +1,190 @@
+{% load l10n %}
+
+<section class="dashboard-section" aria-labelledby="manager-overview-title">
+    <header class="manager-module-header">
+        <div>
+            <p class="manager-module-header__eyebrow">
+                نظرة عامة
+            </p>
+            <h2 id="manager-overview-title">
+                الملخص التنفيذي
+            </h2>
+            <p>
+                أهم المؤشرات التي يحتاجها المدير الآن. التفاصيل الأخرى
+                لا يتم تحميلها إلا عند فتح القسم المطلوب من القائمة.
+            </p>
+        </div>
+    </header>
+
+    <div class="executive-kpi-grid">
+        <a
+            class="executive-kpi executive-kpi--sales manager-overview-link-card"
+            href="{% url 'dashboard:manager_sales' 'summary' %}{% if manager_query %}?{{ manager_query }}{% endif %}"
+        >
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">دج</span>
+                <span class="executive-kpi__status">المبيعات</span>
+            </div>
+            <p class="executive-kpi__label">إجمالي المبيعات</p>
+            <p class="executive-kpi__value">
+                {{ overview_summary.total_sales|floatformat:2 }}
+                <small>دج</small>
+            </p>
+            <div class="executive-kpi__footer">
+                <span>{{ overview_summary.positive_sale_record_count }} عملية إيجابية</span>
+                <span>{{ overview_summary.sale_record_count }} سجل</span>
+            </div>
+        </a>
+
+        <a
+            class="executive-kpi executive-kpi--visits manager-overview-link-card"
+            href="{% url 'dashboard:manager_section' 'clients' 'overview' %}{% if manager_query %}?{{ manager_query }}{% endif %}"
+        >
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">✓</span>
+                <span class="executive-kpi__status">الزيارات</span>
+            </div>
+            <p class="executive-kpi__label">نسبة نجاح الزيارة</p>
+            {% if overview_summary.visit_success_percentage == None %}
+                <p class="executive-kpi__empty">لا توجد بيانات كافية</p>
+            {% else %}
+                <p class="executive-kpi__value">
+                    {{ overview_summary.visit_success_percentage|floatformat:1 }}
+                    <small>%</small>
+                </p>
+            {% endif %}
+            <div class="executive-kpi__footer">
+                <span>{{ overview_summary.visited_record_count }} زيارة ناجحة</span>
+                <span>{{ overview_summary.pos_record_count }} سجل</span>
+            </div>
+        </a>
+
+        <a
+            class="executive-kpi executive-kpi--workers manager-overview-link-card"
+            href="{% url 'dashboard:manager_section' 'sellers' 'rankings' %}{% if manager_query %}?{{ manager_query }}{% endif %}"
+        >
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">ب</span>
+                <span class="executive-kpi__status">البائعون</span>
+            </div>
+            <p class="executive-kpi__label">لديهم مبيعات قابلة للقياس</p>
+            <p class="executive-kpi__value">
+                {{ overview_summary.measured_sales_worker_count }}
+            </p>
+            <div class="executive-kpi__footer">
+                <span>قياس فعلي خلال الفترة</span>
+                <span>عرض الترتيب ←</span>
+            </div>
+        </a>
+
+        <a
+            class="executive-kpi executive-kpi--attention manager-overview-link-card"
+            href="{% url 'dashboard:manager_section' 'clients' 'visits' %}{% if manager_query %}?{{ manager_query }}{% endif %}"
+        >
+            <div class="executive-kpi__top">
+                <span class="executive-kpi__icon" aria-hidden="true">!</span>
+                <span class="executive-kpi__status">متابعة الزبائن</span>
+            </div>
+            <p class="executive-kpi__label">
+                زبائن تكرر عندهم عدم الزيارة
+            </p>
+            <p class="executive-kpi__value">
+                {{ overview_summary.client_follow_up_count }}
+            </p>
+            <div class="executive-kpi__footer">
+                <span>3 حالات عدم زيارة أو أكثر</span>
+                <span>مراجعة الزبائن ←</span>
+            </div>
+        </a>
+    </div>
+</section>
+
+<section class="dashboard-section" aria-labelledby="overview-sales-timeline-title">
+    <span id="overview-sales-timeline-title" hidden>منحنى المبيعات</span>
+    {% include "dashboard/partials/sales_timeline.html" %}
+</section>
+
+<section class="dashboard-section" aria-labelledby="overview-opportunities-title">
+    <header class="manager-module-header">
+        <div>
+            <p class="manager-module-header__eyebrow">فرص تحتاج تدخل</p>
+            <h2 id="overview-opportunities-title">أين يحتاج المدير أن يتدخل؟</h2>
+            <p>
+                لا نحسب هذه التحليلات الثقيلة داخل النظرة العامة.
+                افتح الحالة المطلوبة ليتم تحميلها وحدها.
+            </p>
+        </div>
+    </header>
+
+    <div class="manager-opportunity-grid">
+        <a href="{% url 'dashboard:manager_section' 'fleet-products' 'not-sold' %}{% if manager_query %}?{{ manager_query }}{% endif %}">
+            <strong>المنتجات غير المباعة</strong>
+            <span>اعرض المنتجات التي لم تتحرك خلال الفترة المختارة.</span>
+        </a>
+        <a href="{% url 'dashboard:manager_section' 'fleet-products' 'slow-moving' %}{% if manager_query %}?{{ manager_query }}{% endif %}">
+            <strong>المنتجات ضعيفة الحركة</strong>
+            <span>راجع المنتجات ذات التحميل المرتفع والبيع الضعيف.</span>
+        </a>
+        <a href="{% url 'dashboard:manager_section' 'clients' 'declining' %}{% if manager_query %}?{{ manager_query }}{% endif %}">
+            <strong>الزبائن المتراجعون</strong>
+            <span>اكتشف الزبائن المهمين الذين تراجعت مشترياتهم.</span>
+        </a>
+        <a href="{% url 'dashboard:manager_section' 'clients' 'stopped' %}{% if manager_query %}?{{ manager_query }}{% endif %}">
+            <strong>الزبائن المتوقفون عن الشراء</strong>
+            <span>راجع الزبائن الذين كانوا يشترون ثم توقف نشاطهم.</span>
+        </a>
+    </div>
+</section>
+
+<section class="dashboard-section" aria-labelledby="overview-top-sellers-title">
+    <header class="manager-module-header">
+        <div>
+            <p class="manager-module-header__eyebrow">قوة المبيعات</p>
+            <h2 id="overview-top-sellers-title">أعلى 5 بائعين / مسارات</h2>
+            <p>
+                عند استعمال هوية عامة للمسار يظهر اسم المسار بدل اسم شخص غير موثوق.
+            </p>
+        </div>
+        <a
+            class="button button--secondary"
+            href="{% url 'dashboard:manager_section' 'sellers' 'rankings' %}{% if manager_query %}?{{ manager_query }}{% endif %}"
+        >
+            عرض كل البائعين
+        </a>
+    </header>
+
+    {% if top_sales_workers %}
+        <div class="executive-sales-bars">
+            {% for worker in top_sales_workers %}
+                <div class="executive-sales-row">
+                    <div class="executive-sales-row__header">
+                        <span class="executive-sales-row__identity">
+                            <span class="executive-sales-row__rank">{{ forloop.counter }}</span>
+                            <span>
+                                <strong>{{ worker.worker_name }}</strong>
+                                {% if worker.subtitle %}<small>{{ worker.subtitle }}</small>{% endif %}
+                            </span>
+                        </span>
+                        <strong>{{ worker.total_sales|floatformat:2 }} دج</strong>
+                    </div>
+                    <meter
+                        class="brand-sales-chart__meter"
+                        min="0"
+                        max="100"
+                        value="{{ worker.relative_bar_percentage|unlocalize }}"
+                    >
+                        {{ worker.relative_bar_percentage|floatformat:1 }}%
+                    </meter>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="manager-daily-empty">لا توجد مبيعات منسوبة إلى بائعين ضمن النطاق الحالي.</div>
+    {% endif %}
+</section>
+
+{% if brand_sales_chart %}
+    <section class="dashboard-section" aria-label="المبيعات حسب العلامة">
+        {% include "dashboard/partials/brand_sales_chart.html" %}
+    </section>
+{% endif %}

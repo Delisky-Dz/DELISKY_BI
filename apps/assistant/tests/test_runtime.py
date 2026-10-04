@@ -2,7 +2,7 @@ import json
 from datetime import date
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
 from apps.analytics.services.manager_insights_orchestrator import (
     ManagerInsightsResult,
@@ -32,6 +32,7 @@ class FakeProvider:
         )
 
 
+@override_settings(ASK_DELISKY_CONTEXT_CACHE_ENABLED=False)
 class AskManagerDeliskyRuntimeTests(SimpleTestCase):
     def make_insights_result(self):
         return ManagerInsightsResult(
@@ -92,7 +93,7 @@ class AskManagerDeliskyRuntimeTests(SimpleTestCase):
 
         self.assertEqual(
             payload["schema_version"],
-            "1",
+            "2",
         )
         self.assertEqual(
             payload["scope"]["period_start"],
@@ -125,7 +126,7 @@ class AskManagerDeliskyRuntimeTests(SimpleTestCase):
         )
         self.assertEqual(
             response.context_schema_version,
-            "1",
+            "2",
         )
 
     @patch(

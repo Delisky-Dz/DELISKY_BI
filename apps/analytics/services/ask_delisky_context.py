@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from .manager_dashboard import ManagerDashboardSummary
 from .manager_insights import (
     InsightEvidence,
     InsightEntityRef,
@@ -103,12 +104,106 @@ class AskDeliskyInsight:
 
 
 @dataclass(frozen=True, slots=True)
+class AskDeliskySummary:
+    total_sales: str
+    sale_record_count: int
+    positive_sale_record_count: int
+    zero_total_record_count: int
+    average_sale_value: str | None
+    average_positive_sale_value: str | None
+    worker_count: int
+    measured_sales_worker_count: int
+    pos_record_count: int
+    visited_record_count: int
+    not_visited_record_count: int
+    visit_success_ratio: str | None
+    non_visit_ratio: str | None
+    distinct_brand_client_count: int
+    worker_not_sold_product_count: int
+    truck_not_sold_product_count: int
+    worker_negative_gap_product_count: int
+    truck_negative_gap_product_count: int
+    confirmed_stopped_truck_count: int
+    possible_stopped_truck_count: int
+    conflicting_truck_state_count: int
+
+    def to_payload(self) -> dict[str, object]:
+        return {
+            "sales": {
+                "total": self.total_sales,
+                "currency": "DZD",
+                "record_count": self.sale_record_count,
+                "positive_record_count": (
+                    self.positive_sale_record_count
+                ),
+                "zero_total_record_count": (
+                    self.zero_total_record_count
+                ),
+                "average_record_value": (
+                    self.average_sale_value
+                ),
+                "average_positive_record_value": (
+                    self.average_positive_sale_value
+                ),
+            },
+            "workers": {
+                "count": self.worker_count,
+                "measured_sales_count": (
+                    self.measured_sales_worker_count
+                ),
+            },
+            "visits": {
+                "record_count": self.pos_record_count,
+                "visited_record_count": (
+                    self.visited_record_count
+                ),
+                "not_visited_record_count": (
+                    self.not_visited_record_count
+                ),
+                "success_ratio": (
+                    self.visit_success_ratio
+                ),
+                "non_visit_ratio": self.non_visit_ratio,
+                "distinct_brand_client_count": (
+                    self.distinct_brand_client_count
+                ),
+            },
+            "products": {
+                "worker_not_sold_count": (
+                    self.worker_not_sold_product_count
+                ),
+                "truck_not_sold_count": (
+                    self.truck_not_sold_product_count
+                ),
+                "worker_negative_gap_count": (
+                    self.worker_negative_gap_product_count
+                ),
+                "truck_negative_gap_count": (
+                    self.truck_negative_gap_product_count
+                ),
+            },
+            "trucks": {
+                "confirmed_stopped_count": (
+                    self.confirmed_stopped_truck_count
+                ),
+                "possible_stopped_count": (
+                    self.possible_stopped_truck_count
+                ),
+                "conflicting_state_count": (
+                    self.conflicting_truck_state_count
+                ),
+            },
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class AskDeliskyContext:
     schema_version: str
     requested_period_start: str | None
     requested_period_end: str | None
     brand_id: int | None
     insights: tuple[AskDeliskyInsight, ...]
+    summary: AskDeliskySummary | None = None
 
     @property
     def insight_count(self) -> int:
@@ -134,6 +229,11 @@ class AskDeliskyContext:
                 "period_end": self.requested_period_end,
                 "brand_id": self.brand_id,
             },
+            "summary": (
+                self.summary.to_payload()
+                if self.summary is not None
+                else None
+            ),
             "insights": [
                 insight.to_payload()
                 for insight in self.insights
@@ -208,6 +308,86 @@ def _serialize_value(
 
     raise TypeError(
         "Unsupported Ask DELISKY evidence value type."
+    )
+
+
+def _serialize_optional_decimal(
+    value: Decimal | None,
+) -> str | None:
+    if value is None:
+        return None
+
+    return format(value, "f")
+
+
+def _convert_summary(
+    summary: ManagerDashboardSummary | None,
+) -> AskDeliskySummary | None:
+    if summary is None:
+        return None
+
+    return AskDeliskySummary(
+        total_sales=format(summary.total_sales, "f"),
+        sale_record_count=summary.sale_record_count,
+        positive_sale_record_count=(
+            summary.positive_sale_record_count
+        ),
+        zero_total_record_count=(
+            summary.zero_total_record_count
+        ),
+        average_sale_value=_serialize_optional_decimal(
+            summary.average_sale_value
+        ),
+        average_positive_sale_value=(
+            _serialize_optional_decimal(
+                summary.average_positive_sale_value
+            )
+        ),
+        worker_count=summary.worker_count,
+        measured_sales_worker_count=(
+            summary.measured_sales_worker_count
+        ),
+        pos_record_count=summary.pos_record_count,
+        visited_record_count=(
+            summary.visited_record_count
+        ),
+        not_visited_record_count=(
+            summary.not_visited_record_count
+        ),
+        visit_success_ratio=(
+            _serialize_optional_decimal(
+                summary.visit_success_rate
+            )
+        ),
+        non_visit_ratio=(
+            _serialize_optional_decimal(
+                summary.non_visit_rate
+            )
+        ),
+        distinct_brand_client_count=(
+            summary.distinct_brand_client_count
+        ),
+        worker_not_sold_product_count=(
+            summary.worker_not_sold_product_count
+        ),
+        truck_not_sold_product_count=(
+            summary.truck_not_sold_product_count
+        ),
+        worker_negative_gap_product_count=(
+            summary.worker_negative_gap_product_count
+        ),
+        truck_negative_gap_product_count=(
+            summary.truck_negative_gap_product_count
+        ),
+        confirmed_stopped_truck_count=(
+            summary.confirmed_stopped_truck_count
+        ),
+        possible_stopped_truck_count=(
+            summary.possible_stopped_truck_count
+        ),
+        conflicting_truck_state_count=(
+            summary.conflicting_truck_state_count
+        ),
     )
 
 
@@ -292,7 +472,7 @@ def build_ask_delisky_context(
     any external or local language-model provider.
     """
     return AskDeliskyContext(
-        schema_version="1",
+        schema_version="2",
         requested_period_start=_serialize_date(
             insights_result.requested_period_start
         ),
@@ -305,5 +485,8 @@ def build_ask_delisky_context(
         insights=tuple(
             _convert_insight(insight)
             for insight in insights_result.insights
+        ),
+        summary=_convert_summary(
+            insights_result.summary
         ),
     )

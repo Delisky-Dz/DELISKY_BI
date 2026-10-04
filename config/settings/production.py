@@ -1,6 +1,7 @@
-﻿import os
+import os
 
 from .base import *
+from .environment import boolean_environment
 
 
 DEBUG = False
@@ -46,3 +47,20 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+# Safety guard: production must never use a non-production database.
+PRODUCTION_DATABASE_NAME = "delisky_bi"
+configured_database_name = str(DATABASES["default"]["NAME"]).strip()
+
+if configured_database_name != PRODUCTION_DATABASE_NAME:
+    raise RuntimeError(
+        "Unsafe production database configuration: "
+        f"expected '{PRODUCTION_DATABASE_NAME}', got '{configured_database_name}'."
+    )
+
+
+# Explicit opt-in only. Cache additionally requires command-provisioned tracking.
+ASK_DELISKY_STREAMING_ENABLED = boolean_environment("ASK_DELISKY_STREAMING_ENABLED")
+ASK_DELISKY_CONTEXT_CACHE_ENABLED = boolean_environment("ASK_DELISKY_CONTEXT_CACHE_ENABLED")
+# ASK_DELISKY_REQUEST_TIMEOUT_SECONDS is resolved/validated by the Ask provider
+# factory. Keep its existing precedence and Marketing's shared timeout unchanged.

@@ -234,29 +234,20 @@ class ManagerDashboardViewFilterTests(TestCase):
             "dashboard:manager_dashboard"
         )
 
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
+    @patch("apps.dashboard.views.build_manager_dashboard")
     def test_empty_filters_call_dashboard_service(
         self,
         mocked_build_dashboard,
     ):
-        response = self.client.get(
-            self.dashboard_url()
-        )
+        response = self.client.get(self.dashboard_url())
 
         self.assertEqual(response.status_code, 200)
+        mocked_build_dashboard.assert_not_called()
+        self.assertFalse(response.context["filter_requested"])
+        self.assertIsNone(response.context["overview_summary"])
 
-        mocked_build_dashboard.assert_called_once_with(
-            period_start=None,
-            period_end=None,
-            brand_id=None,
-            product_limit=10,
-        )
 
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
+    @patch("apps.dashboard.views.build_manager_dashboard")
     def test_valid_filters_are_passed_to_service(
         self,
         mocked_build_dashboard,
@@ -264,6 +255,7 @@ class ManagerDashboardViewFilterTests(TestCase):
         response = self.client.get(
             self.dashboard_url(),
             {
+                "run": "1",
                 "period_start": "2026-07-01",
                 "period_end": "2026-07-20",
                 "brand": str(self.active_brand.pk),
@@ -271,13 +263,27 @@ class ManagerDashboardViewFilterTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-
-        mocked_build_dashboard.assert_called_once_with(
-            period_start=date(2026, 7, 1),
-            period_end=date(2026, 7, 20),
-            brand_id=self.active_brand.pk,
-            product_limit=10,
+        mocked_build_dashboard.assert_not_called()
+        self.assertTrue(response.context["filter_requested"])
+        self.assertEqual(
+            response.context["filter_form"].cleaned_data[
+                "period_start"
+            ],
+            date(2026, 7, 1),
         )
+        self.assertEqual(
+            response.context["filter_form"].cleaned_data[
+                "period_end"
+            ],
+            date(2026, 7, 20),
+        )
+        self.assertEqual(
+            response.context["filter_form"].cleaned_data[
+                "brand"
+            ],
+            self.active_brand,
+        )
+
 
     @patch(
         "apps.dashboard.views.build_manager_dashboard"
@@ -325,46 +331,31 @@ class ManagerDashboardTemplateTests(TestCase):
             "dashboard:manager_dashboard"
         )
 
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_dashboard_uses_expected_template_and_context(
-        self,
-        mocked_build_dashboard,
-    ):
-        dashboard_result = object()
-        mocked_build_dashboard.return_value = (
-            dashboard_result
-        )
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
+    def test_dashboard_uses_expected_template_and_context(self):
+        response = self.client.get(self.dashboard_url())
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(
             response,
             "dashboard/manager_dashboard.html",
         )
+        self.assertTemplateUsed(
+            response,
+            "dashboard/partials/welcome_state.html",
+        )
         self.assertIsInstance(
             response.context["filter_form"],
             ManagerDashboardFilterForm,
         )
-        self.assertIs(
-            response.context["dashboard_result"],
-            dashboard_result,
-        )
+        self.assertFalse(response.context["filter_requested"])
+        self.assertIsNone(response.context["overview_summary"])
 
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_invalid_filter_renders_errors_without_result(
-        self,
-        mocked_build_dashboard,
-    ):
+
+    def test_invalid_filter_renders_errors_without_result(self):
         response = self.client.get(
             self.dashboard_url(),
             {
+                "run": "1",
                 "period_start": "2026-07-20",
                 "period_end": "2026-07-01",
             },
@@ -375,16 +366,20 @@ class ManagerDashboardTemplateTests(TestCase):
             response,
             "dashboard/manager_dashboard.html",
         )
-        self.assertIsNone(
-            response.context["dashboard_result"]
-        )
+        self.assertIsNone(response.context["overview_summary"])
+        self.assertTrue(response.context["filter_requested"])
         self.assertIn(
             "تاريخ النهاية لا يمكن أن يسبق تاريخ البداية.",
             response.context[
                 "filter_form"
             ].non_field_errors(),
         )
-        mocked_build_dashboard.assert_not_called()
+        self.assertContains(
+            response,
+            "تعذر تطبيق الفلتر",
+            status_code=400,
+        )
+
 
 
 from decimal import Decimal
@@ -566,117 +561,107 @@ class ManagerDashboardSummaryViewTests(TestCase):
         )
 
     @patch(
-        "apps.dashboard.views."
-        "present_manager_dashboard_summary"
+        "apps.dashboard.manager_views.present_brand_sales_chart",
+        return_value=(),
     )
     @patch(
-        "apps.dashboard.views.build_manager_dashboard"
+        "apps.dashboard.manager_views.present_sales_timeline",
+        return_value=None,
     )
+    @patch("apps.dashboard.manager_views.aggregate_pos_visits")
+    @patch("apps.dashboard.manager_views.aggregate_sales")
     def test_summary_is_presented_and_added_to_context(
         self,
-        mocked_build_dashboard,
-        mocked_present_summary,
+        aggregate_sales,
+        aggregate_pos_visits,
+        present_sales_timeline,
+        present_brand_sales_chart,
     ):
-        raw_summary = object()
-        dashboard_result = SimpleNamespace(
-            summary=raw_summary,
-        )
-        summary_presentation = object()
-
-        mocked_build_dashboard.return_value = (
-            dashboard_result
-        )
-        mocked_present_summary.return_value = (
-            summary_presentation
-        )
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
-
-        self.assertEqual(response.status_code, 200)
-        mocked_present_summary.assert_called_once_with(
-            raw_summary
-        )
-        self.assertIs(
-            response.context["summary"],
-            summary_presentation,
-        )
-
-    @patch(
-        "apps.dashboard.views."
-        "present_manager_dashboard_summary"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_summary_cards_are_rendered(
-        self,
-        mocked_build_dashboard,
-        mocked_present_summary,
-    ):
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=object(),
-            )
-        )
-
-        mocked_present_summary.return_value = (
-            SimpleNamespace(
+        aggregate_sales.return_value = SimpleNamespace(
+            overall=SimpleNamespace(
                 total_sales=Decimal("1200.00"),
                 sale_record_count=4,
                 positive_sale_record_count=3,
-                zero_total_record_count=1,
-                average_sale_value=Decimal("300.00"),
-                average_positive_sale_value=(
-                    Decimal("400.00")
-                ),
-                worker_count=6,
-                measured_sales_worker_count=5,
-                pos_record_count=5,
+            ),
+            by_worker=(),
+            by_brand=(),
+            by_date=(),
+        )
+        aggregate_pos_visits.return_value = SimpleNamespace(
+            overall=SimpleNamespace(
+                total_record_count=5,
                 visited_record_count=3,
                 not_visited_record_count=2,
-                visit_success_percentage=Decimal("60"),
-                non_visit_percentage=Decimal("40"),
-                distinct_brand_client_count=25,
-                worker_not_sold_product_count=8,
-                truck_not_sold_product_count=10,
-                worker_negative_gap_product_count=2,
-                truck_negative_gap_product_count=3,
-                confirmed_stopped_truck_count=1,
-                possible_stopped_truck_count=2,
-                conflicting_truck_state_count=1,
-            )
+            ),
+            by_brand_client=(),
         )
 
         response = self.client.get(
-            self.dashboard_url()
+            self.dashboard_url(),
+            {"run": "1"},
         )
 
-        self.assertContains(
-            response,
-            "إجمالي المبيعات",
+        self.assertEqual(response.status_code, 200)
+        summary = response.context["overview_summary"]
+        self.assertEqual(summary.total_sales, Decimal("1200.00"))
+        self.assertEqual(summary.sale_record_count, 4)
+        self.assertEqual(summary.visit_success_percentage, Decimal("60"))
+        present_sales_timeline.assert_called_once()
+        present_brand_sales_chart.assert_called_once()
+
+
+    @patch(
+        "apps.dashboard.manager_views.present_brand_sales_chart",
+        return_value=(),
+    )
+    @patch(
+        "apps.dashboard.manager_views.present_sales_timeline",
+        return_value=None,
+    )
+    @patch("apps.dashboard.manager_views.aggregate_pos_visits")
+    @patch("apps.dashboard.manager_views.aggregate_sales")
+    def test_summary_cards_are_rendered(
+        self,
+        aggregate_sales,
+        aggregate_pos_visits,
+        present_sales_timeline,
+        present_brand_sales_chart,
+    ):
+        aggregate_sales.return_value = SimpleNamespace(
+            overall=SimpleNamespace(
+                total_sales=Decimal("1200.00"),
+                sale_record_count=4,
+                positive_sale_record_count=3,
+            ),
+            by_worker=(),
+            by_brand=(),
+            by_date=(),
         )
-        self.assertContains(
-            response,
-            "1200.00",
+        aggregate_pos_visits.return_value = SimpleNamespace(
+            overall=SimpleNamespace(
+                total_record_count=5,
+                visited_record_count=3,
+                not_visited_record_count=2,
+            ),
+            by_brand_client=(),
         )
-        self.assertContains(
-            response,
-            "نسبة نجاح الزيارة",
+
+        response = self.client.get(
+            self.dashboard_url(),
+            {"run": "1"},
         )
-        self.assertContains(
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
             response,
-            "60.0%",
+            "dashboard/partials/manager_overview_core.html",
         )
-        self.assertContains(
-            response,
-            "المنتجات غير المباعة حسب البائع",
-        )
-        self.assertContains(
-            response,
-            "الشاحنة المتوقفة لا تُعتبر فشلًا للبائع",
-        )
+        self.assertContains(response, "إجمالي المبيعات")
+        self.assertContains(response, "1200.00")
+        self.assertContains(response, "نسبة نجاح الزيارة")
+        self.assertContains(response, "60.0")
+        self.assertContains(response, "المنتجات غير المباعة")
+
 
     def test_executive_overview_flags_truck_only_not_sold_products(
         self,
@@ -767,71 +752,30 @@ class ManagerDashboardTemplateStructureTests(TestCase):
     def setUp(self):
         self.client.force_login(self.manager)
 
-    @patch(
-        "apps.dashboard.views."
-        "present_manager_dashboard_summary"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_dashboard_uses_base_and_summary_partials(
-        self,
-        mocked_build_dashboard,
-        mocked_present_summary,
-    ):
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(summary=object())
-        )
-
-        mocked_present_summary.return_value = (
-            SimpleNamespace(
-                total_sales=Decimal("1200.00"),
-                sale_record_count=4,
-                positive_sale_record_count=3,
-                zero_total_record_count=1,
-                average_positive_sale_value=(
-                    Decimal("400.00")
-                ),
-                worker_count=6,
-                measured_sales_worker_count=5,
-                pos_record_count=5,
-                visited_record_count=3,
-                not_visited_record_count=2,
-                visit_success_percentage=Decimal("60"),
-                non_visit_percentage=Decimal("40"),
-                distinct_brand_client_count=25,
-                worker_not_sold_product_count=8,
-                truck_not_sold_product_count=10,
-                worker_negative_gap_product_count=2,
-                truck_negative_gap_product_count=3,
-                confirmed_stopped_truck_count=1,
-                possible_stopped_truck_count=2,
-                conflicting_truck_state_count=1,
-            )
-        )
-
+    def test_dashboard_uses_base_and_summary_partials(self):
         response = self.client.get(
             reverse("dashboard:manager_dashboard")
         )
 
         self.assertEqual(response.status_code, 200)
-
-        expected_templates = (
+        for template_name in (
             "dashboard/base.html",
             "dashboard/manager_dashboard.html",
+            "dashboard/partials/manager_sidebar_navigation.html",
             "dashboard/partials/filter_form.html",
+            "dashboard/partials/welcome_state.html",
+        ):
+            self.assertTemplateUsed(response, template_name)
+
+        for legacy_template in (
             "dashboard/partials/sales_summary.html",
             "dashboard/partials/visits_summary.html",
             "dashboard/partials/workers_summary.html",
             "dashboard/partials/attention_summary.html",
             "dashboard/partials/truck_status.html",
-        )
+        ):
+            self.assertTemplateNotUsed(response, legacy_template)
 
-        for template_name in expected_templates:
-            self.assertTemplateUsed(
-                response,
-                template_name,
-            )
 
 
 from apps.analytics.services.manager_dashboard import (
@@ -998,203 +942,48 @@ class ManagerDashboardCoverageAndQualityViewTests(
             "dashboard:manager_dashboard"
         )
 
-    @patch(
-        "apps.dashboard.views.present_data_quality"
-    )
-    @patch(
-        "apps.dashboard.views."
-        "present_analytical_coverage"
-    )
-    @patch(
-        "apps.dashboard.views."
-        "present_manager_dashboard_summary"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_coverage_and_quality_are_added_to_context(
-        self,
-        mocked_build_dashboard,
-        mocked_present_summary,
-        mocked_present_coverage,
-        mocked_present_data_quality,
-    ):
-        raw_summary = object()
-        raw_coverage = object()
-        raw_data_quality = object()
-
-        summary_presentation = object()
-        coverage_presentation = object()
-        data_quality_presentation = object()
-
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=raw_summary,
-                coverage=raw_coverage,
-                data_quality=raw_data_quality,
-            )
-        )
-
-        mocked_present_summary.return_value = (
-            summary_presentation
-        )
-        mocked_present_coverage.return_value = (
-            coverage_presentation
-        )
-        mocked_present_data_quality.return_value = (
-            data_quality_presentation
-        )
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
+    def test_coverage_and_quality_are_added_to_context(self):
+        response = self.client.get(self.dashboard_url())
 
         self.assertEqual(response.status_code, 200)
+        self.assertNotIn("coverage", response.context)
+        self.assertNotIn("data_quality", response.context)
 
-        mocked_present_coverage.assert_called_once_with(
-            raw_coverage
+        html = response.content.decode("utf-8")
+        coverage_url = reverse(
+            "dashboard:manager_section",
+            args=("follow-up", "coverage"),
         )
-        mocked_present_data_quality.assert_called_once_with(
-            raw_data_quality
+        quality_url = reverse(
+            "dashboard:manager_section",
+            args=("follow-up", "data-quality"),
         )
+        self.assertIn(f'href="{coverage_url}"', html)
+        self.assertIn(f'href="{quality_url}"', html)
 
-        self.assertIs(
-            response.context["coverage"],
-            coverage_presentation,
-        )
-        self.assertIs(
-            response.context["data_quality"],
-            data_quality_presentation,
-        )
 
-    @patch(
-        "apps.dashboard.views.present_data_quality"
-    )
-    @patch(
-        "apps.dashboard.views."
-        "present_analytical_coverage"
-    )
-    @patch(
-        "apps.dashboard.views."
-        "present_manager_dashboard_summary"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_coverage_and_quality_partials_are_rendered(
-        self,
-        mocked_build_dashboard,
-        mocked_present_summary,
-        mocked_present_coverage,
-        mocked_present_data_quality,
-    ):
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=object(),
-                coverage=object(),
-                data_quality=object(),
-            )
-        )
-
-        mocked_present_summary.return_value = None
-
-        mocked_present_coverage.return_value = (
-            SimpleNamespace(
-                sales_source_row_count=100,
-                sales_included_row_count=80,
-                sales_outside_period_count=20,
-                pos_source_row_count=60,
-                pos_included_row_count=50,
-                pos_outside_period_count=10,
-                items_source_row_count=70,
-                items_included_row_count=55,
-                items_outside_period_count=10,
-                items_partial_overlap_count=5,
-                opening_stock_source_row_count=20,
-                opening_stock_included_row_count=15,
-                opening_stock_outside_period_count=3,
-                opening_stock_partial_overlap_count=2,
-                chargement_source_row_count=40,
-                chargement_included_row_count=32,
-                chargement_outside_period_count=5,
-                chargement_partial_overlap_count=3,
-                operational_source_row_count=30,
-                operational_included_row_count=24,
-                operational_outside_period_count=4,
-                operational_partial_overlap_count=2,
-                period_excluded_row_count=64,
-                has_partial_period_exclusions=True,
-            )
-        )
-
-        mocked_present_data_quality.return_value = (
-            SimpleNamespace(
-                sales_attribution_issue_count=2,
-                pos_attribution_issue_count=3,
-                items_attribution_issue_count=4,
-                opening_stock_attribution_issue_count=1,
-                chargement_attribution_issue_count=2,
-                operational_attribution_issue_count=1,
-                pos_numeric_message_warning_count=5,
-                pos_duplicate_same_day_warning_count=6,
-                attribution_issue_count=13,
-                warning_count=11,
-                total_issue_and_warning_count=24,
-            )
-        )
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
+    def test_coverage_and_quality_partials_are_rendered(self):
+        response = self.client.get(self.dashboard_url())
 
         self.assertEqual(response.status_code, 200)
-
-        self.assertTemplateUsed(
+        self.assertTemplateNotUsed(
             response,
             "dashboard/partials/coverage_summary.html",
         )
-        self.assertTemplateUsed(
+        self.assertTemplateNotUsed(
             response,
             "dashboard/partials/data_quality_summary.html",
         )
+        self.assertContains(response, "التغطية الزمنية")
+        self.assertContains(response, "جودة البيانات")
+        self.assertContains(
+            response,
+            reverse(
+                "dashboard:manager_section",
+                args=("follow-up", "coverage"),
+            ),
+        )
 
-        self.assertContains(
-            response,
-            "التغطية الزمنية والاستبعادات",
-        )
-        self.assertContains(
-            response,
-            "الصفوف المؤهلة للتحليل",
-        )
-        self.assertContains(
-            response,
-            "توجد استبعادات زمنية",
-        )
-        no_exclusions_html = render_to_string(
-            "dashboard/partials/coverage_summary.html",
-            {
-                "coverage": SimpleNamespace(
-                    period_excluded_row_count=0,
-                    has_partial_period_exclusions=False,
-                ),
-            },
-        )
-        self.assertIn(
-            "لا توجد استبعادات زمنية",
-            no_exclusions_html,
-        )
-        self.assertContains(
-            response,
-            "جودة البيانات والتحذيرات",
-        )
-        self.assertContains(
-            response,
-            "64",
-        )
-        self.assertContains(
-            response,
-            "لا يتم حذف",
-        )
 
 
 from apps.analytics.services.worker_performance import (
@@ -1395,188 +1184,39 @@ class ManagerDashboardWorkerRankingViewTests(
             sold_without_supply_context_count=0,
         )
 
-    @patch(
-        "apps.dashboard.views.Worker.objects.filter"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
+    @patch("apps.dashboard.views.Worker.objects.filter")
     def test_rankings_use_one_worker_lookup_and_render(
         self,
-        mocked_build_dashboard,
         mocked_worker_filter,
     ):
-        first_kpi = self.build_kpi(
-            worker_id=7,
-            total_sales="1500.00",
-            not_sold_product_count=1,
-            not_visited_record_count=1,
-        )
-        second_kpi = self.build_kpi(
-            worker_id=8,
-            total_sales="700.00",
-            not_sold_product_count=4,
-            not_visited_record_count=3,
-        )
-
-        top_sales_method = Mock(
-            return_value=(first_kpi,)
-        )
-        lowest_sales_method = Mock(
-            return_value=(second_kpi,)
-        )
-        highest_non_visit_method = Mock(
-            return_value=(second_kpi,)
-        )
-        most_not_sold_method = Mock(
-            return_value=(second_kpi,)
-        )
-
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=None,
-                coverage=None,
-                data_quality=None,
-                top_sales_workers=top_sales_method,
-                lowest_sales_workers=(
-                    lowest_sales_method
-                ),
-                highest_non_visit_rate_workers=(
-                    highest_non_visit_method
-                ),
-                worker_performance=SimpleNamespace(
-                    most_not_sold_products_workers=(
-                        most_not_sold_method
-                    )
-                ),
-            )
-        )
-
-        mocked_worker_filter.return_value = [
-            SimpleNamespace(
-                pk=7,
-                first_name="Ahmed",
-                last_name="Benali",
-                employee_code="EMP-007",
-            ),
-            SimpleNamespace(
-                pk=8,
-                first_name="Karim",
-                last_name="Mansouri",
-                employee_code="EMP-008",
-            ),
-        ]
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        mocked_worker_filter.assert_called_once_with(
-            pk__in={7, 8},
-        )
-
-        top_sales_method.assert_called_once_with(
-            limit=10,
-        )
-        lowest_sales_method.assert_called_once_with(
-            limit=10,
-        )
-        highest_non_visit_method.assert_called_once_with(
-            limit=10,
-            minimum_pos_records=3,
-        )
-        most_not_sold_method.assert_called_once_with(
-            limit=10,
-        )
-
-        self.assertEqual(
-            response.context[
-                "top_sales_workers"
-            ][0].worker_name,
-            "Ahmed Benali",
-        )
-        self.assertEqual(
-            response.context[
-                "lowest_sales_workers"
-            ][0].worker_name,
-            "Karim Mansouri",
-        )
-
-        self.assertTemplateUsed(
-            response,
-            "dashboard/partials/worker_rankings.html",
-        )
-        self.assertContains(
-            response,
-            "أعلى البائعين مبيعًا",
-        )
-        self.assertContains(
-            response,
-            "أقل البائعين مبيعًا ممن لديهم بيانات مبيعات قابلة للقياس",
-        )
-        self.assertContains(
-            response,
-            "Ahmed Benali",
-        )
-        self.assertContains(
-            response,
-            "Karim Mansouri",
-        )
-
-    @patch(
-        "apps.dashboard.views.Worker.objects.filter"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_empty_rankings_do_not_query_workers(
-        self,
-        mocked_build_dashboard,
-        mocked_worker_filter,
-    ):
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=None,
-                coverage=None,
-                data_quality=None,
-                top_sales_workers=Mock(
-                    return_value=()
-                ),
-                lowest_sales_workers=Mock(
-                    return_value=()
-                ),
-                highest_non_visit_rate_workers=Mock(
-                    return_value=()
-                ),
-                worker_performance=SimpleNamespace(
-                    most_not_sold_products_workers=Mock(
-                        return_value=()
-                    )
-                ),
-            )
-        )
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
+        response = self.client.get(self.dashboard_url())
 
         self.assertEqual(response.status_code, 200)
         mocked_worker_filter.assert_not_called()
-
-        self.assertEqual(
-            response.context["top_sales_workers"],
-            (),
+        rankings_url = reverse(
+            "dashboard:manager_section",
+            args=("sellers", "rankings"),
         )
-        self.assertEqual(
-            response.context["lowest_sales_workers"],
-            (),
-        )
+        self.assertContains(response, rankings_url)
         self.assertTemplateNotUsed(
             response,
             "dashboard/partials/worker_rankings.html",
         )
+
+
+    @patch("apps.dashboard.views.Worker.objects.filter")
+    def test_empty_rankings_do_not_query_workers(
+        self,
+        mocked_worker_filter,
+    ):
+        response = self.client.get(self.dashboard_url())
+
+        self.assertEqual(response.status_code, 200)
+        mocked_worker_filter.assert_not_called()
+        self.assertNotIn("lowest_sales_workers", response.context)
+        self.assertNotIn("highest_visit_workers", response.context)
+        self.assertNotIn("most_not_sold_workers", response.context)
+
 
 
 from apps.analytics.services.manager_dashboard import (
@@ -1879,209 +1519,47 @@ class ManagerDashboardWorkerCardViewTests(TestCase):
             ),
         )
 
-    @patch(
-        "apps.dashboard.views._load_brands_by_id"
-    )
-    @patch(
-        "apps.dashboard.views._load_workers_by_id"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
+    @patch("apps.dashboard.views._load_brands_by_id")
+    @patch("apps.dashboard.views._load_workers_by_id")
     def test_worker_cards_use_shared_lookups_and_render(
         self,
-        mocked_build_dashboard,
         mocked_load_workers,
         mocked_load_brands,
     ):
-        not_sold = self.build_product(
-            article="Unsold Product",
-            opening="10",
-            chargement="0",
-            sold="0",
-        )
-        least_sold = self.build_product(
-            article="Least Sold Product",
-            opening="10",
-            chargement="0",
-            sold="1",
-        )
-        negative_gap = self.build_product(
-            article="Negative Gap Product",
-            opening="1",
-            chargement="0",
-            sold="3",
-        )
-        no_supply = self.build_product(
-            article="No Supply Product",
-            opening="0",
-            chargement="0",
-            sold="2",
-        )
-
-        kpi = self.build_kpi()
-
-        card = WorkerDashboardCard(
-            kpi=kpi,
-            not_sold_products=(not_sold,),
-            least_sold_products=(least_sold,),
-            negative_gap_products=(negative_gap,),
-            sold_without_supply_context_products=(
-                no_supply,
-            ),
-        )
-
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=None,
-                coverage=None,
-                data_quality=None,
-                worker_cards=(card,),
-                top_sales_workers=Mock(
-                    return_value=(kpi,)
-                ),
-                lowest_sales_workers=Mock(
-                    return_value=()
-                ),
-                highest_non_visit_rate_workers=Mock(
-                    return_value=()
-                ),
-                worker_performance=SimpleNamespace(
-                    most_not_sold_products_workers=Mock(
-                        return_value=()
-                    )
-                ),
-            )
-        )
-
-        mocked_load_workers.return_value = {
-            7: SimpleNamespace(
-                pk=7,
-                first_name="Ahmed",
-                last_name="Benali",
-                employee_code="EMP-007",
-            )
-        }
-
-        mocked_load_brands.return_value = {
-            3: SimpleNamespace(
-                pk=3,
-                name="BIFA",
-                code="BIFA",
-            )
-        }
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
+        response = self.client.get(self.dashboard_url())
 
         self.assertEqual(response.status_code, 200)
-
-        mocked_load_workers.assert_called_once_with(
-            {7},
+        mocked_load_workers.assert_not_called()
+        mocked_load_brands.assert_not_called()
+        card_url = reverse(
+            "dashboard:manager_section",
+            args=("sellers", "card"),
         )
-        mocked_load_brands.assert_called_once_with(
-            {3},
-        )
-
-        self.assertEqual(
-            len(response.context["worker_cards"]),
-            1,
-        )
-        self.assertEqual(
-            response.context[
-                "worker_cards"
-            ][0].worker_name,
-            "Ahmed Benali",
-        )
-
-        self.assertTemplateUsed(
-            response,
-            "dashboard/partials/worker_cards.html",
-        )
-        self.assertContains(
-            response,
-            "بطاقات البائعين",
-        )
-        self.assertContains(
-            response,
-            "Ahmed Benali",
-        )
-        self.assertContains(
-            response,
-            "BIFA",
-        )
-        self.assertContains(
-            response,
-            "Unsold Product",
-        )
-        self.assertContains(
-            response,
-            "Least Sold Product",
-        )
-        self.assertContains(
-            response,
-            "Negative Gap Product",
-        )
-        self.assertContains(
-            response,
-            "No Supply Product",
-        )
-
-    @patch(
-        "apps.dashboard.views._load_brands_by_id"
-    )
-    @patch(
-        "apps.dashboard.views._load_workers_by_id"
-    )
-    @patch(
-        "apps.dashboard.views.build_manager_dashboard"
-    )
-    def test_empty_cards_and_rankings_skip_lookups(
-        self,
-        mocked_build_dashboard,
-        mocked_load_workers,
-        mocked_load_brands,
-    ):
-        mocked_build_dashboard.return_value = (
-            SimpleNamespace(
-                summary=None,
-                coverage=None,
-                data_quality=None,
-                worker_cards=(),
-                top_sales_workers=Mock(
-                    return_value=()
-                ),
-                lowest_sales_workers=Mock(
-                    return_value=()
-                ),
-                highest_non_visit_rate_workers=Mock(
-                    return_value=()
-                ),
-                worker_performance=SimpleNamespace(
-                    most_not_sold_products_workers=Mock(
-                        return_value=()
-                    )
-                ),
-            )
-        )
-
-        response = self.client.get(
-            self.dashboard_url()
-        )
-
-        self.assertEqual(response.status_code, 200)
-        mocked_load_workers.assert_called_once_with(set())
-        mocked_load_brands.assert_called_once_with(set())
-
-        self.assertEqual(
-            response.context["worker_cards"],
-            (),
-        )
+        self.assertContains(response, card_url)
         self.assertTemplateNotUsed(
             response,
             "dashboard/partials/worker_cards.html",
         )
+
+
+    @patch("apps.dashboard.views._load_brands_by_id")
+    @patch("apps.dashboard.views._load_workers_by_id")
+    def test_empty_cards_and_rankings_skip_lookups(
+        self,
+        mocked_load_workers,
+        mocked_load_brands,
+    ):
+        response = self.client.get(self.dashboard_url())
+
+        self.assertEqual(response.status_code, 200)
+        mocked_load_workers.assert_not_called()
+        mocked_load_brands.assert_not_called()
+        self.assertNotIn("worker_cards", response.context)
+        self.assertTemplateNotUsed(
+            response,
+            "dashboard/partials/worker_cards.html",
+        )
+
 
     def test_product_metrics_show_unavailable_without_measurement(
         self,
@@ -3105,27 +2583,28 @@ class ClientVisitRankingTemplateTests(SimpleTestCase):
 class HighestVisitManagerDashboardConditionTests(
     SimpleTestCase
 ):
-    def test_highest_visit_workers_can_show_rankings(
-        self,
-    ):
+    def test_highest_visit_workers_can_show_rankings(self):
         from pathlib import Path
 
         template_path = (
             Path(__file__).resolve().parent
             / "templates"
             / "dashboard"
-            / "manager_dashboard.html"
+            / "manager_sellers.html"
         )
-
         template_text = template_path.read_text(
             encoding="utf-8"
         )
 
-        self.assertIn(
-            "{% if top_sales_workers or "
-            "lowest_sales_workers or "
-            "highest_visit_workers or "
-            "highest_non_visit_workers or "
-            "most_not_sold_workers %}",
-            template_text,
+        self.assertIn("item == 'visits'", template_text)
+        self.assertIn("seller_rows", template_text)
+        self.assertNotIn(
+            "highest_visit_workers or highest_non_visit_workers",
+            (
+                Path(__file__).resolve().parent
+                / "templates"
+                / "dashboard"
+                / "manager_dashboard.html"
+            ).read_text(encoding="utf-8"),
         )
+

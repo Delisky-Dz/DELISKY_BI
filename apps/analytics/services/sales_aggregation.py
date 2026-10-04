@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
@@ -82,6 +82,15 @@ class BrandClientSalesTotal:
 
 
 @dataclass(frozen=True, slots=True)
+class BrandTruckClientSalesTotal:
+    brand_id: int
+    truck_id: int
+    client: str
+    client_normalized: str
+    metrics: SalesMetrics
+
+
+@dataclass(frozen=True, slots=True)
 class BrandTruckSalesTotal:
     brand_id: int
     truck_id: int
@@ -150,6 +159,10 @@ class SalesAggregationResult:
     ] = ()
     by_brand_client: tuple[
         BrandClientSalesTotal,
+        ...,
+    ] = ()
+    by_brand_truck_client: tuple[
+        BrandTruckClientSalesTotal,
         ...,
     ] = ()
     by_brand_van_client: tuple[
@@ -289,6 +302,10 @@ def aggregate_sales(
         tuple[int, int],
         _SalesAccumulator,
     ] = {}
+    brand_truck_client_buckets: dict[
+        tuple[int, int, str],
+        _NamedSalesAccumulator,
+    ] = {}
     brand_worker_buckets: dict[
         tuple[int, int],
         _SalesAccumulator,
@@ -405,6 +422,23 @@ def aggregate_sales(
                 truck_id,
             ),
         ).add(sale.total)
+
+        if (
+            sale.client is not None
+            and sale.client_normalized is not None
+        ):
+            brand_truck_client = _get_named_accumulator(
+                brand_truck_client_buckets,
+                (
+                    sale.brand_id,
+                    truck_id,
+                    sale.client_normalized,
+                ),
+                sale.client,
+            )
+            brand_truck_client.accumulator.add(
+                sale.total
+            )
 
         assignment_resolution = resolve_worker_for_date(
             truck,
@@ -533,6 +567,18 @@ def aggregate_sales(
             )
             for key, value in sorted(
                 brand_truck_buckets.items()
+            )
+        ),
+        by_brand_truck_client=tuple(
+            BrandTruckClientSalesTotal(
+                brand_id=key[0],
+                truck_id=key[1],
+                client=value.display_name,
+                client_normalized=key[2],
+                metrics=value.accumulator.freeze(),
+            )
+            for key, value in sorted(
+                brand_truck_client_buckets.items()
             )
         ),
         by_brand_worker=tuple(
