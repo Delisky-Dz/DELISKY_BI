@@ -83,6 +83,10 @@ class RawItemsDetailAccountantViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "imports/partials/items_detail_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items_detail")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
         multi_review_mock.assert_called_once()
 
         requests = tuple(
@@ -140,6 +144,10 @@ class RawItemsDetailAccountantViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "imports/partials/items_detail_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items_detail")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
         multi_review_mock.assert_not_called()
         self.assertFalse(
             response.context[
@@ -159,14 +167,18 @@ class RawItemsDetailAccountantViewTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_accountant_home_renders_items_detail_panel(self):
+    def test_dedicated_page_renders_items_detail_panel(self):
         self.login_accountant()
 
         response = self.client.get(
-            reverse("imports:accountant_home")
+            reverse("imports:raw_items_detail_upload")
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "imports/partials/items_detail_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items_detail")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
         self.assertIn(
             "items_detail_upload_form",
             response.context,
@@ -255,6 +267,10 @@ class RawItemsDetailAccountantViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "imports/partials/items_detail_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items_detail")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
         self.assertContains(response, "DELISKY")
         self.assertContains(response, "NITA")
         self.assertContains(

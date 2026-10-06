@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.db.models import Count
 from django.shortcuts import (
     get_object_or_404,
@@ -10,6 +11,7 @@ from django.shortcuts import (
 from django.views.decorators.http import (
     require_http_methods,
     require_POST,
+    require_GET,
 )
 
 from apps.recruitment.models import (
@@ -119,90 +121,48 @@ def _status_counts() -> dict[str, int]:
     return counts
 
 
-def _home_context(
-    *,
-    upload_form: ImportUploadForm | None = None,
-    service_error_details: list[dict] | None = None,
-    raw_upload_formset=None,
-    raw_upload_result=None,
-    sales_upload_formset=None,
-    sales_upload_result=None,
-    items_detail_upload_form=None,
-    items_detail_upload_result=None,
-    items_upload_form=None,
-    items_upload_result=None,
-    opening_stock_upload_form=None,
-    opening_stock_upload_result=None,
-) -> dict:
-    recent_batches = (
-        ImportBatch.objects
-        .select_related(
-            "brand",
-            "uploaded_by",
-            "reviewed_by",
-            "approved_by",
-        )
-        .all()[:20]
-    )
-
-    counts = _status_counts()
-
+def _home_context() -> dict:
+    # Keep the landing page independent of upload forms and import history.
     return {
-        "upload_form": (
-            upload_form
-            if upload_form is not None
-            else ImportUploadForm()
-        ),
-        "recent_batches": recent_batches,
+        "accountant_section": "home",
+        "recruitment_new_count": JobApplication.objects.filter(
+            status=ApplicationStatus.NEW,
+        ).count(),
+    }
+
+
+def _upload_context(section, **values) -> dict:
+    titles = {
+        "opening_stock": "Opening Stock — المخزون الافتتاحي",
+        "chargement": "Chargement — التحميل",
+        "items_detail": "Items Detail — تفاصيل الأصناف",
+        "items": "Items — الأصناف",
+        "sales": "Sales — المبيعات",
+        "standard": "استيراد الملفات الموحّدة",
+    }
+    return {
+        "accountant_section": section,
+        "section_title": titles[section],
+        "section_partial": f"imports/partials/{section}_upload.html",
+        **values,
+    }
+
+
+@accountant_required
+@require_GET
+def batch_list(request):
+    batches = ImportBatch.objects.select_related(
+        "brand", "uploaded_by", "reviewed_by", "approved_by",
+    ).all()
+    page = Paginator(batches, 20).get_page(request.GET.get("page"))
+    counts = _status_counts()
+    return render(request, "imports/accountant_batches.html", {
+        "accountant_section": "batches",
+        "recent_batches": page.object_list,
+        "page_obj": page,
         "status_counts": counts,
         "batch_total": sum(counts.values()),
-        "recruitment_new_count": (
-            JobApplication.objects.filter(
-                status=ApplicationStatus.NEW,
-            ).count()
-        ),
-        "service_error_details": (
-            service_error_details or []
-        ),
-        "raw_upload_formset": (
-            raw_upload_formset
-            if raw_upload_formset is not None
-            else RawChargementUploadFormSet(
-                prefix="raw"
-            )
-        ),
-        "raw_upload_result": raw_upload_result,
-        "sales_upload_formset": (
-            sales_upload_formset
-            if sales_upload_formset is not None
-            else RawSalesUploadFormSet(
-                prefix="sales"
-            )
-        ),
-        "sales_upload_result": sales_upload_result,
-        "items_detail_upload_form": (
-            items_detail_upload_form
-            if items_detail_upload_form is not None
-            else RawItemsDetailUploadForm()
-        ),
-        "items_detail_upload_result": (
-            items_detail_upload_result
-        ),
-        "items_upload_form": (
-            items_upload_form
-            if items_upload_form is not None
-            else RawItemsUploadForm()
-        ),
-        "items_upload_result": items_upload_result,
-        "opening_stock_upload_form": (
-            opening_stock_upload_form
-            if opening_stock_upload_form is not None
-            else RawOpeningStockUploadForm()
-        ),
-        "opening_stock_upload_result": (
-            opening_stock_upload_result
-        ),
-    }
+    })
 
 
 def _present_service_errors(
@@ -342,8 +302,13 @@ def _present_problem_rows(batch) -> list[dict]:
 
 
 @accountant_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def raw_chargement_upload(request):
+    if request.method == "GET":
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "chargement", raw_upload_formset=RawChargementUploadFormSet(prefix="raw"),
+        ))
+
     formset = RawChargementUploadFormSet(
         request.POST,
         request.FILES,
@@ -353,8 +318,9 @@ def raw_chargement_upload(request):
     if not formset.is_valid():
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "chargement",
                 raw_upload_formset=formset,
             ),
         )
@@ -402,8 +368,9 @@ def raw_chargement_upload(request):
 
     return render(
         request,
-        "imports/accountant_home.html",
-        _home_context(
+        "imports/accountant_upload.html",
+        _upload_context(
+            "chargement",
             raw_upload_formset=(
                 RawChargementUploadFormSet(
                     prefix="raw"
@@ -415,8 +382,13 @@ def raw_chargement_upload(request):
 
 
 @accountant_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def raw_sales_upload(request):
+    if request.method == "GET":
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "sales", sales_upload_formset=RawSalesUploadFormSet(prefix="sales"),
+        ))
+
     formset = RawSalesUploadFormSet(
         request.POST,
         request.FILES,
@@ -426,8 +398,9 @@ def raw_sales_upload(request):
     if not formset.is_valid():
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "sales",
                 sales_upload_formset=formset,
             ),
         )
@@ -473,8 +446,9 @@ def raw_sales_upload(request):
 
     return render(
         request,
-        "imports/accountant_home.html",
-        _home_context(
+        "imports/accountant_upload.html",
+        _upload_context(
+            "sales",
             sales_upload_formset=(
                 RawSalesUploadFormSet(
                     prefix="sales"
@@ -486,8 +460,13 @@ def raw_sales_upload(request):
 
 
 @accountant_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def raw_opening_stock_upload(request):
+    if request.method == "GET":
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "opening_stock", opening_stock_upload_form=RawOpeningStockUploadForm(),
+        ))
+
     form = RawOpeningStockUploadForm(
         request.POST,
         request.FILES,
@@ -496,8 +475,9 @@ def raw_opening_stock_upload(request):
     if not form.is_valid():
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "opening_stock",
                 opening_stock_upload_form=form,
             ),
         )
@@ -550,8 +530,9 @@ def raw_opening_stock_upload(request):
 
     return render(
         request,
-        "imports/accountant_home.html",
-        _home_context(
+        "imports/accountant_upload.html",
+        _upload_context(
+            "opening_stock",
             opening_stock_upload_form=(
                 RawOpeningStockUploadForm()
             ),
@@ -561,8 +542,13 @@ def raw_opening_stock_upload(request):
 
 
 @accountant_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def raw_items_detail_upload(request):
+    if request.method == "GET":
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "items_detail", items_detail_upload_form=RawItemsDetailUploadForm(),
+        ))
+
     form = RawItemsDetailUploadForm(
         request.POST,
         request.FILES,
@@ -571,8 +557,9 @@ def raw_items_detail_upload(request):
     if not form.is_valid():
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "items_detail",
                 items_detail_upload_form=form,
             ),
         )
@@ -623,8 +610,9 @@ def raw_items_detail_upload(request):
 
     return render(
         request,
-        "imports/accountant_home.html",
-        _home_context(
+        "imports/accountant_upload.html",
+        _upload_context(
+            "items_detail",
             items_detail_upload_form=(
                 RawItemsDetailUploadForm()
             ),
@@ -634,8 +622,13 @@ def raw_items_detail_upload(request):
 
 
 @accountant_required
-@require_POST
+@require_http_methods(["GET", "POST"])
 def raw_items_upload(request):
+    if request.method == "GET":
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "items", items_upload_form=RawItemsUploadForm(),
+        ))
+
     form = RawItemsUploadForm(
         request.POST,
         request.FILES,
@@ -644,8 +637,9 @@ def raw_items_upload(request):
     if not form.is_valid():
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "items",
                 items_upload_form=form,
             ),
         )
@@ -703,8 +697,9 @@ def raw_items_upload(request):
 
     return render(
         request,
-        "imports/accountant_home.html",
-        _home_context(
+        "imports/accountant_upload.html",
+        _upload_context(
+            "items",
             items_upload_form=RawItemsUploadForm(),
             items_upload_result=result,
         ),
@@ -714,12 +709,19 @@ def raw_items_upload(request):
 @accountant_required
 @require_http_methods(["GET", "POST"])
 def accountant_home(request):
+    if request.method == "POST":
+        # Preserve the original canonical import POST endpoint.
+        return standard_upload(request)
+    return render(request, "imports/accountant_home.html", _home_context())
+
+
+@accountant_required
+@require_http_methods(["GET", "POST"])
+def standard_upload(request):
     if request.method == "GET":
-        return render(
-            request,
-            "imports/accountant_home.html",
-            _home_context(),
-        )
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "standard", upload_form=ImportUploadForm(),
+        ))
 
     upload_form = ImportUploadForm(
         request.POST,
@@ -729,8 +731,9 @@ def accountant_home(request):
     if not upload_form.is_valid():
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "standard",
                 upload_form=upload_form,
             ),
         )
@@ -754,8 +757,9 @@ def accountant_home(request):
 
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "standard",
                 upload_form=upload_form,
                 service_error_details=(
                     _present_service_errors(exc)
@@ -779,8 +783,9 @@ def accountant_home(request):
 
         return render(
             request,
-            "imports/accountant_home.html",
-            _home_context(
+            "imports/accountant_upload.html",
+            _upload_context(
+                "standard",
                 upload_form=upload_form,
             ),
         )

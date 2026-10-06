@@ -376,6 +376,16 @@ a {
     font-size: 29px;
 }
 
+.accountant-shortcuts .stat-card strong {
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.accountant-shortcuts .stat-card:hover,
+.accountant-shortcuts .stat-card:focus-visible {
+    border-color: var(--blue-600);
+}
+
 .stat-card small {
     font-size: 11px;
 }

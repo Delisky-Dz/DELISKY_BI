@@ -1,0 +1,194 @@
+<div class="accountant-grid">
+    <section class="panel upload-panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    خطوة 01
+                </span>
+
+                <h2>رفع ملف جديد</h2>
+            </div>
+
+            <span class="secure-pill">
+                فحص آمن
+            </span>
+        </div>
+
+        <form
+            method="post"
+            action="{% url 'imports:standard_upload' %}"
+            enctype="multipart/form-data"
+            class="upload-form"
+            novalidate
+        >
+            {% csrf_token %}
+
+            <div class="import-meta-grid">
+                <div class="form-field">
+                    <label for="{{ upload_form.brand.id_for_label }}">
+                        {{ upload_form.brand.label }}
+                    </label>
+
+                    {{ upload_form.brand }}
+
+                    {% for error in upload_form.brand.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <label for="{{ upload_form.report_type.id_for_label }}">
+                        {{ upload_form.report_type.label }}
+                    </label>
+
+                    {{ upload_form.report_type }}
+
+                    {% for error in upload_form.report_type.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="form-field">
+                    <label
+                        for="{{ upload_form.period_start.id_for_label }}"
+                        id="period-start-label"
+                    >
+                        {{ upload_form.period_start.label }}
+                    </label>
+
+                    {{ upload_form.period_start }}
+
+                    {% for error in upload_form.period_start.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+
+                <div
+                    class="form-field"
+                    id="period-end-field"
+                >
+                    <label for="{{ upload_form.period_end.id_for_label }}">
+                        {{ upload_form.period_end.label }}
+                    </label>
+
+                    {{ upload_form.period_end }}
+
+                    {% for error in upload_form.period_end.errors %}
+                        <span class="field-error">{{ error }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if upload_form.non_field_errors %}
+                <div class="form-alert error">
+                    {% for error in upload_form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <label
+                class="drop-zone"
+                for="{{ upload_form.source_file.id_for_label }}"
+            >
+                {{ upload_form.source_file }}
+
+                <span class="drop-icon">⇧</span>
+
+                <strong>
+                    اسحب ملف Excel هنا
+                    أو اضغط للاختيار
+                </strong>
+
+                <small id="selected-file-name">
+                    لم يتم اختيار أي ملف
+                </small>
+            </label>
+
+            {% if upload_form.source_file.errors %}
+                <div class="field-errors">
+                    {% for error in upload_form.source_file.errors %}
+                        <span>{{ error }}</span>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="upload-actions">
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    فحص الملف وإنشاء المراجعة
+                </button>
+
+                <span>
+                    لا يتم اعتماد أي بيانات
+                    قبل ظهور نتيجة المراجعة.
+                </span>
+            </div>
+        </form>
+
+        {% if service_error_details %}
+            <div class="preflight-errors">
+                <h3>تفاصيل أخطاء الفحص</h3>
+
+                {% for issue in service_error_details %}
+                    <article>
+                        <strong>{{ issue.message }}</strong>
+
+                        <span>
+                            الرمز التقني:
+                            {{ issue.code }}
+                        </span>
+                    </article>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+
+    <aside class="panel naming-panel">
+        <div class="panel-heading">
+            <div>
+                <span class="section-kicker">
+                    دليل سريع
+                </span>
+
+                <h2>صيغة اسم الملف</h2>
+            </div>
+        </div>
+
+        <div class="filename-example">
+            <span>تقارير الفترات</span>
+
+            <code dir="ltr">
+                Sales_BIFA_2026-07-01_2026-07-07.xlsx
+            </code>
+        </div>
+
+        <div class="filename-example">
+            <span>المخزون الافتتاحي</span>
+
+            <code dir="ltr">
+                OpeningStock_BIFA_2026-07-01.xlsx
+            </code>
+        </div>
+
+        <ul class="rules-list">
+            <li>
+                لا تغيّر أسماء الأعمدة المعتمدة.
+            </li>
+
+            <li>
+                يجب أن يحتوي الملف على ورقة واحدة.
+            </li>
+
+            <li>
+                يقبل النظام ملفات XLSX فقط.
+            </li>
+
+            <li>
+                يجب أن تطابق العلامة، النوع والفترة اسم الملف.
+            </li>
+        </ul>
+    </aside>
+</div>

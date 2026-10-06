@@ -108,6 +108,10 @@ class RawChargementAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/chargement_upload.html")
+        self.assertEqual(response.context["accountant_section"], "chargement")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_called_once()
 
@@ -195,6 +199,10 @@ class RawChargementAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/chargement_upload.html")
+        self.assertEqual(response.context["accountant_section"], "chargement")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_not_called()
 
@@ -240,12 +248,12 @@ class RawChargementAccountantViewTests(TestCase):
             403,
         )
 
-    def test_accountant_home_renders_raw_multi_file_form(self):
+    def test_dedicated_page_renders_raw_multi_file_form(self):
         self.login_accountant()
 
         response = self.client.get(
             reverse(
-                "imports:accountant_home"
+                "imports:raw_chargement_upload"
             )
         )
 
@@ -253,6 +261,10 @@ class RawChargementAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/chargement_upload.html")
+        self.assertEqual(response.context["accountant_section"], "chargement")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertIn(
             "raw_upload_formset",
@@ -354,6 +366,10 @@ class RawChargementAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/chargement_upload.html")
+        self.assertEqual(response.context["accountant_section"], "chargement")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertNotContains(
             response,

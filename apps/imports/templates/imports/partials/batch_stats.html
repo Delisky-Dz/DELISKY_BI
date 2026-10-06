@@ -1,0 +1,25 @@
+<section class="stats-grid">
+    <article class="stat-card">
+        <span>إجمالي الدفعات</span>
+        <strong>{{ batch_total }}</strong>
+        <small>جميع عمليات الاستيراد</small>
+    </article>
+
+    <article class="stat-card positive">
+        <span>جاهزة للاعتماد</span>
+        <strong>{{ status_counts.REVIEWED }}</strong>
+        <small>تم فحصها دون أخطاء مانعة</small>
+    </article>
+
+    <article class="stat-card danger">
+        <span>دفعات مرفوضة</span>
+        <strong>{{ status_counts.BLOCKED }}</strong>
+        <small>تحتاج تصحيح ملف المصدر</small>
+    </article>
+
+    <article class="stat-card approved">
+        <span>دفعات معتمدة</span>
+        <strong>{{ status_counts.APPROVED }}</strong>
+        <small>متاحة لمحرك التحليلات</small>
+    </article>
+</section>

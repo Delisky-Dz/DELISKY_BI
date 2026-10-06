@@ -110,6 +110,10 @@ class RawSalesAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/sales_upload.html")
+        self.assertEqual(response.context["accountant_section"], "sales")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_called_once()
 
@@ -190,6 +194,10 @@ class RawSalesAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/sales_upload.html")
+        self.assertEqual(response.context["accountant_section"], "sales")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_not_called()
 
@@ -235,12 +243,12 @@ class RawSalesAccountantViewTests(TestCase):
             403,
         )
 
-    def test_accountant_home_renders_sales_multi_file_form(self):
+    def test_dedicated_page_renders_sales_multi_file_form(self):
         self.login_accountant()
 
         response = self.client.get(
             reverse(
-                "imports:accountant_home"
+                "imports:raw_sales_upload"
             )
         )
 
@@ -248,6 +256,10 @@ class RawSalesAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/sales_upload.html")
+        self.assertEqual(response.context["accountant_section"], "sales")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertIn(
             "sales_upload_formset",
@@ -357,6 +369,10 @@ class RawSalesAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/sales_upload.html")
+        self.assertEqual(response.context["accountant_section"], "sales")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertContains(
             response,
@@ -439,6 +455,10 @@ class RawSalesAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/sales_upload.html")
+        self.assertEqual(response.context["accountant_section"], "sales")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
         self.assertContains(
             response,
             "sale_outside_period",

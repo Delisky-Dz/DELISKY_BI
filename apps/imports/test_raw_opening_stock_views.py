@@ -103,6 +103,10 @@ class RawOpeningStockAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/opening_stock_upload.html")
+        self.assertEqual(response.context["accountant_section"], "opening_stock")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_called_once()
 
@@ -179,6 +183,10 @@ class RawOpeningStockAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/opening_stock_upload.html")
+        self.assertEqual(response.context["accountant_section"], "opening_stock")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_not_called()
 
@@ -222,14 +230,14 @@ class RawOpeningStockAccountantViewTests(TestCase):
             403,
         )
 
-    def test_accountant_home_renders_opening_stock_form(
+    def test_dedicated_page_renders_opening_stock_form(
         self,
     ):
         self.login_accountant()
 
         response = self.client.get(
             reverse(
-                "imports:accountant_home"
+                "imports:raw_opening_stock_upload"
             )
         )
 
@@ -237,6 +245,10 @@ class RawOpeningStockAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/opening_stock_upload.html")
+        self.assertEqual(response.context["accountant_section"], "opening_stock")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertIn(
             "opening_stock_upload_form",
@@ -346,6 +358,10 @@ class RawOpeningStockAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/opening_stock_upload.html")
+        self.assertEqual(response.context["accountant_section"], "opening_stock")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertContains(
             response,

@@ -342,12 +342,12 @@ class AccountantImportViewTests(TestCase):
         )
 
 
-    def test_home_contains_import_identity_fields(self):
+    def test_standard_page_contains_import_identity_fields(self):
         self.login_accountant()
 
         response = self.client.get(
             reverse(
-                "imports:accountant_home"
+                "imports:standard_upload"
             )
         )
 

@@ -1,0 +1,98 @@
+<section
+    class="panel recent-panel"
+    id="recent-batches"
+>
+    <div class="panel-heading">
+        <div>
+            <span class="section-kicker">
+                سجل العمليات
+            </span>
+
+            <h2>دفعات الاستيراد</h2>
+        </div>
+
+        <span class="record-count">
+            {{ recent_batches|length }} دفعة في هذه الصفحة
+        </span>
+    </div>
+
+    {% if recent_batches %}
+        <div class="table-scroll">
+            <table class="batches-table">
+                <thead>
+                    <tr>
+                        <th>الملف</th>
+                        <th>العلامة</th>
+                        <th>نوع التقرير</th>
+                        <th>الفترة</th>
+                        <th>الصفوف</th>
+                        <th>الحالة</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for batch in recent_batches %}
+                        <tr>
+                            <td>
+                                <strong>
+                                    {{ batch.original_filename }}
+                                </strong>
+
+                                <small>
+                                    {{ batch.uploaded_at|date:"Y-m-d H:i" }}
+                                </small>
+                            </td>
+
+                            <td>{{ batch.brand.code }}</td>
+
+                            <td>
+                                {{ batch.get_report_type_display }}
+                            </td>
+
+                            <td dir="ltr">
+                                {{ batch.period_start|date:"Y-m-d" }}
+                                —
+                                {{ batch.period_end|date:"Y-m-d" }}
+                            </td>
+
+                            <td>
+                                {{ batch.accepted_rows }}
+                                /
+                                {{ batch.total_rows }}
+                            </td>
+
+                            <td>
+                                <span
+                                    class="status-badge status-{{ batch.status|lower }}"
+                                >
+                                    {{ batch.get_status_display }}
+                                </span>
+                            </td>
+
+                            <td>
+                                <a
+                                    href="{% url 'imports:batch_detail' batch.id %}"
+                                    class="table-link"
+                                >
+                                    فتح المراجعة
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <span>▤</span>
+
+            <h3>لا توجد دفعات استيراد بعد</h3>
+
+            <p>
+                أول ملف ترفعه سيظهر هنا
+                مع نتيجة الفحص وحالته.
+            </p>
+        </div>
+    {% endif %}
+</section>
