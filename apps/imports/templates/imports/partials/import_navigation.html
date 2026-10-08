@@ -1,0 +1,59 @@
+<a
+    href="{% url 'imports:accountant_home' %}"
+    class="side-link{% if accountant_section == 'home' %} is-active{% endif %}"{% if accountant_section == 'home' %} aria-current="page"{% endif %}>
+    <span class="side-icon">⌂</span>
+    مركز الاستيراد
+</a>
+
+<div class="side-navigation-divider"><span>رفع البيانات</span>
+    </div>
+<a
+    href="{% url 'imports:raw_opening_stock_upload' %}"
+    class="side-link{% if accountant_section == 'opening_stock' %} is-active{% endif %}"{% if accountant_section == 'opening_stock' %} aria-current="page"{% endif %}>
+    <span class="side-icon">↑</span>
+    Opening Stock — المخزون الافتتاحي
+</a>
+
+<a
+    href="{% url 'imports:raw_chargement_upload' %}"
+    class="side-link{% if accountant_section == 'chargement' %} is-active{% endif %}"{% if accountant_section == 'chargement' %} aria-current="page"{% endif %}>
+    <span class="side-icon">↑</span>
+    Chargement — التحميل
+</a>
+
+<a
+    href="{% url 'imports:raw_items_detail_upload' %}"
+    class="side-link{% if accountant_section == 'items_detail' %} is-active{% endif %}"{% if accountant_section == 'items_detail' %} aria-current="page"{% endif %}>
+    <span class="side-icon">↑</span>
+    Items Detail — تفاصيل الأصناف
+</a>
+
+<a
+    href="{% url 'imports:raw_items_upload' %}"
+    class="side-link{% if accountant_section == 'items' %} is-active{% endif %}"{% if accountant_section == 'items' %} aria-current="page"{% endif %}>
+    <span class="side-icon">↑</span>
+    Items — الأصناف
+</a>
+
+<a
+    href="{% url 'imports:raw_sales_upload' %}"
+    class="side-link{% if accountant_section == 'sales' %} is-active{% endif %}"{% if accountant_section == 'sales' %} aria-current="page"{% endif %}>
+    <span class="side-icon">↑</span>
+    Sales — المبيعات
+</a>
+
+<a
+    href="{% url 'imports:standard_upload' %}"
+    class="side-link{% if accountant_section == 'standard' %} is-active{% endif %}"{% if accountant_section == 'standard' %} aria-current="page"{% endif %}>
+    <span class="side-icon">↑</span>
+    الملفات الموحّدة
+</a>
+
+<div class="side-navigation-divider"><span>المراجعة والاعتماد</span>
+    </div>
+<a
+    href="{% url 'imports:batch_list' %}"
+    class="side-link{% if accountant_section == 'batches' or request.resolver_match.url_name == 'batch_detail' or request.resolver_match.url_name == 'approve_batch' %} is-active{% endif %}"{% if accountant_section == 'batches' or request.resolver_match.url_name == 'batch_detail' or request.resolver_match.url_name == 'approve_batch' %} aria-current="page"{% endif %}>
+    <span class="side-icon">▤</span>
+    سجل الدفعات
+</a>

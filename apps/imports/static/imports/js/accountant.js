@@ -549,178 +549,14 @@ document.querySelectorAll(
     });
 });
 
-/* ACCOUNTANT_LOCALIZED_NATIVE_CONTROLS */
+/* ACCOUNTANT_LOCALIZED_FILE_CONTROLS */
 (function () {
     "use strict";
-
-    const DATE_SELECTOR = [
-        "#raw-chargement-form input[type='date']",
-        "#raw-items-detail-form input[type='date']",
-        "#raw-items-form input[type='date']",
-        "#raw-sales-form input[type='date']",
-    ].join(",");
 
     const FILE_SELECTOR = [
         "#raw-chargement-form input[type='file']",
         "#raw-sales-form input[type='file']",
     ].join(",");
-
-    function installStyles() {
-        if (
-            document.getElementById(
-                "accountant-localized-native-controls-style"
-            )
-        ) {
-            return;
-        }
-
-        const style = document.createElement("style");
-
-        style.id =
-            "accountant-localized-native-controls-style";
-
-        style.textContent = `
-            .accountant-localized-date {
-                position: relative;
-                width: 100%;
-                min-height: 40px;
-            }
-
-            .accountant-localized-date-display {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                box-sizing: border-box;
-                width: 100%;
-                min-height: 40px;
-                pointer-events: none;
-            }
-
-            .accountant-localized-date-input {
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
-                opacity: 0;
-                cursor: pointer;
-            }
-
-            .accountant-localized-date-icon {
-                flex: 0 0 auto;
-                margin-inline-start: 0.5rem;
-            }
-
-            .accountant-localized-file {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                flex-wrap: wrap;
-            }
-
-            .accountant-localized-file-input {
-                display: none !important;
-            }
-
-            .accountant-localized-file-status {
-                opacity: 0.85;
-                overflow-wrap: anywhere;
-            }
-        `;
-
-        document.head.appendChild(style);
-    }
-
-    function formatDate(value) {
-        if (!value) {
-            return "\u0627\u062e\u062a\u0631 \u0627\u0644\u062a\u0627\u0631\u064a\u062e";
-        }
-
-        const parts = value.split("-");
-
-        if (parts.length !== 3) {
-            return value;
-        }
-
-        return (
-            parts[2]
-            + "/"
-            + parts[1]
-            + "/"
-            + parts[0]
-        );
-    }
-
-    function enhanceDateInput(input) {
-        if (
-            input.dataset.accountantLocalizedDate
-            === "1"
-        ) {
-            return;
-        }
-
-        input.dataset.accountantLocalizedDate = "1";
-
-        const wrapper =
-            document.createElement("div");
-
-        wrapper.className =
-            "accountant-localized-date";
-
-        const display =
-            document.createElement("div");
-
-        display.className =
-            "secondary-button "
-            + "accountant-localized-date-display";
-
-        display.setAttribute(
-            "aria-hidden",
-            "true"
-        );
-
-        const text =
-            document.createElement("span");
-
-        const icon =
-            document.createElement("span");
-
-        icon.className =
-            "accountant-localized-date-icon";
-
-        icon.textContent = "\uD83D\uDCC5";
-
-        display.appendChild(text);
-        display.appendChild(icon);
-
-        input.parentNode.insertBefore(
-            wrapper,
-            input
-        );
-
-        wrapper.appendChild(display);
-        wrapper.appendChild(input);
-
-        input.classList.add(
-            "accountant-localized-date-input"
-        );
-
-        function render() {
-            text.textContent =
-                formatDate(input.value);
-        }
-
-        input.addEventListener(
-            "change",
-            render
-        );
-
-        input.addEventListener(
-            "input",
-            render
-        );
-
-        render();
-    }
 
     function fileButtonText(input) {
         const form = input.closest("form");
@@ -849,11 +685,6 @@ document.querySelectorAll(
     function enhanceRoot(root) {
         matchesOrFind(
             root,
-            DATE_SELECTOR
-        ).forEach(enhanceDateInput);
-
-        matchesOrFind(
-            root,
             FILE_SELECTOR
         ).forEach(enhanceFileInput);
     }
@@ -896,7 +727,6 @@ document.querySelectorAll(
     }
 
     function initialize() {
-        installStyles();
         enhanceRoot(document);
         watchDynamicRows();
     }

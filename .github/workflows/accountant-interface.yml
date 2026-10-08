@@ -1,0 +1,62 @@
+name: Accountant interface
+
+on:
+  push:
+    branches: [feature/accountant-interface-restructure]
+  pull_request:
+    branches: [main]
+    paths:
+      - "apps/imports/**"
+      - ".github/workflows/accountant-interface.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  accountant-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: delisky_bi_dev
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d delisky_bi_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_SECRET_KEY: ci-accountant-interface-only
+      DB_NAME: delisky_bi_dev
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install -r requirements.txt
+      - name: Targeted accountant and related app tests
+        run: python manage.py test apps.imports apps.workforce apps.fleet apps.recruitment --noinput
+      - name: Full Django suite
+        run: python manage.py test --noinput
+      - name: JavaScript syntax and regression checks
+        run: |
+          find apps -path '*/static/*.js' -print0 | while IFS= read -r -d '' file; do
+            node --check "$file" || exit 1
+          done
+          node --test apps/dashboard/tests_js/ask_streaming.test.cjs
+      - name: Django and whitespace checks
+        run: |
+          python manage.py check
+          git diff --check

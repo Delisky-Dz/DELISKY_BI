@@ -104,6 +104,10 @@ class RawItemsAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/items_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         multi_review_mock.assert_called_once()
 
@@ -174,6 +178,10 @@ class RawItemsAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/items_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
         multi_review_mock.assert_not_called()
 
         self.assertFalse(
@@ -212,12 +220,12 @@ class RawItemsAccountantViewTests(TestCase):
             403,
         )
 
-    def test_accountant_home_renders_items_form(self):
+    def test_dedicated_page_renders_items_form(self):
         self.login_accountant()
 
         response = self.client.get(
             reverse(
-                "imports:accountant_home"
+                "imports:raw_items_upload"
             )
         )
 
@@ -225,6 +233,10 @@ class RawItemsAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/items_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertIn(
             "items_upload_form",
@@ -330,6 +342,10 @@ class RawItemsAccountantViewTests(TestCase):
             response.status_code,
             200,
         )
+        self.assertTemplateUsed(response, "imports/partials/items_upload.html")
+        self.assertEqual(response.context["accountant_section"], "items")
+        self.assertNotIn("recent_batches", response.context)
+        self.assertNotIn("upload_form", response.context)
 
         self.assertContains(
             response,

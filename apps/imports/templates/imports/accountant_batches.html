@@ -1,0 +1,14 @@
+{% extends "imports/base.html" %}
+{% block title %}سجل الدفعات | DELISKY BI{% endblock %}
+{% block page_title %}سجل دفعات الاستيراد{% endblock %}
+{% block content %}
+{% include "imports/partials/batch_stats.html" %}
+{% include "imports/partials/batch_list.html" %}
+{% if page_obj.has_other_pages %}
+<nav class="detail-toolbar" aria-label="صفحات سجل الدفعات">
+    {% if page_obj.has_previous %}<a class="back-link" href="?page={{ page_obj.previous_page_number }}">السابق</a>{% endif %}
+    <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a class="back-link" href="?page={{ page_obj.next_page_number }}">التالي</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

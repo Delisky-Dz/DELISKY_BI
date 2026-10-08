@@ -66,7 +66,7 @@
 
     <link
         rel="stylesheet"
-        href="{% static 'imports/css/accountant.css' %}?v=20260724-6"
+        href="{% static 'imports/css/accountant.css' %}?v=20261006-1"
     >
 </head>
 
@@ -89,21 +89,7 @@
             </a>
 
             <nav class="side-navigation">
-                <a
-                    href="{% url 'imports:accountant_home' %}"
-                    class="side-link"
-                >
-                    <span class="side-icon">⌂</span>
-                    مركز الاستيراد
-                </a>
-
-                <a
-                    href="{% url 'imports:accountant_home' %}#recent-batches"
-                    class="side-link"
-                >
-                    <span class="side-icon">▤</span>
-                    سجل الدفعات
-                </a>
+                {% include "imports/partials/import_navigation.html" %}
 
                 <div class="side-navigation-divider">
                     <span>
@@ -121,7 +107,7 @@
                         طلبات التوظيف
 
                         {% if recruitment_new_count %}
-                            <strong class="side-count-badge">
+                            <strong class="side-count-badge" title="طلبات جديدة">
                                 {{ recruitment_new_count }}
                             </strong>
                         {% endif %}

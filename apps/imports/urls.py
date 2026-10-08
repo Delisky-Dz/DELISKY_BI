@@ -7,6 +7,8 @@ app_name = "imports"
 
 
 urlpatterns = [
+    path("batches/", views.batch_list, name="batch_list"),
+    path("standard/", views.standard_upload, name="standard_upload"),
     path(
         "raw-opening-stock/",
         views.raw_opening_stock_upload,
