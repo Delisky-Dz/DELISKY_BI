@@ -27,35 +27,6 @@
     </p>
 
     <style data-opening-stock-ui-style>
-        #raw-opening-stock-form .opening-stock-date-picker {
-            position: relative;
-            width: 100%;
-            min-height: 48px;
-        }
-
-        #raw-opening-stock-form .opening-stock-date-display {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-sizing: border-box;
-            width: 100%;
-            min-height: 48px;
-            pointer-events: none;
-        }
-
-        #raw-opening-stock-form .opening-stock-date-native input {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-        }
-
-        #raw-opening-stock-form .opening-stock-date-icon {
-            font-size: 1.1rem;
-        }
-
         #raw-opening-stock-form .opening-stock-file-picker {
             display: flex;
             align-items: center;
@@ -95,23 +66,7 @@
                     {{ opening_stock_upload_form.stock_date.label }}
                 </label>
 
-                <div class="opening-stock-date-picker">
-                    <div
-                        class="secondary-button opening-stock-date-display"
-                        aria-hidden="true"
-                    >
-                        <span data-opening-stock-date-label>
-                            &#x627;&#x62E;&#x62A;&#x631; &#x627;&#x644;&#x62A;&#x627;&#x631;&#x64A;&#x62E;
-                        </span>
-                        <span class="opening-stock-date-icon">
-                            &#x1F4C5;
-                        </span>
-                    </div>
-
-                    <span class="opening-stock-date-native">
-                        {{ opening_stock_upload_form.stock_date }}
-                    </span>
-                </div>
+                {{ opening_stock_upload_form.stock_date }}
 
                 {% for error in opening_stock_upload_form.stock_date.errors %}
                     <span class="field-error">
@@ -238,49 +193,6 @@
 
             if (!form) {
                 return;
-            }
-
-            const dateInput = form.querySelector(
-                'input[name="stock_date"]'
-            );
-
-            const dateLabel = form.querySelector(
-                "[data-opening-stock-date-label]"
-            );
-
-            function renderDate() {
-                if (!dateInput || !dateLabel) {
-                    return;
-                }
-
-                if (!dateInput.value) {
-                    dateLabel.textContent =
-                        "\u0627\u062e\u062a\u0631 \u0627\u0644\u062a\u0627\u0631\u064a\u062e";
-                    return;
-                }
-
-                const parts = dateInput.value.split("-");
-
-                if (parts.length === 3) {
-                    dateLabel.textContent =
-                        parts[2]
-                        + "/"
-                        + parts[1]
-                        + "/"
-                        + parts[0];
-                } else {
-                    dateLabel.textContent =
-                        dateInput.value;
-                }
-            }
-
-            if (dateInput) {
-                dateInput.addEventListener(
-                    "change",
-                    renderDate
-                );
-
-                renderDate();
             }
 
             form.querySelectorAll(
