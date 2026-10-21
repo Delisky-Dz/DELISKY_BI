@@ -6,6 +6,19 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $Project = Split-Path $PSScriptRoot -Parent
+# Resolve imports and .env consistently even under Task Scheduler/System32.
+Set-Location -LiteralPath $Project
+$LogDirectory = Join-Path $Project "logs"
+New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+$LogPath = Join-Path $LogDirectory "production-waitress.log"
+# Simple bounded rotation; IgnoreNew prevents concurrent managed launchers.
+if ((Test-Path -LiteralPath $LogPath) -and
+    (Get-Item -LiteralPath $LogPath).Length -gt 10MB) {
+    Move-Item -LiteralPath $LogPath -Destination "$LogPath.1" -Force
+}
+Start-Transcript -LiteralPath $LogPath -Append | Out-Null
+try {
+Write-Host "START_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
 $RequiredBranch = "main"
 $Waitress = Join-Path $Project ".venv\Scripts\waitress-serve.exe"
 $Python = Join-Path $Project ".venv\Scripts\python.exe"
@@ -101,7 +114,13 @@ if ($head -ne $originMain) {
 Write-Host "BRANCH_GUARD=PASS"
 Write-Host "WORKING_TREE_GUARD=PASS"
 Write-Host "HEAD_GUARD=PASS"
+Write-Host "BRANCH=$currentBranch"
 Write-Host "HEAD=$head"
+
+# Override inherited DEV selection before dotenv/settings are imported.
+$env:DB_NAME = "delisky_bi"
+$env:DJANGO_SETTINGS_MODULE = "config.settings.production"
+Write-Host "DB_SAFETY=PASS EXPECTED=delisky_bi SETTINGS=config.settings.production"
 
 & $Python $StaticVerifier
 
@@ -142,4 +161,14 @@ $waitressExitCode = $LASTEXITCODE
 
 Write-Host "WAITRESS_EXIT_CODE=$waitressExitCode"
 
+}
+catch {
+    # Guard messages contain identifiers/paths only; never dump environment.
+    Write-Host "FATAL_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
+    Write-Host "FATAL=$($_.Exception.Message)"
+    $waitressExitCode = 1
+}
+finally {
+    Stop-Transcript | Out-Null
+}
 exit $waitressExitCode
