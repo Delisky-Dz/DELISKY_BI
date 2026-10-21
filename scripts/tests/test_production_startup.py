@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 class LauncherTests(unittest.TestCase):
     def run_launcher(self, waitress_exit=0):
         with tempfile.TemporaryDirectory(prefix="delisky startup ", dir=os.environ.get("DELISKY_TEST_TEMP")) as directory:
-            project = Path(directory) / "project with spaces"
+            project = Path(directory).resolve() / "project with spaces"
             scripts = project / "scripts"
             scripts.mkdir(parents=True)
             (scripts / "verify_static_manifest.py").touch()
