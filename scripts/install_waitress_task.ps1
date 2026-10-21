@@ -9,12 +9,38 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $TaskName = "DELISKY Production Waitress"
+$TaskPath = "\"
 $Project = Split-Path $PSScriptRoot -Parent
 $Launcher = Join-Path $PSScriptRoot "start_production_waitress.ps1"
 $PowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 $LauncherArguments = (
     '-NoProfile -ExecutionPolicy Bypass -File "{0}"'
 ) -f $Launcher
+
+function Test-TaskConfiguration {
+    param($Task)
+    $actions = @($Task.Actions)
+    $triggers = @($Task.Triggers)
+    return (
+        $actions.Count -eq 1 -and
+        $actions[0].Execute -eq $PowerShell -and
+        $actions[0].Arguments -eq $LauncherArguments -and
+        $actions[0].WorkingDirectory -eq $Project -and
+        $Task.Principal.UserId -in @("SYSTEM", "S-1-5-18") -and
+        $Task.Principal.LogonType -eq "ServiceAccount" -and
+        $triggers.Count -eq 1 -and
+        $triggers[0].CimClass.CimClassName -eq "MSFT_TaskBootTrigger" -and
+        $triggers[0].Delay -eq "PT30S" -and
+        $Task.Settings.Enabled -and
+        $Task.Settings.StartWhenAvailable -and
+        $Task.Settings.MultipleInstances -eq "IgnoreNew" -and
+        $Task.Settings.RestartCount -eq 3 -and
+        $Task.Settings.RestartInterval -eq "PT1M" -and
+        $Task.Settings.ExecutionTimeLimit -eq "PT0S" -and
+        -not $Task.Settings.DisallowStartIfOnBatteries -and
+        -not $Task.Settings.StopIfGoingOnBatteries
+    )
+}
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -39,10 +65,12 @@ if (-not (Test-Path -LiteralPath $PowerShell)) {
     throw "POWERSHELL_NOT_FOUND: $PowerShell"
 }
 
+$configurationMatches = $false
+$actionMatches = $false
 if ($Mode -eq "Check") {
     try {
-        $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-        $info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction Stop
+        $task = Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
+        $info = Get-ScheduledTaskInfo -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
         $action = @($task.Actions)[0]
 
         $actionMatches = (
@@ -57,6 +85,8 @@ if ($Mode -eq "Check") {
         Write-Host "LAST_RUN_TIME=$($info.LastRunTime)"
         Write-Host "LAST_TASK_RESULT=$($info.LastTaskResult)"
         Write-Host "ACTION_MATCHES_EXPECTED=$actionMatches"
+        $configurationMatches = Test-TaskConfiguration -Task $task
+        Write-Host "CONFIGURATION_MATCHES_EXPECTED=$configurationMatches"
         Write-Host "ACTION_EXECUTE=$($action.Execute)"
         Write-Host "ACTION_ARGUMENTS=$($action.Arguments)"
         Write-Host "ACTION_WORKING_DIRECTORY=$($action.WorkingDirectory)"
@@ -70,6 +100,7 @@ if ($Mode -eq "Check") {
         )
     }
 
+    if (-not $actionMatches -or -not $configurationMatches) { throw "WAITRESS_TASK_CHECK_FAILED" }
     exit 0
 }
 
@@ -83,21 +114,24 @@ $action = New-ScheduledTaskAction `
     -WorkingDirectory $Project
 
 $trigger = New-ScheduledTaskTrigger -AtStartup
+$trigger.Delay = "PT30S"
 
 $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -RestartCount 3 `
-    -RestartInterval (New-TimeSpan -Minutes 5) `
+    -RestartInterval (New-TimeSpan -Minutes 1) `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
     -ExecutionTimeLimit ([TimeSpan]::Zero) `
     -MultipleInstances IgnoreNew
 
 $principal = New-ScheduledTaskPrincipal `
     -UserId "SYSTEM" `
     -LogonType ServiceAccount `
-    -RunLevel Highest
+    -RunLevel Limited
 
 Register-ScheduledTask `
-    -TaskName $TaskName `
+    -TaskPath $TaskPath -TaskName $TaskName `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
@@ -110,14 +144,16 @@ Register-ScheduledTask `
     Out-Null
 
 Write-Host "TASK_INSTALLED=True"
+Write-Host "TASK_PATH=$TaskPath"
+Write-Host "RESTART_POLICY=3 attempts at 1 minute"
 
 if ($StartNow) {
-    Start-ScheduledTask -TaskName $TaskName
+    Start-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName
     Start-Sleep -Seconds 5
 }
 
-$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-$info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction Stop
+$task = Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
+$info = Get-ScheduledTaskInfo -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
 $installedAction = @($task.Actions)[0]
 
 $actionMatches = (
@@ -132,8 +168,8 @@ Write-Host "LAST_RUN_TIME=$($info.LastRunTime)"
 Write-Host "LAST_TASK_RESULT=$($info.LastTaskResult)"
 Write-Host "ACTION_MATCHES_EXPECTED=$actionMatches"
 
-if (-not $actionMatches) {
-    throw "WAITRESS_TASK_ACTION_MISMATCH"
+if (-not $actionMatches -or -not (Test-TaskConfiguration -Task $task)) {
+    throw "WAITRESS_TASK_CONFIGURATION_MISMATCH"
 }
 
 if ($StartNow) {

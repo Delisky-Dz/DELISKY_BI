@@ -1,0 +1,29 @@
+name: Production startup
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/*waitress*.ps1'
+      - 'scripts/tests/test_production_startup.py'
+      - '.github/workflows/production-startup.yml'
+permissions:
+  contents: read
+jobs:
+  startup:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Parse production scripts
+        shell: powershell
+        run: |
+          Get-ChildItem scripts/*waitress*.ps1 | ForEach-Object {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }
+      - run: python scripts/tests/test_production_startup.py
+      - run: git diff --check
