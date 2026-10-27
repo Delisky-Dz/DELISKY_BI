@@ -536,7 +536,7 @@ class RawChargementDerivedReviewTests(TestCase):
 
         self.assertEqual(
             context.exception.code,
-            "date_outside_period",
+            "chargement_row_outside_selected_period",
         )
 
         self.assertEqual(
