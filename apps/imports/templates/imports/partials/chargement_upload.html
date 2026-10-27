@@ -300,6 +300,21 @@
                             {{ item.error_message }}
                         </span>
 
+                        {% if item.error_code == "chargement_row_outside_selected_period" %}
+                            <dl class="period-validation-details">
+                                <dt>عدد السطور خارج الفترة</dt>
+                                <dd>{{ item.error_details.out_of_period_count }}</dd>
+                                <dt>أقدم تاريخ مخالف</dt>
+                                <dd dir="ltr">{{ item.error_details.earliest_offending_date }}</dd>
+                                <dt>أحدث تاريخ مخالف</dt>
+                                <dd dir="ltr">{{ item.error_details.latest_offending_date }}</dd>
+                                <dt>الفترة المختارة</dt>
+                                <dd dir="ltr">{{ item.error_details.period_start }} → {{ item.error_details.period_end }}</dd>
+                                <dt>أمثلة لأرقام سطور Excel</dt>
+                                <dd dir="ltr">{{ item.error_details.sample_excel_row_numbers|join:", " }}</dd>
+                            </dl>
+                        {% endif %}
+
                         {% if item.error_code %}
                             <code dir="ltr">
                                 {{ item.error_code }}
