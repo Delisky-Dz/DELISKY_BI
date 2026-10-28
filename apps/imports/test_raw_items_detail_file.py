@@ -335,6 +335,19 @@ class RawItemsDetailFileTests(SimpleTestCase):
             ],
             "source_truck_not_mapped",
         )
+        self.assertEqual(captured.exception.details["source_value"], "UNKNOWN")
+        self.assertIn("no explicit", captured.exception.details["cause_message"])
+
+    def test_blank_user_is_not_silently_skipped(self):
+        source = self.make_file((
+            ("ARTICLE A", "A1", 100, "04/04/2026 08:00:00", 10,
+             None, 123, "CLIENT A", "VDD-1", None, 1000),
+        ))
+        with self.assertRaises(RawItemsDetailFileError) as captured:
+            adapt_raw_items_detail_file(source, truck_mapping={})
+        self.assertEqual(captured.exception.details["excel_row_number"], 2)
+        self.assertEqual(captured.exception.details["cause_code"], "missing_source_truck_code")
+        self.assertEqual(captured.exception.details["source_value"], "")
 
     def test_missing_required_detail_column_reports_row(self):
         source = self.make_file(
@@ -374,6 +387,7 @@ class RawItemsDetailFileTests(SimpleTestCase):
             ],
             "missing_required_column",
         )
+        self.assertIn("Date de vente", captured.exception.details["cause_message"])
 
     def test_converts_to_items_report_rows(self):
         source = self.make_file(

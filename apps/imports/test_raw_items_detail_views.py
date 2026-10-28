@@ -202,6 +202,33 @@ class RawItemsDetailAccountantViewTests(TestCase):
             'name="aio_file"',
         )
 
+    @patch("apps.imports.views.create_raw_items_detail_multi_import_reviews")
+    def test_adaptation_failure_shows_row_cause_and_escaped_source(self, service):
+        self.login_accountant()
+        service.return_value = SimpleNamespace(
+            files=(SimpleNamespace(
+                filename="Items_DETAIL.xlsx", succeeded=False,
+                error_code="row_adaptation_failed",
+                error_message="An Items detail row could not be adapted.",
+                error_details={
+                    "excel_row_number": 2,
+                    "cause_code": "source_truck_not_mapped",
+                    "cause_message": "The source truck code has no explicit DELISKY BI mapping.",
+                    "source_value": "LV-05<script>",
+                },
+            ),), succeeded_count=0, failed_count=1,
+        )
+        response = self.client.post(reverse("imports:raw_items_detail_upload"), data={
+            "period_start": "2026-08-27", "period_end": "2026-10-22",
+            "bifa_file": self.make_upload("BIFA_Items_DETAIL_2026-08-27_to_2026-10-22.xlsx"),
+        })
+        self.assertContains(response, "صف Excel")
+        self.assertContains(response, "<dd>2</dd>", html=True)
+        self.assertContains(response, "source_truck_not_mapped")
+        self.assertContains(response, "no explicit DELISKY BI mapping")
+        self.assertContains(response, "LV-05&lt;script&gt;")
+        self.assertNotContains(response, "LV-05<script>")
+
     @patch(
         "apps.imports.views."
         "create_raw_items_detail_multi_import_reviews"

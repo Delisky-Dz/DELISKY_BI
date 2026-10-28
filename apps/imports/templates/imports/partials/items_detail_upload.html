@@ -235,6 +235,24 @@
                                     {{ item.error_code }}
                                 </code>
                             {% endif %}
+                            {% if item.error_details.excel_row_number %}
+                                <dl class="import-meta-grid">
+                                    <dt>صف Excel</dt>
+                                    <dd>{{ item.error_details.excel_row_number }}</dd>
+                                    <dt>سبب الرفض</dt>
+                                    <dd dir="ltr">{{ item.error_details.cause_code }}</dd>
+                                    <dt>التفاصيل</dt>
+                                    <dd>{{ item.error_details.cause_message }}</dd>
+                                    {% if item.error_details.source_value %}
+                                        <dt>رمز المصدر</dt>
+                                        <dd dir="ltr">{{ item.error_details.source_value|truncatechars:120 }}</dd>
+                                    {% endif %}
+                                    {% if item.error_details.cause_details.column %}
+                                        <dt>العمود المطلوب</dt>
+                                        <dd dir="ltr">{{ item.error_details.cause_details.column }}</dd>
+                                    {% endif %}
+                                </dl>
+                            {% endif %}
                         </div>
                     {% endif %}
                 </article>
