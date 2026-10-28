@@ -6,6 +6,7 @@ from apps.analytics.services.truck_resolver import (
     resolve_truck_by_van,
 )
 from apps.fleet.models import Truck
+from apps.imports.models import DistributionBrand
 
 from .raw_items_detail_file import AdaptedItemsDetailRow
 
@@ -42,6 +43,17 @@ def partition_raw_items_detail_rows_by_brand(
 
     for row in rows:
         van = row.values.get("VAN")
+        if row.values.get("Truck attribution") == "UNASSIGNED":
+            brand = DistributionBrand.objects.filter(
+                code=row.values.get("Unassigned brand"), is_active=True,
+            ).first()
+            if van or brand is None:
+                raise RawItemsDetailBrandPartitionError(
+                    "invalid_unassigned_document", "Unassigned Items rows require an active brand and no truck.",
+                    details={"excel_row_number": row.excel_row_number},
+                )
+            buckets.setdefault(brand.code, []).append(row)
+            continue
 
         resolution = resolve_truck_by_van(
             van,

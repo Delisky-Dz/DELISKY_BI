@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any
 
 from apps.imports.models import ImportBatch, ImportSourceUpload
@@ -24,6 +25,9 @@ def _items_detail_metadata(
     brand_review: RawItemsDetailBrandReview,
     replacement_plan: ItemsDetailReplacementPlan,
 ) -> dict[str, Any]:
+    unassigned = [row.cleaned_dict() for row in brand_review.cleaning_result.rows
+                  if row.status == "ACCEPTED" and row.cleaned_dict().get("truck_attribution") == "UNASSIGNED"]
+    sale_totals = [row.get("sale_total") for row in unassigned]
     return {
         "transaction_level": True,
         "covered_trucks": list(brand_review.covered_trucks),
@@ -31,6 +35,11 @@ def _items_detail_metadata(
             replacement_plan.replacement_batch_ids
         ),
         "source_truck_scope": brand_review.source_truck_scope.as_dict(),
+        "unassigned": {
+            "row_count": len(unassigned),
+            "total_units": sum(row.get("total_units", 0) for row in unassigned),
+            "sale_total": str(sum(sale_totals, Decimal("0"))) if all(value is not None for value in sale_totals) else None,
+        },
     }
 
 

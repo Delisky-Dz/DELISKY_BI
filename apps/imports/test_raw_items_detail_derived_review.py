@@ -16,6 +16,7 @@ from apps.imports.services.source_truck_scope_snapshot import (
 class RawItemsDetailDerivedReviewMetadataTests(SimpleTestCase):
     def _brand_review(self, covered_trucks):
         return SimpleNamespace(
+            cleaning_result=SimpleNamespace(rows=()),
             covered_trucks=covered_trucks,
             source_truck_scope=build_source_truck_scope_snapshot(
                 mappings={"DCV-03": "BIFA LIV03"},

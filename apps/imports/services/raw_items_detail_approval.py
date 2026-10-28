@@ -26,6 +26,7 @@ from .source_truck_mapping_store import (
 from .source_truck_scope_snapshot import (
     build_source_truck_scope_snapshot,
 )
+from .items_detail_unassigned import rules_from_upload
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +99,7 @@ def _reviewed_source_scope_sha(
 
 def _current_source_scope_sha(
     source_system_code: str,
+    source_upload=None,
 ) -> str:
     snapshot = (
         build_source_truck_scope_snapshot(
@@ -111,6 +113,7 @@ def _current_source_scope_sha(
                     source_system_code
                 )
             ),
+            unassigned_documents=rules_from_upload(source_upload),
         )
     )
 
@@ -325,7 +328,8 @@ def approve_items_detail_batch(
 
         current_source_scope_sha = (
             _current_source_scope_sha(
-                source_system.code
+                source_system.code,
+                source_upload=target.source_upload,
             )
         )
 

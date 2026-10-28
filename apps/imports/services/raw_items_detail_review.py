@@ -21,6 +21,7 @@ from .source_truck_scope_snapshot import (
     SourceTruckScopeSnapshot,
     build_source_truck_scope_snapshot,
 )
+from .items_detail_unassigned import rules_for_source
 
 
 class RawItemsDetailReviewError(Exception):
@@ -96,15 +97,18 @@ def prepare_raw_items_detail_review(
 
     truck_mapping = build_source_truck_mapping(source_system.code)
     source_exclusions = build_source_truck_exclusions(source_system.code)
+    unassigned_documents = rules_for_source(source, source_system)
     source_truck_scope = build_source_truck_scope_snapshot(
         mappings=truck_mapping,
         exclusions=source_exclusions,
+        unassigned_documents=unassigned_documents,
     )
 
     adapted = adapt_raw_items_detail_file(
         source,
         truck_mapping=truck_mapping,
         source_exclusions=source_exclusions,
+        unassigned_documents=unassigned_documents,
         original_filename=original_filename,
     )
     partitions = partition_raw_items_detail_rows_by_brand(adapted.rows)
