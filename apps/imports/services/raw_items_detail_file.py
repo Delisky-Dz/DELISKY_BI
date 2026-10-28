@@ -310,6 +310,7 @@ def adapt_raw_items_detail_file(
                     "excel_row_number": raw_row.row_number,
                     "cause_code": exc.code,
                     "cause_details": dict(exc.details),
+                    "cause_message": exc.message,
                 },
             ) from exc
 
@@ -349,6 +350,8 @@ def adapt_raw_items_detail_file(
                     "excel_row_number": raw_row.row_number,
                     "cause_code": exc.code,
                     "cause_details": dict(exc.details),
+                    "cause_message": exc.message,
+                    "source_value": str(source_code_raw or ""),
                 },
             ) from exc
 
