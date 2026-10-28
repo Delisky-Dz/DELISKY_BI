@@ -18,6 +18,7 @@ from .value_normalizers import (
     normalize_lookup_text,
     normalize_text,
     parse_datetime_value,
+    parse_decimal_value,
 )
 
 
@@ -161,6 +162,19 @@ def clean_raw_items_detail_rows(
         issues = _detail_issues(
             list(base_row.issues)
         )
+        if raw.get("Truck attribution") == "UNASSIGNED" and raw.get("Unassigned brand") and not raw.get("VAN"):
+            issues = [issue for issue in issues if issue.code != "missing_van"]
+            cleaned["truck_attribution"] = "UNASSIGNED"
+            cleaned["unassigned_brand"] = raw["Unassigned brand"]
+            cleaned["van"] = None
+            cleaned["van_normalized"] = None
+            try:
+                cleaned["sale_total"] = parse_decimal_value(raw.get("Total vente"))
+            except ValueNormalizationError:
+                issues.append(_detail_issue(
+                    "invalid_unassigned_sale_total", "The unassigned sale total is invalid.",
+                    field_name="Total vente", raw_value=raw.get("Total vente"),
+                ))
 
         sale_datetime_raw = raw.get("Date de vente")
 

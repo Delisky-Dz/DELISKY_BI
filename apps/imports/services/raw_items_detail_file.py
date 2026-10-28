@@ -12,6 +12,7 @@ from .report_row_reader import (
     ReportRowReadResult,
 )
 from .report_schemas import normalize_header
+from .items_detail_unassigned import match_unassigned
 from .source_truck_mapper import (
     SourceTruckMappingError,
     map_source_truck_code,
@@ -77,6 +78,8 @@ OPTIONAL_ITEMS_DETAIL_HEADERS = (
     "Barcode",
     "Prix",
     "Total vente",
+    "Truck attribution",
+    "Unassigned brand",
 )
 
 
@@ -231,6 +234,7 @@ def adapt_raw_items_detail_file(
     *,
     truck_mapping: Mapping[object, object],
     source_exclusions: Mapping[object, object] | None = None,
+    unassigned_documents: Mapping[str, str] | None = None,
     original_filename: str | None = None,
 ) -> RawItemsDetailFileResult:
     try:
@@ -320,6 +324,18 @@ def adapt_raw_items_detail_file(
         exclusion_reason = normalized_exclusions.get(
             canonical_source_code
         )
+        unassigned_brand = match_unassigned(
+            unassigned_documents, source_code_raw, document,
+            document_number, sale_datetime,
+        )
+        if unassigned_brand and (exclusion_reason is not None or any(
+            _canonical_source_code(code) == canonical_source_code for code in truck_mapping
+        )):
+            raise RawItemsDetailFileError(
+                "unassigned_document_scope_conflict",
+                "An unassigned document cannot also be mapped or excluded.",
+                details={"excel_row_number": raw_row.row_number, "source_value": str(source_code_raw)},
+            )
 
         if exclusion_reason is not None:
             excluded_source_rows.append(
@@ -338,7 +354,7 @@ def adapt_raw_items_detail_file(
             continue
 
         try:
-            internal_code = map_source_truck_code(
+            internal_code = None if unassigned_brand else map_source_truck_code(
                 source_code_raw,
                 mapping=truck_mapping,
             )
@@ -365,8 +381,13 @@ def adapt_raw_items_detail_file(
             "Document": document,
             "Num doc.": document_number,
         }
+        if unassigned_brand:
+            adapted["Truck attribution"] = "UNASSIGNED"
+            adapted["Unassigned brand"] = unassigned_brand
 
         for header in OPTIONAL_ITEMS_DETAIL_HEADERS:
+            if header in ("Truck attribution", "Unassigned brand"):
+                continue  # Never trust assignment metadata supplied as Excel columns.
             has_value, value = _optional_value(row, header)
             if has_value:
                 adapted[header] = value

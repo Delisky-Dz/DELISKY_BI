@@ -9,13 +9,17 @@ class SourceTruckScopeSnapshot:
     mappings: tuple[tuple[str, str], ...]
     exclusions: tuple[tuple[str, str], ...]
     sha256: str
+    unassigned_documents: tuple[tuple[str, str], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
-        return {
+        result = {
             "mappings": dict(self.mappings),
             "exclusions": dict(self.exclusions),
             "sha256": self.sha256,
         }
+        if self.unassigned_documents:
+            result["unassigned_documents"] = dict(self.unassigned_documents)
+        return result
 
 
 def _canonical(value: object) -> str:
@@ -55,6 +59,7 @@ def build_source_truck_scope_snapshot(
     *,
     mappings: Mapping[object, object],
     exclusions: Mapping[object, object],
+    unassigned_documents: Mapping[str, str] | None = None,
 ) -> SourceTruckScopeSnapshot:
     """Build a stable audit fingerprint for the truck scope used by an import.
 
@@ -86,11 +91,15 @@ def build_source_truck_scope_snapshot(
     mapping_items = tuple(sorted(canonical_mappings.items()))
     exclusion_items = tuple(sorted(canonical_exclusions.items()))
 
+    scope_payload = {
+        "mappings": mapping_items,
+        "exclusions": exclusion_items,
+    }
+    unassigned_items = tuple(sorted((unassigned_documents or {}).items()))
+    if unassigned_items:
+        scope_payload["unassigned_documents"] = unassigned_items
     payload = json.dumps(
-        {
-            "mappings": mapping_items,
-            "exclusions": exclusion_items,
-        },
+        scope_payload,
         ensure_ascii=True,
         separators=(",", ":"),
         sort_keys=True,
@@ -100,4 +109,5 @@ def build_source_truck_scope_snapshot(
         mappings=mapping_items,
         exclusions=exclusion_items,
         sha256=sha256(payload).hexdigest(),
+        unassigned_documents=unassigned_items,
     )

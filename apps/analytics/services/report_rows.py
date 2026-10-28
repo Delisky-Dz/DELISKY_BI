@@ -43,8 +43,8 @@ class BaseAnalyticalRow:
     excel_row_number: int
     period_start: date
     period_end: date
-    van: str
-    van_normalized: str
+    van: str | None
+    van_normalized: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +80,7 @@ class ItemAnalyticalRow(BaseAnalyticalRow):
     client: str | None
     client_normalized: str | None
     sale_datetime: datetime | None = None
+    truck_attribution: str = "ASSIGNED"
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,7 +169,21 @@ def parse_item_row(row):
         sale_datetime = read_optional_datetime(row.cleaned_data, "sale_datetime")
         if sale_datetime is not None:
             _require_date_inside_batch(row, sale_datetime.date(), "sale_datetime")
-        return ItemAnalyticalRow(**_base_values(row), article=read_required_text(row.cleaned_data, "article"), article_normalized=read_required_lookup_text(row.cleaned_data, "article_normalized"), quantity_sold=quantity_sold, client=read_optional_text(row.cleaned_data, "client"), client_normalized=read_optional_lookup_text(row.cleaned_data, "client_normalized"), sale_datetime=sale_datetime)
+        unassigned = row.cleaned_data.get("truck_attribution") == "UNASSIGNED"
+        if unassigned:
+            from apps.imports.services.items_detail_unassigned import match_unassigned
+            detail = (row.batch.review_summary or {}).get("items_detail", {})
+            rules = detail.get("source_truck_scope", {}).get("unassigned_documents", {})
+            if (not row.batch.source_upload_id or not detail.get("transaction_level")
+                or not rules
+                or row.cleaned_data.get("unassigned_brand") != row.batch.brand.code
+                or match_unassigned(rules, row.cleaned_data.get("source_user"), row.cleaned_data.get("document"), row.cleaned_data.get("document_number"), sale_datetime) != row.batch.brand.code
+                or row.cleaned_data.get("van") or row.cleaned_data.get("van_normalized")):
+                raise _row_error(row, "invalid_unassigned_document", "Unassigned Items rows require reviewed brand-only document scope.")
+            base = {"import_row_id": row.pk, "batch_id": row.batch_id, "brand_id": row.batch.brand_id, "excel_row_number": row.excel_row_number, "period_start": row.batch.period_start, "period_end": row.batch.period_end, "van": None, "van_normalized": None}
+        else:
+            base = _base_values(row)
+        return ItemAnalyticalRow(**base, article=read_required_text(row.cleaned_data, "article"), article_normalized=read_required_lookup_text(row.cleaned_data, "article_normalized"), quantity_sold=quantity_sold, client=read_optional_text(row.cleaned_data, "client"), client_normalized=read_optional_lookup_text(row.cleaned_data, "client_normalized"), sale_datetime=sale_datetime, truck_attribution="UNASSIGNED" if unassigned else "ASSIGNED")
     except AnalyticalValueError as exc:
         raise _convert_value_error(row, exc) from exc
 

@@ -137,6 +137,12 @@
         </p>
 
         <dl class="technical-list">
+            {% if items_detail.unassigned.row_count %}
+                <div>
+                    <dt>حركات ضمن إجماليات العلامة دون شاحنة محددة</dt>
+                    <dd>{{ items_detail.unassigned.row_count }} صفوف؛ الكمية {{ items_detail.unassigned.total_units }}؛ المبلغ {{ items_detail.unassigned.sale_total|default_if_none:"غير متوفر" }}. لا تُحتسب في أداء الشاحنات.</dd>
+                </div>
+            {% endif %}
             <div>
                 <dt>الشاحنات المغطاة</dt>
                 <dd dir="ltr">

@@ -89,8 +89,9 @@ class RawItemsDetailReviewTests(TestCase):
         exclusions.return_value = {"RACHID": "OUT_OF_SCOPE"}
         enrich.side_effect = lambda result, **kwargs: result
 
+        from io import BytesIO
         result = prepare_raw_items_detail_review(
-            object(),
+            BytesIO(b"mocked-source"),
             source_system_code="AIO_WEB",
             period_start="2026-04-04",
             period_end="2026-08-26",

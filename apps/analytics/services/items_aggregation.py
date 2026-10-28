@@ -180,6 +180,7 @@ class ItemsAggregationResult:
         BrandVanClientProductItemTotal,
         ...,
     ] = ()
+    unassigned_row_count: int = 0
 
     @property
     def has_attribution_issues(self) -> bool:
@@ -406,6 +407,7 @@ def aggregate_items(
     source_row_count = 0
     outside_requested_period_count = 0
     partial_overlap_excluded_count = 0
+    unassigned_row_count = 0
 
     for import_row in rows:
         source_row_count += 1
@@ -453,21 +455,15 @@ def aggregate_items(
             item.client is not None
             and item.client_normalized is not None
         ):
-            brand_van_client = _get_named_accumulator(
-                brand_van_client_buckets,
-                (
-                    item.brand_id,
-                    item.van_normalized,
-                    item.client_normalized,
-                ),
-                item.client,
-            )
-            brand_van_client.accumulator.add(
-                item.quantity_sold
-            )
+            if item.truck_attribution != "UNASSIGNED":
+                brand_van_client = _get_named_accumulator(
+                    brand_van_client_buckets,
+                    (item.brand_id, item.van_normalized, item.client_normalized),
+                    item.client,
+                )
+                brand_van_client.accumulator.add(item.quantity_sold)
 
-            brand_van_client_product = (
-                _get_client_product_accumulator(
+                brand_van_client_product = _get_client_product_accumulator(
                     brand_van_client_product_buckets,
                     (
                         item.brand_id,
@@ -478,10 +474,7 @@ def aggregate_items(
                     item.client,
                     item.article,
                 )
-            )
-            brand_van_client_product.accumulator.add(
-                item.quantity_sold
-            )
+                brand_van_client_product.accumulator.add(item.quantity_sold)
 
             brand_client = _get_named_accumulator(
                 brand_client_buckets,
@@ -510,6 +503,10 @@ def aggregate_items(
             brand_client_product.accumulator.add(
                 item.quantity_sold
             )
+
+        if item.truck_attribution == "UNASSIGNED":
+            unassigned_row_count += 1
+            continue
 
         truck_resolution = resolve_truck_by_van(
             item.van_normalized,
@@ -614,6 +611,7 @@ def aggregate_items(
         )
 
     return ItemsAggregationResult(
+        unassigned_row_count=unassigned_row_count,
         requested_period_start=period_start,
         requested_period_end=period_end,
         source_row_count=source_row_count,
