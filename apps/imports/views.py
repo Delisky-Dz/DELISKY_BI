@@ -1,8 +1,10 @@
 import logging
 
 from django.contrib import messages
+from django.core import signing
 from django.core.paginator import Paginator
 from django.db.models import Count
+from django.http import HttpResponseBadRequest
 from django.shortcuts import (
     get_object_or_404,
     redirect,
@@ -42,6 +44,9 @@ from .services.approval_dispatch import (
 )
 from .services.batch_approval import (
     ImportBatchApprovalError,
+)
+from .services.bulk_approval import (
+    approve_ready_snapshot, can_submit_approval, make_ready_snapshot, read_ready_snapshot,
 )
 from .services.batch_review import (
     ImportBatchReviewError,
@@ -156,13 +161,34 @@ def batch_list(request):
     ).all()
     page = Paginator(batches, 20).get_page(request.GET.get("page"))
     counts = _status_counts()
+    ready_batches = list(batches.filter(status=ImportBatchStatus.REVIEWED, error_count=0))
     return render(request, "imports/accountant_batches.html", {
         "accountant_section": "batches",
         "recent_batches": page.object_list,
         "page_obj": page,
         "status_counts": counts,
         "batch_total": sum(counts.values()),
+        "ready_batches": ready_batches,
+        "ready_count": len(ready_batches),
+        "ready_snapshot": make_ready_snapshot(ready_batches, request.user),
+        "bulk_approval_result": request.session.pop("accountant_bulk_approval_result", None),
     })
+
+
+@accountant_required
+@require_POST
+def approve_ready_batches(request):
+    token = request.POST.get("ready_snapshot", "")
+    try:
+        entries = read_ready_snapshot(token, request.user)
+    except (signing.BadSignature, ValueError, TypeError):
+        return HttpResponseBadRequest("انتهت صلاحية قائمة الدفعات أو تغير الطلب. أعد تحميل سجل الدفعات.")
+    if request.POST.get("confirm") != "yes":
+        return render(request, "imports/bulk_approval_confirm.html", {
+            "accountant_section": "batches", "ready_snapshot": token, "entries": entries,
+        })
+    request.session["accountant_bulk_approval_result"] = approve_ready_snapshot(entries, approved_by=request.user)
+    return redirect("imports:batch_list")
 
 
 def _present_service_errors(
@@ -858,11 +884,7 @@ def batch_detail(request, batch_id: int):
         batch
     )
 
-    can_approve = (
-        batch.status
-        == ImportBatchStatus.REVIEWED
-        and batch.error_count == 0
-    )
+    can_approve = can_submit_approval(batch)
 
     items_detail = summary.get(
         "items_detail"

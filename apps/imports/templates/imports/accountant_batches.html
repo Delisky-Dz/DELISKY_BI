@@ -3,6 +3,34 @@
 {% block page_title %}سجل دفعات الاستيراد{% endblock %}
 {% block content %}
 {% include "imports/partials/batch_stats.html" %}
+{% if bulk_approval_result %}
+<section class="panel" aria-live="polite">
+    <h2>نتيجة الاعتماد الجماعي</h2>
+    <p><strong>{{ bulk_approval_result.success_count }} نجحت / {{ bulk_approval_result.failure_count }} فشلت</strong></p>
+    {% if bulk_approval_result.succeeded_ids %}<p>الدفعات المعتمدة: {{ bulk_approval_result.succeeded_ids|join:", " }}</p>{% endif %}
+    {% if bulk_approval_result.failures %}
+    <ul>{% for failure in bulk_approval_result.failures %}<li>دفعة #{{ failure.id }}: {{ failure.reason }}</li>{% endfor %}</ul>
+    {% endif %}
+</section>
+{% endif %}
+<section class="panel" id="ready-for-approval">
+    <div class="panel-heading"><h2>جاهزة للاعتماد</h2><strong>{{ ready_count }} دفعة</strong></div>
+    <p>يشمل الاعتماد فقط الدفعات المبينة في هذا القسم، عبر جميع صفحات السجل. ستظهر قائمة تأكيد قبل التنفيذ.</p>
+    {% if ready_batches %}
+    <div class="table-scroll"><table class="batches-table">
+        <thead><tr><th>الدفعة</th><th>العلامة</th><th>نوع التقرير</th><th>الفترة</th></tr></thead>
+        <tbody>{% for batch in ready_batches %}<tr>
+            <td><a href="{% url 'imports:batch_detail' batch.id %}">#{{ batch.id }}</a></td>
+            <td>{{ batch.brand.code }}</td><td>{{ batch.get_report_type_display }}</td>
+            <td dir="ltr">{{ batch.period_start|date:"Y-m-d" }} → {{ batch.period_end|date:"Y-m-d" }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    {% else %}<p>لا توجد دفعات جاهزة للاعتماد.</p>{% endif %}
+    <form method="post" action="{% url 'imports:approve_ready_batches' %}">
+        {% csrf_token %}<input type="hidden" name="ready_snapshot" value="{{ ready_snapshot }}">
+        <button class="primary-button" type="submit" {% if not ready_batches %}disabled{% endif %}>اعتماد {{ ready_count }} دفعة جاهزة</button>
+    </form>
+</section>
 {% include "imports/partials/batch_list.html" %}
 {% if page_obj.has_other_pages %}
 <nav class="detail-toolbar" aria-label="صفحات سجل الدفعات">
