@@ -1,0 +1,24 @@
+{% extends "imports/base.html" %}
+{% block title %}تأكيد الاعتماد الجماعي | DELISKY BI{% endblock %}
+{% block page_title %}تأكيد اعتماد الدفعات الجاهزة{% endblock %}
+{% block content %}
+<section class="panel">
+    <h2>سيتم اعتماد {{ entries|length }} دفعة جاهزة. هل تريد المتابعة؟</h2>
+    <p>تُفحص كل دفعة مجددًا عند التنفيذ. أي دفعة تغيرت أو لم تجتز التحقق لن تُعتمد. يُنفذ الاعتماد بشكل مستقل لكل دفعة، مع عرض عدد النجاحات وأسباب الفشل.</p>
+    <div class="table-scroll"><table class="batches-table">
+        <thead><tr><th>الدفعة</th><th>العلامة</th><th>نوع التقرير</th><th>الفترة</th></tr></thead>
+        <tbody>{% for entry in entries %}<tr>
+            <td>#{{ entry.id }}</td><td>{{ entry.brand }}</td><td>{{ entry.report_type }}</td>
+            <td dir="ltr">{{ entry.period_start }} → {{ entry.period_end }}</td>
+        </tr>{% endfor %}</tbody>
+    </table></div>
+    <div class="detail-toolbar">
+        <form method="post" action="{% url 'imports:approve_ready_batches' %}">
+            {% csrf_token %}<input type="hidden" name="ready_snapshot" value="{{ ready_snapshot }}">
+            <input type="hidden" name="confirm" value="yes">
+            <button class="primary-button" type="submit">تأكيد اعتماد {{ entries|length }} دفعة</button>
+        </form>
+        <a class="back-link" href="{% url 'imports:batch_list' %}">إلغاء والعودة للسجل</a>
+    </div>
+</section>
+{% endblock %}
