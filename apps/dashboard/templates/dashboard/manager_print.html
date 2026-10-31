@@ -1,0 +1,52 @@
+{% load static l10n %}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <title>DELISKY_Manager_Report_{{ period_start|date:"Y-m-d" }}_{{ period_end|date:"Y-m-d" }}</title>
+    <link rel="stylesheet" href="{% static 'dashboard/css/manager_print.css' %}">
+</head>
+<body>
+    <div class="no-print print-controls"><button type="button" onclick="window.print()">طباعة</button><button type="button" onclick="window.close()">إغلاق</button></div>
+    <header class="report-header">
+        <img src="{% static 'accounts/images/delisky-logo.png' %}" alt="DELISKY">
+        <div><h1>تقرير DELISKY — لوحة المدير</h1>
+        {% if sections %}
+        <p>العلامة: {{ selected_brand.name|default:'جميع العلامات' }}</p>
+        <p>من {{ period_start|date:"d/m/Y" }} إلى {{ period_end|date:"d/m/Y" }}</p>
+        <p>تاريخ ووقت الإنشاء: {{ generated_at|date:"d/m/Y H:i" }}</p>
+        {% endif %}</div>
+    </header>
+    {% if not sections %}
+        <h2>تعذر تطبيق الفلتر</h2><p>حدد فترة صحيحة من لوحة المدير ثم أعد فتح التقرير.</p>{{ filter_form.errors }}
+    {% else %}
+    <main>
+    <section class="overview"><h2>الملخص التنفيذي</h2>
+        <div class="kpis">
+            <article><h3>إجمالي المبيعات</h3><strong>{{ overview_summary.total_sales|floatformat:2 }} دج</strong><p>{{ overview_summary.sale_record_count }} سجل بيع</p></article>
+            <article><h3>نسبة نجاح الزيارة</h3><strong>{% if overview_summary.visit_success_percentage == None %}غير متاح{% else %}{{ overview_summary.visit_success_percentage|floatformat:1 }}%{% endif %}</strong><p>{{ overview_summary.visited_record_count }} زيارة ناجحة / {{ overview_summary.pos_record_count }} سجل</p></article>
+            <article><h3>البائعون ذوو المبيعات المقاسة</h3><strong>{{ overview_summary.measured_sales_worker_count }}</strong></article>
+            <article><h3>زبائن تكرر عندهم عدم الزيارة</h3><strong>{{ overview_summary.client_follow_up_count }}</strong><p>3 حالات عدم زيارة أو أكثر</p></article>
+        </div>
+        {% include 'dashboard/partials/sales_timeline.html' %}
+        <article class="brand-chart"><h3>المبيعات حسب العلامة</h3>
+        {% for item in brand_sales_chart %}
+            <div class="brand-row"><strong>{{ item.brand_name }}</strong> — {{ item.total_sales|floatformat:2 }} دج — {% if item.contribution_percentage == None %}نسبة غير متاحة{% else %}{{ item.contribution_percentage|floatformat:1 }}%{% endif %}
+            <svg viewBox="0 0 100 3" preserveAspectRatio="none" aria-label="{{ item.brand_name }}"><rect x="0" y="0" width="{{ item.relative_bar_percentage|unlocalize }}" height="3" fill="#263d58" /></svg></div>
+        {% empty %}<p>لا توجد بيانات</p>{% endfor %}
+        </article>
+    </section>
+    {% for section in sections %}
+    <section class="report-section"><h2>{{ section.title }}</h2>
+        {% for table in section.tables %}
+        <h3>{{ table.title }}</h3>{% if table.note %}<p>{{ table.note }}</p>{% endif %}
+        {% if table.rows %}<table><thead><tr>{% for label in table.headers %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for row in table.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+        {% else %}<p class="empty-state">لا توجد بيانات / لا توجد نتائج مطابقة في الفترة المحددة</p>{% endif %}
+        {% empty %}<p class="empty-state">لا توجد بيانات / لا توجد نتائج مطابقة في الفترة المحددة</p>{% endfor %}
+    </section>
+    {% endfor %}
+    </main>
+    {% endif %}
+</body>
+</html>

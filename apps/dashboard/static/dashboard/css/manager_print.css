@@ -1,0 +1,30 @@
+@page { size: A4 landscape; margin: 12mm; }
+* { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0 auto; padding: 12mm; max-width: 297mm; color: #17202a; background: white; font: 10pt Tahoma, Arial, sans-serif; line-height: 1.55; }
+.report-header { display: flex; gap: 10mm; align-items: center; border-bottom: 2px solid #263d58; padding-bottom: 5mm; }
+.report-header img { width: 35mm; height: auto; }
+h1 { font-size: 20pt; } h2 { font-size: 16pt; border-bottom: 1px solid #999; padding-bottom: 2mm; }
+h3 { font-size: 11pt; margin-top: 5mm; } h1, h2, h3 { break-after: avoid; }
+p { margin: 1mm 0 3mm; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin: 5mm 0; }
+.kpis article { border: 1px solid #aab3bd; padding: 4mm; break-inside: avoid; }
+.kpis h3 { margin-top: 0; } .kpis strong { font-size: 16pt; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6mm; font-size: 8.5pt; }
+th, td { border: 1px solid #aab3bd; padding: 1.8mm; text-align: right; vertical-align: top; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; unicode-bidi: plaintext; }
+th { background: #edf0f3; color: #111; } thead { display: table-header-group; } tr { break-inside: avoid; page-break-inside: avoid; }
+.report-section { break-before: page; }
+.print-controls { display: flex; gap: 8px; padding-bottom: 12px; } button { padding: 8px 24px; cursor: pointer; }
+.executive-panel--timeline, .brand-chart { break-inside: avoid; margin: 5mm 0; }
+.sales-timeline__metrics { display: flex; gap: 10mm; } .sales-timeline__metric span { display: block; }
+.sales-timeline__chart { display: grid; grid-template-columns: 12mm 1fr; direction: ltr; gap: 2mm; margin-top: 4mm; }
+.sales-timeline__scale { height: 40mm; display: flex; flex-direction: column; justify-content: space-between; }
+.sales-timeline__plot { height: 40mm; border: 1px solid #aaa; }
+.sales-timeline__svg { width: 100%; height: 100%; overflow: visible; }
+.sales-timeline__grid-line { stroke: #bbb; stroke-width: .2; }
+.sales-timeline__line { fill: none; stroke: #263d58; stroke-width: .7; }
+.sales-timeline__markers { display: none; }
+.sales-timeline__axis { grid-column: 2; display: flex; justify-content: space-between; }
+.sales-timeline__summary { display: flex; gap: 10mm; }
+.sales-timeline__note { font-size: 8pt; margin-top: 3mm; }
+.brand-row { margin: 2mm 0; break-inside: avoid; } .brand-row svg { display: block; width: 100%; height: 3mm; border: 1px solid #999; }
+@media print { body { max-width: none; padding: 0; } .no-print { display: none !important; } }
