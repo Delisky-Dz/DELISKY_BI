@@ -287,7 +287,7 @@ def _build_product_result(
     )
 
 
-def _present_not_sold_groups(product_result):
+def _present_not_sold_groups(product_result, *, limit=PRODUCT_LIMIT_PER_SELLER):
     grouped = defaultdict(list)
 
     for item in product_result.worker_products:
@@ -327,7 +327,7 @@ def _present_not_sold_groups(product_result):
                         ),
                     )
                     for item in ranked_products[
-                        :PRODUCT_LIMIT_PER_SELLER
+                        :limit
                     ]
                 ),
             )

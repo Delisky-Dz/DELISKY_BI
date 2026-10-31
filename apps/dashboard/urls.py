@@ -5,6 +5,7 @@ from . import (
     manager_sections,
     manager_tools,
     manager_views,
+    manager_print,
     views,
 )
 
@@ -12,6 +13,7 @@ from . import (
 app_name = "dashboard"
 
 urlpatterns = [
+    path("print/", manager_print.manager_print, name="manager_print"),
     path(
         "",
         manager_views.manager_dashboard,

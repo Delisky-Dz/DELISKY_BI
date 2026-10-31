@@ -292,7 +292,7 @@ def _data_quality(
     )
 
 
-def _gap_rows(products):
+def _gap_rows(products, *, limit=100):
     rows = []
 
     for item in products.worker_products:
@@ -342,7 +342,7 @@ def _gap_rows(products):
                 row.scope,
                 row.entity_id,
             ),
-        )[:100]
+        )[:limit]
     )
 
 

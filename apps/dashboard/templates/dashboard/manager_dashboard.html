@@ -37,6 +37,9 @@
             </p>
         </section>
     {% elif overview_summary %}
+        {% if request.GET.run == '1' %}
+        <a class="button" href="{% url 'dashboard:manager_print' %}?{{ manager_query }}" target="_blank" rel="noopener">طباعة التقرير</a>
+        {% endif %}
         {% include "dashboard/partials/manager_overview_core.html" %}
     {% else %}
         <section

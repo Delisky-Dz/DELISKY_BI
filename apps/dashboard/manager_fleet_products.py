@@ -201,7 +201,7 @@ def _build_product_result(
     )
 
 
-def _not_sold_groups(product_result):
+def _not_sold_groups(product_result, *, limit=PRODUCT_LIMIT_PER_TRUCK):
     grouped = defaultdict(list)
 
     for item in product_result.truck_products:
@@ -230,7 +230,7 @@ def _not_sold_groups(product_result):
                 products=tuple(
                     _movement_row(item, trucks)
                     for item in ranked[
-                        :PRODUCT_LIMIT_PER_TRUCK
+                        :limit
                     ]
                 ),
             )
@@ -247,7 +247,7 @@ def _not_sold_groups(product_result):
     )
 
 
-def _slow_moving_rows(product_result):
+def _slow_moving_rows(product_result, *, limit=TABLE_LIMIT):
     candidates = [
         item
         for item in product_result.truck_products
@@ -275,11 +275,11 @@ def _slow_moving_rows(product_result):
                 item.article_normalized,
                 item.truck_id,
             ),
-        )[:TABLE_LIMIT]
+        )[:limit]
     )
 
 
-def _load_vs_sales_rows(product_result):
+def _load_vs_sales_rows(product_result, *, limit=TABLE_LIMIT):
     candidates = [
         item
         for item in product_result.truck_products
@@ -308,7 +308,7 @@ def _load_vs_sales_rows(product_result):
                 item.article_normalized,
                 item.truck_id,
             ),
-        )[:TABLE_LIMIT]
+        )[:limit]
     )
 
 
