@@ -11,7 +11,7 @@
 
 {% block content %}
     {% include "dashboard/partials/manager_sidebar_navigation.html" %}
-    {% include "dashboard/partials/filter_form.html" %}
+    {% include "dashboard/partials/filter_form.html" with show_manager_print=True %}
 
     {% if filter_requested and filter_form.errors %}
         <section class="dashboard-empty-state dashboard-empty-state--error">
