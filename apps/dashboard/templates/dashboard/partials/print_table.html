@@ -1,0 +1,6 @@
+<article class="print-table-block">
+<h3>{{ table.title }}</h3>{% if table.note %}<p class="table-note">{{ table.note }}</p>{% endif %}
+{% if table.rows %}<table class="print-meeting-table"><thead><tr>{% for label in table.headers %}<th scope="col">{{ label }}</th>{% endfor %}</tr></thead>
+<tbody>{% for row in table.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>
+{% else %}<p class="empty-state">لا توجد حالات</p>{% endif %}
+</article>

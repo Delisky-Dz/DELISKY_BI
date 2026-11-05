@@ -1,19 +1,47 @@
-@page { size: A4 landscape; margin: 12mm; }
+/* Print palette follows dashboard.css; red accent follows the DELISKY logo. */
+:root { --color-primary: #123c69; --color-primary-dark: #0b2949; --color-danger: #b42318; --color-success: #18794e; --color-warning: #a15c00; --color-text: #182230; --color-text-muted: #667085; --color-border: #d8e0ea; }
+@page { size: A4 landscape; margin: 10mm; }
 * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-body { margin: 0 auto; padding: 12mm; max-width: 297mm; color: #17202a; background: white; font: 10pt Tahoma, Arial, sans-serif; line-height: 1.55; }
-.report-header { display: flex; gap: 10mm; align-items: center; border-bottom: 2px solid #263d58; padding-bottom: 5mm; }
-.report-header img { width: 35mm; height: auto; }
-h1 { font-size: 20pt; } h2 { font-size: 16pt; border-bottom: 1px solid #999; padding-bottom: 2mm; }
-h3 { font-size: 11pt; margin-top: 5mm; } h1, h2, h3 { break-after: avoid; }
-p { margin: 1mm 0 3mm; }
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm; margin: 5mm 0; }
-.kpis article { border: 1px solid #aab3bd; padding: 4mm; break-inside: avoid; }
-.kpis h3 { margin-top: 0; } .kpis strong { font-size: 16pt; }
-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6mm; font-size: 8.5pt; }
-th, td { border: 1px solid #aab3bd; padding: 1.8mm; text-align: right; vertical-align: top; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; unicode-bidi: plaintext; }
-th { background: #edf0f3; color: #111; } thead { display: table-header-group; } tr { break-inside: avoid; page-break-inside: avoid; }
-.report-section { break-before: page; }
-.print-controls { display: flex; gap: 8px; padding-bottom: 12px; } button { padding: 8px 24px; cursor: pointer; }
+body { margin: 0 auto; padding: 10mm; max-width: 297mm; color: var(--color-text); background: white; font: 10pt Tahoma, Arial, sans-serif; line-height: 1.5; }
+h1, h2, h3 { color: var(--color-primary-dark); break-after: avoid; page-break-after: avoid; }
+h1 { font-size: 25pt; margin: 1mm 0; } h2 { font-size: 17pt; margin: 5mm 0 3mm; } h3 { font-size: 11pt; margin: 3mm 0 2mm; }
+p { margin: 1mm 0 2mm; } small { display: block; color: var(--color-text-muted); }
+.report-header { display: flex; gap: 7mm; align-items: center; border-bottom: 1.2mm solid var(--color-primary); padding-bottom: 4mm; }
+.report-header img { width: 36mm; height: auto; } .report-heading { flex: 1; } .eyebrow { letter-spacing: 2px; font: bold 8pt Arial; color: var(--color-danger); direction: ltr; text-align: right; }
+.subtitle { font-size: 12pt; color: var(--color-text-muted); } .report-meta { font-size: 9pt; border-right: 1px solid var(--color-border); padding-right: 5mm; }
+.availability { padding: 2mm 0; font-size: 9pt; } .availability span { color: var(--color-text-muted); }
+.print-section-header { display: flex; align-items: center; gap: 3mm; border-bottom: 1px solid var(--color-border); padding-bottom: 2mm; }
+.print-section-header > span { background: var(--color-primary); color: white; padding: 1mm 2mm; font: bold 10pt Arial; border-bottom: 2px solid var(--color-danger); }
+.section-note, .table-note { color: var(--color-text-muted); font-size: 9pt; }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 3mm 0; }
+.print-kpi-card { border: 1px solid var(--color-border); border-top: 1mm solid var(--color-primary); padding: 3mm; position: relative; break-inside: avoid; }
+.print-kpi-card h3 { margin: 0 0 1mm; } .print-kpi-card strong { display: block; font-size: 21pt; color: var(--color-primary-dark); line-height: 1.3; }
+.kpi-icon { float: left; font: bold 18pt Arial; color: var(--color-primary); } .print-kpi-card p { font-size: 9pt; }
+.print-status-badge { display: inline-block; border: 1px solid currentColor; border-radius: 2mm; padding: .4mm 1.5mm; font-size: 8pt; margin: .4mm; line-height: 1.5; }
+.good { color: var(--color-success); border-color: var(--color-success); background: #e9f7f0; }
+.attention { color: #784500; border-color: var(--color-warning); background: #fff4db; }
+.critical { color: var(--color-danger); border-color: var(--color-danger); background: #fff0ee; }
+.muted { color: #535d6d; border-color: #8993a2; background: #f2f4f7; }
+.print-attention-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 3mm 0; }
+.print-ranking-card, .print-alert-card { border: 1px solid; border-right-width: 1mm; padding: 3mm; break-inside: avoid; }
+.print-ranking-card h3 { margin-top: 0; } .ranking-line { display: flex; gap: 2mm; align-items: center; padding: 1mm 0; border-top: 1px solid #c6cbd2; font-size: 9pt; color: var(--color-text); }
+.ranking-line b { flex: 1; } .ranking-line > span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; } .rank { border: 1px solid; padding: 0 1.4mm; font-weight: bold; }
+.priority-strip { border-right: 1mm solid var(--color-danger); background: #f8fafc; padding: 2mm 3mm; margin: 2mm 0; font-size: 9pt; break-inside: avoid; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 2mm 0 4mm; font-size: 9pt; color: var(--color-text); }
+th, td { padding: 1.6mm 2mm; text-align: right; vertical-align: top; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; unicode-bidi: plaintext; border-bottom: 1px solid #b6c1cf; }
+th { background: var(--color-primary); color: white; font-weight: bold; } tbody tr:nth-child(even) { background: #f2f5f9; }
+thead { display: table-header-group; } tr { break-inside: avoid; page-break-inside: avoid; } .print-table-block { margin-bottom: 4mm; }
+.seller-meeting-table th:nth-child(1) { width: 5%; } .seller-meeting-table th:nth-child(2) { width: 20%; } .seller-meeting-table th:last-child { width: 21%; }
+.seller-products-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm; }
+.seller-products { color: var(--color-text); } .seller-products h3 { margin: 0; } .seller-products table { margin-bottom: 1mm; } .seller-products th:first-child { width: 75%; }
+.print-progress-bar { height: 3mm; width: 100%; border: 1px solid #8c9bab; background: #edf0f3; direction: ltr; }
+.print-progress-bar > span { display: block; width: clamp(0%, var(--bar), 100%); height: 100%; background: var(--color-primary); border-right: 1px solid black; }
+.attention-value { font-size: 24pt; color: var(--color-primary-dark); } .meeting-notes { margin-top: 6mm; } .meeting-notes td { height: 12mm; }
+.report-footer { border-top: 1px solid var(--color-border); padding: 3mm; text-align: center; color: var(--color-text-muted); font-size: 8pt; }
+.empty-state { border: 1px dashed #aab3bd; padding: 2mm; color: var(--color-text-muted); }
+.print-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 3mm; padding: 4mm; margin-bottom: 5mm; background: #f2f5f9; border: 1px solid var(--color-border); }
+.print-controls a, button { font: inherit; padding: 2mm 4mm; border: 1px solid var(--color-primary); color: var(--color-primary); background: white; cursor: pointer; text-decoration: none; }
+.print-controls button { background: var(--color-primary); color: white; } .print-controls p { width: 100%; font-size: 9pt; }
 .executive-panel--timeline, .brand-chart { break-inside: avoid; margin: 5mm 0; }
 .sales-timeline__metrics { display: flex; gap: 10mm; } .sales-timeline__metric span { display: block; }
 .sales-timeline__chart { display: grid; grid-template-columns: 12mm 1fr; direction: ltr; gap: 2mm; margin-top: 4mm; }
@@ -27,4 +55,9 @@ th { background: #edf0f3; color: #111; } thead { display: table-header-group; } 
 .sales-timeline__summary { display: flex; gap: 10mm; }
 .sales-timeline__note { font-size: 8pt; margin-top: 3mm; }
 .brand-row { margin: 2mm 0; break-inside: avoid; } .brand-row svg { display: block; width: 100%; height: 3mm; border: 1px solid #999; }
-@media print { body { max-width: none; padding: 0; } .no-print { display: none !important; } }
+
+.brand-row { display: inline-block; width: 31%; padding: 2mm; vertical-align: top; }
+.sales-timeline__line { stroke: var(--color-primary); stroke-width: 1; }
+.sales-timeline__metrics { justify-content: space-between; padding: 3mm; background: #f2f5f9; border: 1px solid var(--color-border); }
+.sales-timeline__note { display: flex; gap: 2mm; } .sales-timeline__summary { margin-top: 3mm; }
+@media print { body { max-width: none; padding: 0; } .no-print { display: none !important; } .page-section, .detail-section { break-before: page; } }

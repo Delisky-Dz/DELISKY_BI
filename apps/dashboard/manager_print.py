@@ -1,6 +1,9 @@
 """Print-only presentation of the existing Manager analytics and presenters."""
 from datetime import date
 from decimal import Decimal
+from urllib.parse import urlencode
+
+from django.urls import reverse
 
 from django.shortcuts import render
 from django.utils import timezone
@@ -71,7 +74,7 @@ MOVEMENT_COLUMNS = (
 )
 
 
-def build_print_context(form):
+def build_detail_context(form):
     scope = dict(period_start=form.cleaned_data["period_start"],
                  period_end=form.cleaned_data["period_end"],
                  brand_id=selected_brand_id(form))
@@ -182,10 +185,160 @@ def build_print_context(form):
     )
 
 
+def _scope(form):
+    return dict(period_start=form.cleaned_data["period_start"],
+                period_end=form.cleaned_data["period_end"], brand_id=selected_brand_id(form))
+
+
+def _availability(scope):
+    # Latest approved source dates are independent of the selected reporting window.
+    sources = follow._source_status_rows(brand_id=scope["brand_id"])
+    dates = [row.latest_period_end for row in sources if row.latest_period_end]
+    latest = max(dates) if dates else None
+    return dict(source_status=sources, latest_approved_date=latest,
+                beyond_coverage=bool(latest and scope["period_end"] > latest))
+
+
+def _rank_block(title, rows, field, unit, tone):
+    return dict(title=title, tone=tone, items=[dict(name=r.worker_name,
+                value=display(getattr(r, field)), unit=unit) for r in rows])
+
+
+def build_print_context(form):
+    """Bounded meeting presentation; never constructs the full detail context."""
+    scope = _scope(form)
+    indexes = dict(truck_index=overview.build_truck_code_index(),
+                   assignment_index=overview.build_assignment_index())
+    sales = overview.aggregate_sales(**scope, **indexes)
+    visits = overview.aggregate_pos_visits(**scope, **indexes)
+    summary = overview._present_overview_summary(sales, visits)
+    quality, coverage, products, operational = follow._data_quality(**scope)
+    seller_rows = sellers._build_seller_rows(sales=sales, visits=visits)
+    ranking = sellers._rank_sellers(seller_rows, "sales")
+    top = ranking[:5]
+    lowest = sellers._lowest_sales(seller_rows)[:5]
+    # Existing success eligibility is retained; only presentation order is reversed.
+    visit_attention = tuple(reversed(sellers._rank_sellers(seller_rows, "success")))[:5]
+    groups = sellers._present_not_sold_groups(products, limit=5)
+    group_by_worker = {g.worker_id: g for g in groups}
+    unsold_attention = groups[:5]
+    top_ids = {r.worker_id for r in top}
+    low_ids = {r.worker_id for r in lowest}
+    visit_ids = {r.worker_id for r in visit_attention}
+    unsold_ids = {r.worker_id for r in unsold_attention}
+    meeting_rows = []
+    ranked_ids = {r.worker_id for r in ranking}
+    for rank, row in enumerate((*ranking, *(r for r in seller_rows if r.worker_id not in ranked_ids)), 1):
+        labels = []
+        for ids, label in ((top_ids, "أعلى المبيعات"), (low_ids, "أقل المبيعات"),
+                           (visit_ids, "متابعة الزيارات"), (unsold_ids, "متابعة المنتجات غير المباعة")):
+            if row.worker_id in ids:
+                labels.append(label)
+        group = group_by_worker.get(row.worker_id)
+        meeting_rows.append(dict(rank=rank if row.sale_record_count else "—", seller=row,
+                                 unsold_count=group.product_count if group else 0, labels=labels))
+    previous = clients._previous_period(scope["period_start"], scope["period_end"])
+    trends = ()
+    comparison_note = "لا توجد بيانات كافية للمقارنة"
+    if previous:
+        previous_sales = overview.aggregate_sales(period_start=previous[0], period_end=previous[1],
+                                                  brand_id=scope["brand_id"], **indexes)
+        if previous_sales.included_row_count:
+            trends = clients._trend_rows(current_sales=sales, previous_sales=previous_sales)
+            comparison_note = f"فترة المقارنة: {display(previous[0])} ← {display(previous[1])}"
+    stopped = clients._stopped_clients(trends)
+    declining = clients._declining_clients(trends)
+    without_sale = clients._visited_without_sales(sales=sales, visits=visits)
+    repeated = tuple(sorted((r for r in clients._client_visit_rows(visits)
+                             if r.not_visited_record_count >= overview.CLIENT_FOLLOW_UP_MINIMUM_NON_VISITS),
+                            key=lambda r: (-r.not_visited_record_count, r.brand_id, r.client_name)))
+    trend_columns = (("brand_name", "العلامة"), ("client_name", "الزبون"),
+                     ("previous_sales", "السابقة (دج)"), ("current_sales", "الحالية (دج)"),
+                     ("change_percentage", "التغير (%)"))
+    client_tables = [
+        table("أعلى 10 زبائن بالمبيعات", clients._top_clients(sales, visits=visits)[:10], CLIENT_COLUMNS[:4]),
+        table("الزبائن المتراجعون — أهم 10", declining[:10], trend_columns, note=comparison_note),
+        table("الزبائن المتوقفون — أهم 10", stopped[:10], trend_columns, note=comparison_note),
+        table("زار ولم يشترِ — أهم 10", without_sale[:10], VISIT_COLUMNS[:5]),
+        table("تكرر عدم الزيارة — أهم 10", repeated[:10], VISIT_COLUMNS[:5]),
+    ]
+    client_priorities = []
+    for rows, reason in ((stopped, "توقف الشراء"), (declining, "تراجع المبيعات"),
+                         (without_sale, "زار ولم يشترِ"), (repeated, "تكرر عدم الزيارة")):
+        for row in rows[:3]:
+            if len(client_priorities) < 10:
+                client_priorities.append(dict(name=row.client_name, brand=row.brand_name, reason=reason))
+    truck_rows = fleet._status_rows(**scope)
+    trucks = [dict(row=r, tone={"ACTIVE": "good", "CONFIRMED_STOPPED": "critical",
+                  "POSSIBLE_STOPPED": "attention"}.get(r.status, "muted")) for r in truck_rows]
+    movement_columns = (MOVEMENT_COLUMNS[0], *MOVEMENT_COLUMNS[1:6])
+    # Global product action list: rank existing unsold results, retaining truck scope.
+    unsold_candidates = (r for g in fleet._not_sold_groups(products, limit=15) for r in g.products)
+    from heapq import nsmallest
+    unsold = nsmallest(15, unsold_candidates,
+                       key=lambda r: (-r.supplied_quantity, r.article_normalized, r.truck_id))
+    product_tables = [
+        table("أهم 15 منتجًا غير مباع — حسب الكمية المتاحة", unsold, movement_columns),
+        table("المنتجات ضعيفة الحركة — أهم 15", fleet._slow_moving_rows(products, limit=15), movement_columns),
+        table("أكبر 15 فجوة حسابية", follow._gap_rows(products, limit=15), (
+            ("scope", "النطاق"), ("entity_id", "الرقم"), ("article", "المنتج"),
+            ("supplied_quantity", "المتاح"), ("sold_quantity", "المباع"), ("analytical_gap", "الفجوة"))),
+    ]
+    exclusions = follow._exclusion_summary(**scope)
+    quality_tone = "critical" if exclusions.error_count else (
+        "attention" if quality.attribution_issue_count or quality.warning_count or exclusions.warning_count else "good")
+    attention = follow._attention(products, operational, quality)
+    context = dict(
+        sections=True, overview_summary=summary, meeting_rows=meeting_rows,
+        priorities=[_rank_block("أعلى المبيعات — أول 5", top, "total_sales", "دج", "good"),
+                    _rank_block("أقل المبيعات — آخر 5", lowest, "total_sales", "دج", "critical"),
+                    _rank_block("متابعة الزيارات — أقل نجاح مؤهل", visit_attention,
+                                "visit_success_percentage", "%", "attention")],
+        unsold_attention=[dict(group=g, remaining=g.product_count-len(g.products)) for g in unsold_attention],
+        client_priorities=client_priorities, client_tables=client_tables, product_tables=product_tables,
+        trucks=trucks, active_truck_count=sum(r.status == "ACTIVE" for r in truck_rows),
+        truck_sales=sales_view._present_truck_sales(sales),
+        sales_timeline=overview.present_sales_timeline(sales),
+        brand_sales_chart=overview.present_brand_sales_chart(sales, overview._load_brands_by_id(sales)),
+        quality=quality, quality_tone=quality_tone, exclusions=exclusions, attention=attention,
+        coverage=coverage, has_approved_data=any(r.included_row_count for r in coverage),
+        generated_at=timezone.localtime(), selected_brand=form.cleaned_data["brand"], **scope,
+        attention_cards=[
+            dict(title="أقل المبيعات", value=len(lowest), note="حسب الترتيب؛ راجع بطاقات البائعين"),
+            dict(title="متابعة الزيارات", value=len(visit_attention), note="أقل نجاح ضمن البائعين المؤهلين للمقارنة"),
+            dict(title="بائعون بمنتجات غير مباعة", value=len(groups), note="أول 5 بائعين مع أهم 5 منتجات أعلاه"),
+            dict(title="شاحنات تتطلب متابعة", value=attention.confirmed_stopped_truck_count + attention.possible_stopped_truck_count + attention.conflicting_truck_state_count, note="راجع حالة كل شاحنة"),
+            dict(title="تكرر عدم الزيارة", value=summary.client_follow_up_count, note="عدد الزبائن وفق معيار المتابعة الحالي"),
+            dict(title="مشكلات الإسناد", value=quality.attribution_issue_count, note="تحتاج مراجعة جودة البيانات"),
+        ],
+    )
+    context.update(_availability(scope))
+    return context
+
+
+def _response(request, *, detailed=False):
+    requested, form = build_filter_form(request)
+    template = "dashboard/manager_print.html" if detailed else "dashboard/manager_meeting_print.html"
+    if not requested or not form.is_valid():
+        return render(request, template, {"filter_form": form}, status=400)
+    context = build_detail_context(form) if detailed else build_print_context(form)
+    if detailed:
+        context.update(_availability(_scope(form)))
+    query = urlencode(dict(period_start=form.cleaned_data["period_start"].isoformat(),
+                           period_end=form.cleaned_data["period_end"].isoformat(),
+                           brand=selected_brand_id(form) or ""))
+    context.update(detailed=detailed, filter_query=query,
+                   dashboard_url=reverse("dashboard:manager_dashboard") + "?" + query + "&run=1")
+    return render(request, template, context)
+
+
 @never_cache
 @manager_required
 def manager_print(request):
-    requested, form = build_filter_form(request)
-    if not requested or not form.is_valid():
-        return render(request, "dashboard/manager_print.html", {"filter_form": form}, status=400)
-    return render(request, "dashboard/manager_print.html", build_print_context(form))
+    return _response(request)
+
+
+@never_cache
+@manager_required
+def manager_print_detail(request):
+    return _response(request, detailed=True)

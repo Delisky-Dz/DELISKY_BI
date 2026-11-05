@@ -13,6 +13,7 @@ from . import (
 app_name = "dashboard"
 
 urlpatterns = [
+    path("print/detail/", manager_print.manager_print_detail, name="manager_print_detail"),
     path("print/", manager_print.manager_print, name="manager_print"),
     path(
         "",
