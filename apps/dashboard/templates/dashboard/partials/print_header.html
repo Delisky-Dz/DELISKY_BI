@@ -1,0 +1,25 @@
+{% load static %}
+<div class="no-print print-controls">
+    <button type="button" onclick="window.print()">طباعة / حفظ PDF</button>
+    {% if detailed %}<a href="{% url 'dashboard:manager_print' %}?{{ filter_query }}">التقرير الإداري المختصر</a>
+    {% else %}<a href="{% url 'dashboard:manager_print_detail' %}?{{ filter_query }}">التقرير التفصيلي الكامل</a>{% endif %}
+    <a href="{{ dashboard_url }}">رجوع إلى لوحة المدير</a>
+    <p>لأفضل نتيجة عند الحفظ PDF: عطّل خيار Headers and footers من إعدادات الطباعة.</p>
+</div>
+<header class="report-header">
+    <img src="{% static 'accounts/images/delisky-logo.png' %}" alt="DELISKY">
+    <div class="report-heading"><div class="eyebrow">DELISKY BI / MANAGEMENT</div>
+        <h1>{% if detailed %}التقرير التفصيلي الكامل{% else %}تقرير أداء الإدارة{% endif %}</h1>
+        <p class="subtitle">{% if detailed %}جميع البيانات المعتمدة ضمن الفترة المختارة{% else %}ملخص تنفيذي لاجتماع المتابعة{% endif %}</p>
+    </div>
+    <div class="report-meta"><p><b>العلامة:</b> {{ selected_brand.name|default:'جميع العلامات' }}</p>
+        <p><b>الفترة:</b> <span dir="ltr">{{ period_start|date:"d/m/Y" }} → {{ period_end|date:"d/m/Y" }}</span></p>
+        <p><b>إنشاء:</b> {{ generated_at|date:"d/m/Y H:i" }}</p>
+    </div>
+</header>
+{% if sections %}
+<div class="availability"><b>آخر بيانات معتمدة متوفرة حتى:</b> {% if latest_approved_date %}{{ latest_approved_date|date:"d/m/Y" }}{% else %}لا توجد بيانات معتمدة{% endif %}
+    <span> • تختلف التغطية حسب المصدر؛ راجع جدول التغطية في النهاية.</span></div>
+{% if beyond_coverage %}<p class="print-alert-card attention">⚠ تنبيه: الفترة المختارة تمتد بعد آخر تاريخ بيانات معتمدة.</p>{% endif %}
+{% if detailed %}<p class="print-alert-card attention">هذا تقرير تفصيلي وقد يحتوي عددًا كبيرًا من الصفحات.</p>{% endif %}
+{% endif %}

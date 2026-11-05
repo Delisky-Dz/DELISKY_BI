@@ -33,7 +33,7 @@ class ManagerPrintTests(TestCase):
         response = self.client.get(self.url, self.filters)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "جميع العلامات")
-        self.assertContains(response, "تقرير DELISKY — لوحة المدير")
+        self.assertContains(response, "تقرير أداء الإدارة")
         self.assertContains(response, "DELISKY_Manager_Report_2026-08-27_2026-10-22")
         self.assertContains(response, 'dir="rtl"')
         self.assertContains(response, "غير متاح")
@@ -105,6 +105,122 @@ class ManagerPrintTests(TestCase):
         self.assertEqual(response.context["overview_summary"].total_sales,
                          presenter.call_args.args[0].overall.total_sales)
         self.assertIsNone(response.context["overview_summary"].visit_success_percentage)
+
+    def test_detail_permissions_and_no_build_for_unauthorized(self):
+        detail = reverse("dashboard:manager_print_detail")
+        with patch("apps.dashboard.manager_print.build_detail_context") as build:
+            self.client.force_login(self.other)
+            self.assertEqual(self.client.get(detail, self.filters).status_code, 403)
+            self.client.logout()
+            self.assertEqual(self.client.get(detail, self.filters).status_code, 302)
+            build.assert_not_called()
+        for user in (self.manager, self.admin):
+            self.client.force_login(user)
+            response = self.client.get(detail, self.filters)
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "هذا تقرير تفصيلي وقد يحتوي عددًا كبيرًا من الصفحات.")
+            self.assertContains(response, "جميع العلامات")
+            for forbidden in ("Ask DELISKY", "Marketing Helper", "sidebar", "<nav", "<form"):
+                self.assertNotContains(response, forbidden)
+            self.assertIn("no-store", response.headers["Cache-Control"])
+
+    def test_detail_filters_and_invalid_period(self):
+        detail = reverse("dashboard:manager_print_detail")
+        response = self.client.get(detail, {**self.filters, "brand": self.brand.pk})
+        self.assertEqual(response.context["brand_id"], self.brand.pk)
+        self.assertEqual(response.context["period_end"], date(2026, 10, 22))
+        self.assertContains(response, "brand=" + str(self.brand.pk))
+        with patch("apps.dashboard.manager_print.build_detail_context") as build:
+            for data in ({}, {**self.filters, "period_start": "invalid"}, {**self.filters, "brand": "999999"}):
+                self.assertEqual(self.client.get(detail, data).status_code, 400)
+            build.assert_not_called()
+
+    def test_executive_sections_and_filtered_detail_link(self):
+        with patch("apps.dashboard.manager_print.build_detail_context") as detail:
+            response = self.client.get(self.url, {**self.filters, "brand": self.brand.pk})
+            detail.assert_not_called()
+        for label in ("الملخص التنفيذي", "أولويات اجتماع المدير", "أقل المبيعات", "متابعة الزيارات",
+                      "منتجات غير مباعة", "متابعة الزبائن", "نقاط تحتاج تدخل", "التقرير التفصيلي الكامل",
+                      "آخر بيانات معتمدة متوفرة حتى:", "Headers and footers", "طباعة / حفظ PDF"):
+            self.assertContains(response, label)
+        self.assertContains(response, reverse("dashboard:manager_print_detail"))
+        self.assertContains(response, "period_start=2026-08-27")
+        self.assertContains(response, "brand=" + str(self.brand.pk))
+        self.assertIsNone(response.context["overview_summary"].visit_success_percentage)
+        self.assertContains(response, "تغطية غير متاحة")
+
+    def test_approved_date_is_brand_scoped_and_independent_of_window(self):
+        from .manager_print import _availability
+        latest = SimpleNamespace(latest_period_end=date(2026, 10, 22))
+        scope = dict(period_start=date(2026, 11, 1), period_end=date(2026, 11, 18), brand_id=self.brand.pk)
+        with patch("apps.dashboard.manager_follow_up._source_status_rows", return_value=[latest]) as source:
+            context = _availability(scope)
+            source.assert_called_once_with(brand_id=self.brand.pk)
+        self.assertEqual(context["latest_approved_date"], date(2026, 10, 22))
+        self.assertTrue(context["beyond_coverage"])
+        with patch("apps.dashboard.manager_print._availability", return_value=context):
+            response = self.client.get(self.url, self.filters)
+            self.assertContains(response, "22/10/2026")
+            self.assertContains(response, "تنبيه: الفترة المختارة تمتد بعد آخر تاريخ بيانات معتمدة.")
+        with patch("apps.dashboard.manager_follow_up._source_status_rows", return_value=[]):
+            context = _availability(scope)
+            self.assertIsNone(context["latest_approved_date"])
+            self.assertFalse(context["beyond_coverage"])
+        with patch("apps.dashboard.manager_follow_up._source_status_rows", return_value=[latest]):
+            self.assertFalse(_availability({**scope, "period_end": date(2026, 10, 22)})["beyond_coverage"])
+
+    def test_default_limits_clients_but_detail_keeps_every_row(self):
+        row = SimpleNamespace(brand_name="BIFA", client_name="Client", total_sales=Decimal(10),
+                              sale_record_count=1, visit_record_count=3, visited_record_count=1,
+                              not_visited_record_count=3, total_record_count=4,
+                              unique_client_day_count=4, visit_success_percentage=Decimal(25), brand_id=1,
+                              previous_sales=Decimal(20), current_sales=Decimal(10), change_percentage=Decimal(-50))
+        rows = [row] * 27
+        with patch("apps.dashboard.manager_clients._top_clients", return_value=rows), \
+             patch("apps.dashboard.manager_clients._client_sales_rows", return_value=rows), \
+             patch("apps.dashboard.manager_clients._client_visit_rows", return_value=rows), \
+             patch("apps.dashboard.manager_clients._declining_clients", return_value=rows), \
+             patch("apps.dashboard.manager_clients._stopped_clients", return_value=rows), \
+             patch("apps.dashboard.manager_clients._visited_without_sales", return_value=rows):
+            response = self.client.get(self.url, self.filters)
+            self.assertEqual([len(t["rows"]) for t in response.context["client_tables"]], [10] * 5)
+            response = self.client.get(reverse("dashboard:manager_print_detail"), self.filters)
+            client_section = next(s for s in response.context["sections"] if s["title"] == "العملاء")
+            self.assertEqual([len(t["rows"]) for t in client_section["tables"]], [27] * 5)
+
+    def test_product_presenter_limits_are_only_removed_for_detail(self):
+        from . import manager_print
+        from . import manager_sellers
+        from . import manager_follow_up
+        for detailed in (False, True):
+            with self.subTest(detailed=detailed), \
+                 patch.object(fleet, "_load_vs_sales_rows", wraps=fleet._load_vs_sales_rows) as load, \
+                 patch.object(fleet, "_slow_moving_rows", wraps=fleet._slow_moving_rows) as slow, \
+                 patch.object(fleet, "_not_sold_groups", wraps=fleet._not_sold_groups) as unsold, \
+                 patch.object(manager_sellers, "_present_not_sold_groups", wraps=manager_sellers._present_not_sold_groups) as groups, \
+                 patch.object(manager_follow_up, "_gap_rows", wraps=manager_follow_up._gap_rows) as gaps:
+                response = self.client.get(reverse("dashboard:manager_print_detail") if detailed else self.url, self.filters)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(slow.call_args.kwargs["limit"], None if detailed else 15)
+                self.assertEqual(unsold.call_args.kwargs["limit"], None if detailed else 15)
+                self.assertEqual(groups.call_args.kwargs["limit"], None if detailed else 5)
+                self.assertEqual(gaps.call_args.kwargs["limit"], None if detailed else 15)
+                if detailed:
+                    self.assertIsNone(load.call_args.kwargs["limit"])
+                else:
+                    load.assert_not_called()
+
+    def test_unsold_groups_limit_and_remaining_counts(self):
+        from . import manager_sellers
+        groups = [manager_sellers.SellerNotSoldGroup(i, f"Seller {i}", None, 26,
+                  tuple(manager_sellers.SellerNotSoldProductRow(f"Product {j}", Decimal(10), Decimal(0))
+                        for j in range(5))) for i in range(9)]
+        with patch.object(manager_sellers, "_present_not_sold_groups", return_value=groups):
+            response = self.client.get(self.url, self.filters)
+            self.assertEqual(len(response.context["unsold_attention"]), 5)
+            self.assertTrue(all(g["remaining"] == 21 for g in response.context["unsold_attention"]))
+            self.assertContains(response, "+ 21 منتجات أخرى")
+            self.assertNotContains(response, "Seller 8")
 
 
 class PrintPresentationTests(SimpleTestCase):
