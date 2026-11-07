@@ -146,3 +146,22 @@ thead { display: table-header-group; } tr { break-inside: avoid; page-break-insi
 .meeting-report .product-alert:last-child th:nth-child(3) { width: 30%; }
 .meeting-report .report-footer { padding: 1mm; font-size: 7.5pt; line-height: 1.3; }
 .meeting-report .executive-overview .section-note { break-after: avoid; }
+/* Landscape overview uses one equal-height KPI row to keep priorities together. */
+.meeting-report .kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.meeting-report .print-kpi-card { min-height: 33mm; padding: 2mm; }
+.meeting-report .print-kpi-card h3 { font-size: 9pt; min-height: 10mm; padding-left: 5mm; }
+.meeting-report .print-kpi-card strong { font-size: 19pt; white-space: nowrap; }
+.meeting-report .print-kpi-card:first-child strong { font-size: 16pt; }
+.meeting-report .print-kpi-card .kpi-icon { left: 1mm; font-size: 14pt; }
+.meeting-report .seller-meeting-table { line-height: 1.25; }
+.meeting-report .seller-meeting-table .print-status-badge { font-size: 7.5pt; line-height: 1.2; margin: .2mm; padding: .2mm 1mm; }
+.meeting-report .seller-meeting-table td { padding: 1mm 2mm; }
+.meeting-report .product-alert table { line-height: 1.25; }
+.meeting-report .product-alert td, .meeting-report .product-alert th { padding: 1mm 2mm; }
+.meeting-report .product-alert > .print-status-badge { display: block; width: fit-content; break-after: avoid; }
+@media screen and (max-width: 900px) { .meeting-report .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.meeting-report .seller-products { padding: 1.5mm 2mm; }
+.meeting-report .seller-products table { font-size: 8.5pt; line-height: 1.2; margin: 1mm 0; }
+.meeting-report .seller-products th, .meeting-report .seller-products td { padding: .8mm 1.5mm; }
+.meeting-report .seller-products > p { font-size: 8pt; margin: .5mm 0; }
+.meeting-report .seller-products > p:last-child { font-size: 7.5pt; padding-top: .7mm; }
