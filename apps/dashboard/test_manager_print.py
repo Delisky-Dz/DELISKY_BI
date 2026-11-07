@@ -222,6 +222,22 @@ class ManagerPrintTests(TestCase):
             self.assertContains(response, "+ 21 منتجات أخرى")
             self.assertNotContains(response, "Seller 8")
 
+    def test_empty_client_categories_pack_into_cards_and_quality_remains(self):
+        response = self.client.get(self.url, self.filters)
+        self.assertContains(response, 'class="client-empty-grid"')
+        self.assertContains(response, 'class="empty-state compact-empty"', count=5)
+        self.assertContains(response, "لا توجد حالات في الفترة", count=5)
+        client_section = response.content.decode().split("متابعة الزبائن</h2>", 1)[1].split("</section>", 1)[0]
+        self.assertNotIn('class="print-table-block"', client_section)
+        self.assertContains(response, 'class="quality-card"', count=6)
+        for label in ("إسناد المبيعات", "إسناد POS", "إسناد Items", "إسناد Chargement",
+                      "تحذيرات الاستيراد", "أخطاء", "المخزون الافتتاحي", "الحالة التشغيلية",
+                      "تحذيرات POS", "الصفوف المشمولة", "حالة المصادر المعتمدة"):
+            self.assertContains(response, label)
+        self.assertContains(response, "dashboard/css/manager_print.css")
+        self.assertContains(response, 'class="print-kpi-card', count=6)
+
+
 
 class PrintPresentationTests(SimpleTestCase):
     def test_landscape_and_pagination_css(self):
