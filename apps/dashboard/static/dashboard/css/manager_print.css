@@ -61,3 +61,88 @@ thead { display: table-header-group; } tr { break-inside: avoid; page-break-insi
 .sales-timeline__metrics { justify-content: space-between; padding: 3mm; background: #f2f5f9; border: 1px solid var(--color-border); }
 .sales-timeline__note { display: flex; gap: 2mm; } .sales-timeline__summary { margin-top: 3mm; }
 @media print { body { max-width: none; padding: 0; } .no-print { display: none !important; } .page-section, .detail-section { break-before: page; } }
+/* Meeting-only composition keeps the full detailed report independent. */
+.meeting-report { font-size: 9.5pt; }
+.meeting-report .report-header { border-bottom-width: .7mm; border-top: 1.5mm solid var(--color-danger); padding-top: 3mm; gap: 5mm; }
+.meeting-report .print-section-header { border-right: 1mm solid var(--color-danger); padding-right: 2mm; margin-top: 4mm; }
+.meeting-report .kpis { gap: 2.5mm; }
+.meeting-report .print-kpi-card { display: flex; flex-direction: column; border-radius: 2mm; min-height: 32mm; padding: 2.5mm 3mm; background: #f8fafc; color: var(--color-text); border-color: var(--color-border); border-top-color: var(--color-primary); }
+.meeting-report .print-kpi-card.attention { border-top-color: var(--color-warning); }
+.meeting-report .print-kpi-card.critical { border-top-color: var(--color-danger); }
+.meeting-report .print-kpi-card.good { border-top-color: var(--color-success); }
+.meeting-report .print-kpi-card h3 { padding-left: 8mm; font-size: 10pt; }
+.meeting-report .print-kpi-card strong { font-size: 23pt; direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+.meeting-report .print-kpi-card .print-status-badge { align-self: flex-start; margin-top: auto; }
+.meeting-report .kpi-icon { position: absolute; left: 3mm; top: 2mm; width: 6mm; text-align: center; }
+.meeting-report .print-ranking-card { border-radius: 2mm; padding: 2.5mm; }
+.meeting-report .ranking-line { font-size: 8.5pt; padding: .7mm 0; }
+.meeting-report .priority-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; }
+.meeting-report .priority-strip { margin: 0; border: 1px solid var(--color-border); border-top: .7mm solid var(--color-warning); border-radius: 2mm; font-size: 8pt; }
+.meeting-report .priority-strip > span { display: block; }
+.meeting-report .section-note { font-size: 8pt; margin-bottom: 2mm; }
+.meeting-report th, .meeting-report td { overflow-wrap: break-word; padding: 1.4mm 2mm; }
+.meeting-report td { unicode-bidi: plaintext; }
+.meeting-report .sales-value { font-weight: bold; white-space: nowrap; direction: ltr; }
+.meeting-report .rank { display: inline-block; min-width: 5mm; text-align: center; border-radius: 1mm; font: bold 9pt Arial; padding: .8mm; }
+.meeting-report .rank-leading { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+.meeting-report .seller-attention td:first-child { border-right: 1mm solid var(--color-warning); }
+.meeting-report .seller-meeting-table td:nth-child(2) b { font-size: 10pt; }
+.meeting-report .seller-meeting-table td:last-child { font-size: 8pt; }
+.meeting-report .seller-products-grid { align-items: stretch; }
+.meeting-report .seller-products { border: 1px solid var(--color-border); border-top: .7mm solid var(--color-warning); border-radius: 2mm; background: #f8fafc; padding: 2.5mm; }
+.meeting-report .seller-products > p:last-child { font-size: 8pt; border-top: 1px solid var(--color-border); padding-top: 1mm; }
+.meeting-report .client-empty-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; break-inside: avoid; }
+.meeting-report .compact-empty { border-radius: 2mm; break-inside: avoid; padding: 2mm 3mm; }
+.meeting-report .compact-empty h3 { margin: 0; font-size: 10pt; }
+.meeting-report .print-table-block h3 { margin-bottom: 1mm; }
+.meeting-report .print-table-block h3, .meeting-report .print-table-block .table-note { break-after: avoid; }
+.meeting-report .product-alert { border-right: .7mm solid var(--color-danger); padding-right: 2mm; }
+.meeting-report .product-warning { border-color: var(--color-warning); }
+.meeting-report .product-alert > .print-status-badge { margin-bottom: 0; }
+.meeting-report .brand-row { width: 32%; border: 1px solid var(--color-border); border-radius: 2mm; padding: 3mm; }
+.meeting-report .print-progress-bar { border-radius: 1mm; height: 2.5mm; overflow: hidden; }
+.meeting-report .executive-panel--timeline { padding: 3mm; border: 1px solid var(--color-border); border-radius: 2mm; }
+.meeting-report .sales-timeline__axis, .meeting-report .sales-timeline__scale { font-size: 8pt; }
+.meeting-report .print-attention-grid .print-alert-card { border-radius: 2mm; }
+.meeting-report .meeting-notes { break-inside: avoid; }
+.meeting-report .meeting-notes td { height: 15mm; border-left: 1px solid var(--color-border); }
+.meeting-report .quality-summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2mm; break-inside: avoid; }
+.meeting-report .quality-card { padding: 2mm; border: 1px solid var(--color-border); border-radius: 2mm; background: #f8fafc; }
+.meeting-report .quality-card h3 { font-size: 9pt; margin: 0; }
+.meeting-report .quality-card strong { display: block; font-size: 19pt; color: var(--color-primary-dark); }
+.meeting-report .quality-additional { font-size: 8pt; margin: 2mm 0; }
+@media print {
+ .meeting-report .executive-overview { break-after: page; }
+ .meeting-report .report-footer { break-inside: avoid; }
+ .meeting-report .quality-summary + p { break-before: avoid; }
+}
+
+/* Fit the overview and evidence summary without shrinking table body text. */
+.meeting-report .report-header img { width: 30mm; height: 22mm; object-fit: contain; }
+.meeting-report .report-header { padding: 2mm 0; }
+.meeting-report h1 { font-size: 23pt; }
+.meeting-report .availability { font-size: 8pt; padding: 1mm 0; }
+.meeting-report .executive-overview .print-section-header { margin: 2mm 0; font-size: 15pt; padding-bottom: 1mm; }
+.meeting-report .executive-overview .section-note { margin: 0; }
+.meeting-report .executive-overview .kpis { gap: 2mm; margin: 2mm 0; }
+.meeting-report .print-kpi-card { min-height: 27mm; padding: 2mm 3mm; line-height: 1.25; }
+.meeting-report .print-kpi-card strong { font-size: 21pt; }
+.meeting-report .print-kpi-card p { font-size: 8pt; margin: 1mm 0; }
+.meeting-report .executive-overview .print-status-badge { font-size: 7.5pt; padding: .2mm 1mm; }
+.meeting-report .executive-overview .print-attention-grid { margin: 2mm 0; gap: 2mm; }
+.meeting-report .executive-overview .print-ranking-card { padding: 2mm; }
+.meeting-report .executive-overview .print-ranking-card h3 { font-size: 9pt; margin: 0 0 1mm; }
+.meeting-report .executive-overview .ranking-line { padding: .3mm 0; font-size: 8pt; }
+.meeting-report .executive-overview .priority-strip { padding: 2mm; line-height: 1.3; }
+.meeting-report .coverage-quality table { font-size: 8.5pt; line-height: 1.25; margin: 1mm 0 2mm; }
+.meeting-report .coverage-quality th, .meeting-report .coverage-quality td { padding: 1mm 2mm; }
+.meeting-report .coverage-quality .print-status-badge { font-size: 7.5pt; padding: .2mm 1mm; margin: 0; }
+.meeting-report .coverage-quality h3 { margin: 2mm 0 1mm; }
+.meeting-report .coverage-quality .print-alert-card { padding: 2mm; font-size: 8pt; }
+.meeting-report .quality-card { line-height: 1.25; }
+.meeting-report .quality-card strong { font-size: 18pt; }
+.meeting-report .product-alert th:nth-child(2) { width: 30%; }
+.meeting-report .product-alert:last-child th:nth-child(2) { width: 10%; }
+.meeting-report .product-alert:last-child th:nth-child(3) { width: 30%; }
+.meeting-report .report-footer { padding: 1mm; font-size: 7.5pt; line-height: 1.3; }
+.meeting-report .executive-overview .section-note { break-after: avoid; }
