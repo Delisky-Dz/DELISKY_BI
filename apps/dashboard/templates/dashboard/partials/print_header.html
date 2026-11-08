@@ -2,7 +2,7 @@
 <div class="no-print print-controls">
     <button type="button" onclick="window.print()">طباعة / حفظ PDF</button>
     {% if detailed %}<a href="{% url 'dashboard:manager_print' %}?{{ filter_query }}">التقرير الإداري المختصر</a>
-    {% else %}<a href="{% url 'dashboard:manager_print_detail' %}?{{ filter_query }}">التقرير التفصيلي الكامل</a>{% endif %}
+    {% else %}<a href="{% url 'dashboard:manager_print' %}?{{ filter_query }}&amp;run=1">تعديل أقسام التقرير</a><a href="{% url 'dashboard:manager_print_detail' %}?{{ filter_query }}">التقرير التفصيلي الكامل</a>{% endif %}
     <a href="{{ dashboard_url }}">رجوع إلى لوحة المدير</a>
     <p>لأفضل نتيجة عند الحفظ PDF: عطّل خيار Headers and footers من إعدادات الطباعة.</p>
 </div>

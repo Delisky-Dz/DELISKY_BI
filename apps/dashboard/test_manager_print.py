@@ -26,8 +26,8 @@ class ManagerPrintTests(TestCase):
 
     def setUp(self):
         self.client.force_login(self.manager)
-        self.url = reverse("dashboard:manager_print")
-        self.filters = {"period_start": "2026-08-27", "period_end": "2026-10-22", "brand": ""}
+        self.url = reverse("dashboard:manager_print_generate")
+        self.filters = {"period_start": "2026-08-27", "period_end": "2026-10-22", "brand": "", "auto_skip": "0"}
 
     def test_manager_can_print_and_all_brands_header(self):
         response = self.client.get(self.url, self.filters)

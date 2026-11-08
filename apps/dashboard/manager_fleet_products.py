@@ -317,9 +317,11 @@ def _status_rows(
     period_start,
     period_end,
     brand_id,
+    result=None,
+    truck_index=None,
 ):
-    truck_index = build_truck_code_index()
-    result = determine_truck_operational_status(
+    truck_index = truck_index if truck_index is not None else build_truck_code_index()
+    result = result if result is not None else determine_truck_operational_status(
         period_start=period_start,
         period_end=period_end,
         brand_id=brand_id,
