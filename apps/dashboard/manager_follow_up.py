@@ -132,9 +132,11 @@ def _build_product_sources(
     period_start,
     period_end,
     brand_id,
+    truck_index=None,
+    assignment_index=None,
 ):
-    truck_index = build_truck_code_index()
-    assignment_index = build_assignment_index()
+    truck_index = truck_index if truck_index is not None else build_truck_code_index()
+    assignment_index = assignment_index if assignment_index is not None else build_assignment_index()
 
     items = aggregate_items(
         period_start=period_start,
@@ -178,6 +180,10 @@ def _data_quality(
     period_start,
     period_end,
     brand_id,
+    sales_result=None,
+    visits_result=None,
+    truck_index=None,
+    assignment_index=None,
 ):
     (
         truck_index,
@@ -190,15 +196,17 @@ def _data_quality(
         period_start=period_start,
         period_end=period_end,
         brand_id=brand_id,
+        truck_index=truck_index,
+        assignment_index=assignment_index,
     )
-    sales = aggregate_sales(
+    sales = sales_result if sales_result is not None else aggregate_sales(
         period_start=period_start,
         period_end=period_end,
         brand_id=brand_id,
         truck_index=truck_index,
         assignment_index=assignment_index,
     )
-    visits = aggregate_pos_visits(
+    visits = visits_result if visits_result is not None else aggregate_pos_visits(
         period_start=period_start,
         period_end=period_end,
         brand_id=brand_id,

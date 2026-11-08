@@ -1,0 +1,8 @@
+{% load l10n %}
+<section class="report-section page-section"><h2 class="print-section-header"><span>{{ section_number|stringformat:"02d" }}</span> أداء المبيعات</h2>
+{% include 'dashboard/partials/sales_timeline.html' %}
+<h3>المبيعات حسب الشاحنة — جميع الشاحنات المقاسة</h3>
+<table><thead><tr><th>الترتيب</th><th>الشاحنة</th><th>العلامة</th><th>المبيعات (دج)</th><th>السجلات</th><th>مقارنة بصرية</th></tr></thead><tbody>
+{% for row in truck_sales %}<tr><td><span class="rank {% if forloop.counter <= 3 %}rank-leading{% endif %}">{{ forloop.counter }}</span></td><td>{{ row.truck_name }}</td><td>{{ row.brand_name }}</td><td>{{ row.total_sales|floatformat:2 }}</td><td>{{ row.sale_record_count }}</td><td>{% if row.total_sales > 0 %}{% widthratio row.total_sales truck_sales.0.total_sales 100 as width %}<div class="print-progress-bar" style="--bar:{{ width }}%"><span></span></div>{% else %}—{% endif %}</td></tr>{% empty %}<tr><td colspan="6">لا توجد بيانات معتمدة</td></tr>{% endfor %}</tbody></table>
+<div class="brand-chart"><h3>حصة العلامات من المبيعات</h3>{% for row in brand_sales_chart %}<div class="brand-row"><b>{{ row.brand_name }}</b> {{ row.total_sales|floatformat:2 }} دج <span class="print-status-badge">{{ row.contribution_percentage|floatformat:1 }}%</span><div class="print-progress-bar" style="--bar:{{ row.relative_bar_percentage|unlocalize }}%"><span></span></div></div>{% empty %}<p>لا توجد بيانات</p>{% endfor %}</div>
+</section>

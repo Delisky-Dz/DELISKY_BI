@@ -165,3 +165,8 @@ thead { display: table-header-group; } tr { break-inside: avoid; page-break-insi
 .meeting-report .seller-products th, .meeting-report .seller-products td { padding: .8mm 1.5mm; }
 .meeting-report .seller-products > p { font-size: 8pt; margin: .5mm 0; }
 .meeting-report .seller-products > p:last-child { font-size: 7.5pt; padding-top: .7mm; }
+
+/* A report beginning with a selected page section shares the header's page. */
+@media print {
+  .meeting-report main > .page-section:first-child { break-before: auto; }
+}

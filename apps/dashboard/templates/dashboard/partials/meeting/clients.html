@@ -1,0 +1,3 @@
+<section class="report-section page-section"><h2 class="print-section-header"><span>{{ section_number|stringformat:"02d" }}</span> متابعة الزبائن</h2><p class="section-note">أهم 10 حالات لكل فئة؛ قوائم المبيعات والزيارات الكاملة في التقرير التفصيلي.</p>
+{% for table in client_tables %}{% if table.rows %}{% include 'dashboard/partials/print_table.html' %}{% endif %}{% endfor %}<div class="client-empty-grid">{% for table in client_tables %}{% if not table.rows %}<article class="empty-state compact-empty"><h3>{{ table.title }}</h3><p>✓ لا توجد حالات في الفترة</p>{% if table.note %}<small>{{ table.note }}</small>{% endif %}</article>{% endif %}{% endfor %}</div>
+</section>

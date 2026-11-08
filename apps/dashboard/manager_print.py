@@ -19,6 +19,41 @@ from . import manager_fleet_products as fleet
 from . import manager_follow_up as follow
 
 
+# Ordered server-side allowlist. Actions explicitly depend on client priorities,
+# product attention and truck status; overview/sellers alone do not.
+SECTION_OPTIONS = (
+    ("overview", "الملخص التنفيذي وأولويات المدير", "مؤشرات المبيعات وأهم أولويات الاجتماع"),
+    ("sales", "أداء المبيعات والمنحنى", "المنحنى والمبيعات حسب الشاحنة والعلامة"),
+    ("sellers", "ترتيب وبطاقات البائعين", "أعلى وأقل البائعين وبطاقات المتابعة"),
+    ("visits", "متابعة الزيارات", "أقل نسب النجاح المؤهلة وحالات عدم الزيارة"),
+    ("clients", "متابعة الزبائن", "أهم 10 زبائن لكل فئة متابعة"),
+    ("trucks", "الشاحنات", "الحالة التشغيلية للشاحنات"),
+    ("unsold", "المنتجات غير المباعة", "أهم 15 منتجًا حسب الكمية المتاحة"),
+    ("product_alerts", "المنتجات ضعيفة الحركة والفجوات", "أهم 15 حالة لكل فئة"),
+    ("actions", "نقاط تحتاج تدخل وقرارات الاجتماع", "أولويات الزبائن والمنتجات والشاحنات ومساحة للقرارات"),
+    ("coverage", "التغطية وجودة البيانات", "المصادر المعتمدة والتغطية ومشكلات الإسناد"),
+)
+SECTION_IDS = tuple(option[0] for option in SECTION_OPTIONS)
+PRESETS = {"quick": ("overview", "sellers", "visits", "actions"), "full": SECTION_IDS}
+
+
+def validate_sections(values):
+    selected = frozenset(values)
+    if not selected or selected - set(SECTION_IDS):
+        raise ValueError("اختر قسمًا واحدًا على الأقل من الأقسام المتاحة.")
+    return selected
+
+
+def requested_sections(query):
+    preset = query.get("preset", "full")
+    if preset not in {"quick", "full", "manual"}:
+        raise ValueError("إعداد التقرير غير معروف.")
+    if preset != "manual":
+        return validate_sections(PRESETS[preset])
+    values = [v for raw in query.getlist("sections") for v in raw.split(",") if v]
+    return validate_sections(values)
+
+
 def display(value):
     if value is None:
         return "غير متاح"
@@ -190,11 +225,20 @@ def _scope(form):
                 period_end=form.cleaned_data["period_end"], brand_id=selected_brand_id(form))
 
 
-def _availability(scope):
+def _latest_approved_date(brand_id):
+    from django.db.models import Max
+    from apps.imports.models import ImportBatch, ImportBatchStatus
+    batches = ImportBatch.objects.filter(status=ImportBatchStatus.APPROVED)
+    if brand_id is not None:
+        batches = batches.filter(brand_id=brand_id)
+    return batches.aggregate(latest=Max("period_end"))["latest"]
+
+
+def _availability(scope, *, include_sources=True):
     # Latest approved source dates are independent of the selected reporting window.
-    sources = follow._source_status_rows(brand_id=scope["brand_id"])
+    sources = follow._source_status_rows(brand_id=scope["brand_id"]) if include_sources else ()
     dates = [row.latest_period_end for row in sources if row.latest_period_end]
-    latest = max(dates) if dates else None
+    latest = (max(dates) if dates else None) if include_sources else _latest_approved_date(scope["brand_id"])
     return dict(source_status=sources, latest_approved_date=latest,
                 beyond_coverage=bool(latest and scope["period_end"] > latest))
 
@@ -204,90 +248,113 @@ def _rank_block(title, rows, field, unit, tone):
                 value=display(getattr(r, field)), unit=unit) for r in rows])
 
 
-def build_print_context(form):
+def build_print_context(form, *, selected_sections=None, auto_skip=True):
     """Bounded meeting presentation; never constructs the full detail context."""
+    selected = validate_sections(SECTION_IDS if selected_sections is None else selected_sections)
     scope = _scope(form)
+    need_clients = bool(selected & {"clients", "actions"})
+    need_products = bool(selected & {"unsold", "product_alerts", "actions", "coverage"})
+    need_sellers = bool(selected & {"overview", "sellers", "visits", "actions"})
+    need_base = bool(selected & {"overview", "sales", "sellers", "visits", "clients", "actions", "coverage"})
+    sales = visits = summary = quality = products = operational = exclusions = attention = None
+    coverage = seller_rows = ranking = top = lowest = visit_attention = groups = ()
+    meeting_rows, client_tables, client_priorities, truck_rows, trucks, product_tables = ([] for _ in range(6))
+    quality_tone = "muted"
+    unsold_attention = ()
+
     indexes = dict(truck_index=overview.build_truck_code_index(),
                    assignment_index=overview.build_assignment_index())
-    sales = overview.aggregate_sales(**scope, **indexes)
-    visits = overview.aggregate_pos_visits(**scope, **indexes)
-    summary = overview._present_overview_summary(sales, visits)
-    quality, coverage, products, operational = follow._data_quality(**scope)
-    seller_rows = sellers._build_seller_rows(sales=sales, visits=visits)
-    ranking = sellers._rank_sellers(seller_rows, "sales")
-    top = ranking[:5]
-    lowest = sellers._lowest_sales(seller_rows)[:5]
-    # Existing success eligibility is retained; only presentation order is reversed.
-    visit_attention = tuple(reversed(sellers._rank_sellers(seller_rows, "success")))[:5]
-    groups = sellers._present_not_sold_groups(products, limit=5)
-    group_by_worker = {g.worker_id: g for g in groups}
-    unsold_attention = groups[:5]
-    top_ids = {r.worker_id for r in top}
-    low_ids = {r.worker_id for r in lowest}
-    visit_ids = {r.worker_id for r in visit_attention}
-    unsold_ids = {r.worker_id for r in unsold_attention}
-    meeting_rows = []
-    ranked_ids = {r.worker_id for r in ranking}
-    for rank, row in enumerate((*ranking, *(r for r in seller_rows if r.worker_id not in ranked_ids)), 1):
-        labels = []
-        for ids, label in ((top_ids, "أعلى المبيعات"), (low_ids, "أقل المبيعات"),
-                           (visit_ids, "متابعة الزيارات"), (unsold_ids, "متابعة المنتجات غير المباعة")):
-            if row.worker_id in ids:
-                labels.append(label)
-        group = group_by_worker.get(row.worker_id)
-        meeting_rows.append(dict(rank=rank if row.sale_record_count else "—", seller=row,
-                                 unsold_count=group.product_count if group else 0, labels=labels))
-    previous = clients._previous_period(scope["period_start"], scope["period_end"])
-    trends = ()
-    comparison_note = "لا توجد بيانات كافية للمقارنة"
-    if previous:
-        previous_sales = overview.aggregate_sales(period_start=previous[0], period_end=previous[1],
-                                                  brand_id=scope["brand_id"], **indexes)
-        if previous_sales.included_row_count:
-            trends = clients._trend_rows(current_sales=sales, previous_sales=previous_sales)
-            comparison_note = f"فترة المقارنة: {display(previous[0])} ← {display(previous[1])}"
-    stopped = clients._stopped_clients(trends)
-    declining = clients._declining_clients(trends)
-    without_sale = clients._visited_without_sales(sales=sales, visits=visits)
-    repeated = tuple(sorted((r for r in clients._client_visit_rows(visits)
-                             if r.not_visited_record_count >= overview.CLIENT_FOLLOW_UP_MINIMUM_NON_VISITS),
-                            key=lambda r: (-r.not_visited_record_count, r.brand_id, r.client_name)))
-    trend_columns = (("brand_name", "العلامة"), ("client_name", "الزبون"),
-                     ("previous_sales", "السابقة (دج)"), ("current_sales", "الحالية (دج)"),
-                     ("change_percentage", "التغير (%)"))
-    client_tables = [
-        table("أعلى 10 زبائن بالمبيعات", clients._top_clients(sales, visits=visits)[:10], CLIENT_COLUMNS[:4]),
-        table("الزبائن المتراجعون — أهم 10", declining[:10], trend_columns, note=comparison_note),
-        table("الزبائن المتوقفون — أهم 10", stopped[:10], trend_columns, note=comparison_note),
-        table("زار ولم يشترِ — أهم 10", without_sale[:10], VISIT_COLUMNS[:5]),
-        table("تكرر عدم الزيارة — أهم 10", repeated[:10], VISIT_COLUMNS[:5]),
-    ]
-    client_priorities = []
-    for rows, reason in ((stopped, "توقف الشراء"), (declining, "تراجع المبيعات"),
-                         (without_sale, "زار ولم يشترِ"), (repeated, "تكرر عدم الزيارة")):
-        for row in rows[:3]:
-            if len(client_priorities) < 10:
-                client_priorities.append(dict(name=row.client_name, brand=row.brand_name, reason=reason))
-    truck_rows = fleet._status_rows(**scope)
-    trucks = [dict(row=r, tone={"ACTIVE": "good", "CONFIRMED_STOPPED": "critical",
-                  "POSSIBLE_STOPPED": "attention"}.get(r.status, "muted")) for r in truck_rows]
-    movement_columns = (MOVEMENT_COLUMNS[0], *MOVEMENT_COLUMNS[1:6])
-    # Global product action list: rank existing unsold results, retaining truck scope.
-    unsold_candidates = (r for g in fleet._not_sold_groups(products, limit=15) for r in g.products)
-    from heapq import nsmallest
-    unsold = nsmallest(15, unsold_candidates,
-                       key=lambda r: (-r.supplied_quantity, r.article_normalized, r.truck_id))
-    product_tables = [
-        table("أهم 15 منتجًا غير مباع — حسب الكمية المتاحة", unsold, movement_columns),
-        table("المنتجات ضعيفة الحركة — أهم 15", fleet._slow_moving_rows(products, limit=15), movement_columns),
-        table("أكبر 15 فجوة حسابية", follow._gap_rows(products, limit=15), (
-            ("scope", "النطاق"), ("entity_id", "الرقم"), ("article", "المنتج"),
-            ("supplied_quantity", "المتاح"), ("sold_quantity", "المباع"), ("analytical_gap", "الفجوة"))),
-    ]
-    exclusions = follow._exclusion_summary(**scope)
-    quality_tone = "critical" if exclusions.error_count else (
-        "attention" if quality.attribution_issue_count or quality.warning_count or exclusions.warning_count else "good")
-    attention = follow._attention(products, operational, quality)
+    if need_base:
+        sales = overview.aggregate_sales(**scope, **indexes)
+        if selected != {"sales"}:
+            visits = overview.aggregate_pos_visits(**scope, **indexes)
+            summary = overview._present_overview_summary(sales, visits)
+    if "coverage" in selected:
+        quality, coverage, products, operational = follow._data_quality(
+            **scope, **indexes, sales_result=sales, visits_result=visits)
+    elif need_products:
+        products = follow._build_product_sources(**scope, **indexes)[-1]
+    if need_sellers:
+        seller_rows = sellers._build_seller_rows(sales=sales, visits=visits)
+        ranking = sellers._rank_sellers(seller_rows, "sales")
+        top = ranking[:5]
+        lowest = sellers._lowest_sales(seller_rows)[:5]
+        # Existing success eligibility is retained; only presentation order is reversed.
+        visit_attention = tuple(reversed(sellers._rank_sellers(seller_rows, "success")))[:5]
+        groups = sellers._present_not_sold_groups(products, limit=5) if products is not None else ()
+        group_by_worker = {g.worker_id: g for g in groups}
+        unsold_attention = groups[:5]
+        top_ids = {r.worker_id for r in top}
+        low_ids = {r.worker_id for r in lowest}
+        visit_ids = {r.worker_id for r in visit_attention}
+        unsold_ids = {r.worker_id for r in unsold_attention}
+        meeting_rows = []
+        ranked_ids = {r.worker_id for r in ranking}
+        for rank, row in enumerate((*ranking, *(r for r in seller_rows if r.worker_id not in ranked_ids)), 1):
+            labels = []
+            for ids, label in ((top_ids, "أعلى المبيعات"), (low_ids, "أقل المبيعات"),
+                               (visit_ids, "متابعة الزيارات"), (unsold_ids, "متابعة المنتجات غير المباعة")):
+                if row.worker_id in ids:
+                    labels.append(label)
+            group = group_by_worker.get(row.worker_id)
+            meeting_rows.append(dict(rank=rank if row.sale_record_count else "—", seller=row,
+                                     unsold_count=group.product_count if group else 0, labels=labels))
+    if need_clients:
+        previous = clients._previous_period(scope["period_start"], scope["period_end"])
+        trends = ()
+        comparison_note = "لا توجد بيانات كافية للمقارنة"
+        if previous:
+            previous_sales = overview.aggregate_sales(period_start=previous[0], period_end=previous[1],
+                                                      brand_id=scope["brand_id"], **indexes)
+            if previous_sales.included_row_count:
+                trends = clients._trend_rows(current_sales=sales, previous_sales=previous_sales)
+                comparison_note = f"فترة المقارنة: {display(previous[0])} ← {display(previous[1])}"
+        stopped = clients._stopped_clients(trends)
+        declining = clients._declining_clients(trends)
+        without_sale = clients._visited_without_sales(sales=sales, visits=visits)
+        repeated = tuple(sorted((r for r in clients._client_visit_rows(visits)
+                                 if r.not_visited_record_count >= overview.CLIENT_FOLLOW_UP_MINIMUM_NON_VISITS),
+                                key=lambda r: (-r.not_visited_record_count, r.brand_id, r.client_name)))
+        trend_columns = (("brand_name", "العلامة"), ("client_name", "الزبون"),
+                         ("previous_sales", "السابقة (دج)"), ("current_sales", "الحالية (دج)"),
+                         ("change_percentage", "التغير (%)"))
+        client_tables = [
+            table("أعلى 10 زبائن بالمبيعات", clients._top_clients(sales, visits=visits)[:10], CLIENT_COLUMNS[:4]),
+            table("الزبائن المتراجعون — أهم 10", declining[:10], trend_columns, note=comparison_note),
+            table("الزبائن المتوقفون — أهم 10", stopped[:10], trend_columns, note=comparison_note),
+            table("زار ولم يشترِ — أهم 10", without_sale[:10], VISIT_COLUMNS[:5]),
+            table("تكرر عدم الزيارة — أهم 10", repeated[:10], VISIT_COLUMNS[:5]),
+        ]
+        client_priorities = []
+        for rows, reason in ((stopped, "توقف الشراء"), (declining, "تراجع المبيعات"),
+                             (without_sale, "زار ولم يشترِ"), (repeated, "تكرر عدم الزيارة")):
+            for row in rows[:3]:
+                if len(client_priorities) < 10:
+                    client_priorities.append(dict(name=row.client_name, brand=row.brand_name, reason=reason))
+    if "trucks" in selected or "actions" in selected:
+        truck_rows = fleet._status_rows(**scope, truck_index=indexes["truck_index"], result=operational)
+        trucks = [dict(row=r, tone={"ACTIVE": "good", "CONFIRMED_STOPPED": "critical",
+                      "POSSIBLE_STOPPED": "attention"}.get(r.status, "muted")) for r in truck_rows]
+    if selected & {"unsold", "product_alerts"}:
+        movement_columns = (MOVEMENT_COLUMNS[0], *MOVEMENT_COLUMNS[1:6])
+        if "unsold" in selected:
+            from heapq import nsmallest
+            candidates = (r for g in fleet._not_sold_groups(products, limit=15) for r in g.products)
+            unsold = nsmallest(15, candidates,
+                              key=lambda r: (-r.supplied_quantity, r.article_normalized, r.truck_id))
+            product_tables.append(table("أهم 15 منتجًا غير مباع — حسب الكمية المتاحة", unsold, movement_columns))
+        if "product_alerts" in selected:
+            product_tables.extend([
+                table("المنتجات ضعيفة الحركة — أهم 15", fleet._slow_moving_rows(products, limit=15), movement_columns),
+                table("أكبر 15 فجوة حسابية", follow._gap_rows(products, limit=15), (
+                    ("scope", "النطاق"), ("entity_id", "الرقم"), ("article", "المنتج"),
+                    ("supplied_quantity", "المتاح"), ("sold_quantity", "المباع"), ("analytical_gap", "الفجوة"))),
+            ])
+    if "coverage" in selected:
+        exclusions = follow._exclusion_summary(**scope)
+        quality_tone = "critical" if exclusions.error_count else (
+            "attention" if quality.attribution_issue_count or quality.warning_count or exclusions.warning_count else "good")
+        attention = follow._attention(products, operational, quality)
     context = dict(
         sections=True, overview_summary=summary, meeting_rows=meeting_rows,
         priorities=[_rank_block("أعلى المبيعات — أول 5", top, "total_sales", "دج", "good"),
@@ -297,22 +364,48 @@ def build_print_context(form):
         unsold_attention=[dict(group=g, remaining=g.product_count-len(g.products)) for g in unsold_attention],
         client_priorities=client_priorities, client_tables=client_tables, product_tables=product_tables,
         trucks=trucks, active_truck_count=sum(r.status == "ACTIVE" for r in truck_rows),
-        truck_sales=sales_view._present_truck_sales(sales),
-        sales_timeline=overview.present_sales_timeline(sales),
-        brand_sales_chart=overview.present_brand_sales_chart(sales, overview._load_brands_by_id(sales)),
+        truck_sales=sales_view._present_truck_sales(sales) if "sales" in selected else (),
+        sales_timeline=overview.present_sales_timeline(sales) if "sales" in selected else None,
+        brand_sales_chart=overview.present_brand_sales_chart(sales, overview._load_brands_by_id(sales)) if "sales" in selected else (),
         quality=quality, quality_tone=quality_tone, exclusions=exclusions, attention=attention,
-        coverage=coverage, has_approved_data=any(r.included_row_count for r in coverage),
+        coverage=coverage, has_approved_data=any(r.included_row_count for r in coverage) if coverage else bool(sales and sales.included_row_count or visits and visits.included_row_count),
         generated_at=timezone.localtime(), selected_brand=form.cleaned_data["brand"], **scope,
         attention_cards=[
             dict(title="أقل المبيعات", value=len(lowest), note="حسب الترتيب؛ راجع بطاقات البائعين"),
             dict(title="متابعة الزيارات", value=len(visit_attention), note="أقل نجاح ضمن البائعين المؤهلين للمقارنة"),
             dict(title="بائعون بمنتجات غير مباعة", value=len(groups), note="أول 5 بائعين مع أهم 5 منتجات أعلاه"),
-            dict(title="شاحنات تتطلب متابعة", value=attention.confirmed_stopped_truck_count + attention.possible_stopped_truck_count + attention.conflicting_truck_state_count, note="راجع حالة كل شاحنة"),
-            dict(title="تكرر عدم الزيارة", value=summary.client_follow_up_count, note="عدد الزبائن وفق معيار المتابعة الحالي"),
-            dict(title="مشكلات الإسناد", value=quality.attribution_issue_count, note="تحتاج مراجعة جودة البيانات"),
-        ],
+            dict(title="شاحنات تتطلب متابعة", value=sum(r.status in {"CONFIRMED_STOPPED", "POSSIBLE_STOPPED", "CONFLICTING_EVIDENCE"} for r in truck_rows), note="راجع حالة كل شاحنة"),
+            dict(title="تكرر عدم الزيارة", value=summary.client_follow_up_count if summary else 0, note="عدد الزبائن وفق معيار المتابعة الحالي"),
+            dict(title="مشكلات الإسناد", value=quality.attribution_issue_count if quality else None, note="تحتاج مراجعة جودة البيانات"),
+        ] if "actions" in selected else [],
     )
-    context.update(_availability(scope))
+    context["products_available"] = products is not None
+    context["trucks_available"] = bool(selected & {"trucks", "actions"})
+    context["clients_available"] = need_clients
+    context["visit_attention_rows"] = visit_attention
+    for i, product_table in enumerate(product_tables):
+        product_table["kind"] = "unsold" if "unsold" in selected and i == 0 else "product_alerts"
+    context["attention_cards"] = [c for c in context["attention_cards"] if c["value"] is not None]
+    context["auto_skip"] = auto_skip
+    # Preserve executive zero KPIs; other sections require actual data or cases.
+    has_data = dict(overview=True, sales=bool(sales and sales.included_row_count),
+                    sellers=bool(seller_rows), visits=bool(visit_attention),
+                    clients=any(t["rows"] for t in client_tables), trucks=bool(truck_rows),
+                    unsold=any(t["rows"] for t in product_tables[:1]) if "unsold" in selected else False,
+                    product_alerts=any(t["rows"] for t in product_tables[1 if "unsold" in selected else 0:]),
+                    actions=bool(client_priorities or unsold_attention
+                                 or any(card["value"] for card in context["attention_cards"])),
+                    coverage=bool(any(r.source_row_count for r in coverage)
+                                  or quality and (quality.attribution_issue_count or quality.warning_count)
+                                  or exclusions and (exclusions.warning_count or exclusions.error_count)))
+    context["render_sections"] = [key for key in SECTION_IDS
+                                  if key in selected and (not auto_skip or has_data[key])]
+    if auto_skip:
+        context["client_tables"] = [t for t in client_tables if t["rows"]]
+        context["product_tables"] = [t for t in product_tables if t["rows"]]
+    context["sections"] = True
+    context["selected_sections"] = selected
+    context.update(_availability(scope, include_sources="coverage" in selected))
     return context
 
 
@@ -321,7 +414,15 @@ def _response(request, *, detailed=False):
     template = "dashboard/manager_print.html" if detailed else "dashboard/manager_meeting_print.html"
     if not requested or not form.is_valid():
         return render(request, template, {"filter_form": form}, status=400)
-    context = build_detail_context(form) if detailed else build_print_context(form)
+    if detailed:
+        context = build_detail_context(form)
+    else:
+        try:
+            selected = requested_sections(request.GET)
+        except ValueError as exc:
+            return _configuration_response(request, error=str(exc), status=400)
+        context = build_print_context(form, selected_sections=selected,
+                                      auto_skip=request.GET.get("auto_skip", "1") != "0")
     if detailed:
         context.update(_availability(_scope(form)))
     query = urlencode(dict(period_start=form.cleaned_data["period_start"].isoformat(),
@@ -335,6 +436,12 @@ def _response(request, *, detailed=False):
 @never_cache
 @manager_required
 def manager_print(request):
+    return _configuration_response(request)
+
+
+@never_cache
+@manager_required
+def manager_print_generate(request):
     return _response(request)
 
 
@@ -342,3 +449,19 @@ def manager_print(request):
 @manager_required
 def manager_print_detail(request):
     return _response(request, detailed=True)
+
+
+def _configuration_response(request, *, error=None, status=200):
+    requested, form = build_filter_form(request)
+    context = dict(filter_form=form, options=SECTION_OPTIONS, error=error)
+    if not requested or not form.is_valid():
+        return render(request, "dashboard/manager_print_config.html", context, status=400)
+    scope = _scope(form)
+    query = urlencode(dict(period_start=scope["period_start"].isoformat(),
+                           period_end=scope["period_end"].isoformat(),
+                           brand=scope["brand_id"] or "", run="1"))
+    context.update(scope, valid_scope=True, selected_brand=form.cleaned_data["brand"],
+                   dashboard_url=reverse("dashboard:manager_dashboard") + "?" + query)
+    # Metadata query only: never construct any analytics context on this page.
+    context["latest_approved_date"] = _latest_approved_date(scope["brand_id"])
+    return render(request, "dashboard/manager_print_config.html", context, status=status)
