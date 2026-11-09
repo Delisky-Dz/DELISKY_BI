@@ -19,8 +19,7 @@ from . import manager_fleet_products as fleet
 from . import manager_follow_up as follow
 
 
-# Ordered server-side allowlist. Actions explicitly depend on client priorities,
-# product attention and truck status; overview/sellers alone do not.
+# Ordered server-side allowlist. Actions consume selected modules only.
 SECTION_OPTIONS = (
     ("overview", "الملخص التنفيذي وأولويات المدير", "مؤشرات المبيعات وأهم أولويات الاجتماع"),
     ("sales", "أداء المبيعات والمنحنى", "المنحنى والمبيعات حسب الشاحنة والعلامة"),
@@ -248,14 +247,29 @@ def _rank_block(title, rows, field, unit, tone):
                 value=display(getattr(r, field)), unit=unit) for r in rows])
 
 
+def plan_dependencies(selected_sections):
+    """Actions add no analytics dependencies; coverage owns its full source audit."""
+    selected = validate_sections(selected_sections)
+    return dict(
+        clients="clients" in selected,
+        products=bool(selected & {"unsold", "product_alerts", "coverage"}),
+        sellers=bool(selected & {"overview", "sellers", "visits"}),
+        sales=bool(selected & {"overview", "sales", "sellers", "visits", "clients", "coverage"}),
+        visits=bool(selected & {"overview", "sellers", "visits", "clients", "coverage"}),
+        trucks="trucks" in selected,
+        coverage="coverage" in selected,
+    )
+
+
 def build_print_context(form, *, selected_sections=None, auto_skip=True):
     """Bounded meeting presentation; never constructs the full detail context."""
     selected = validate_sections(SECTION_IDS if selected_sections is None else selected_sections)
     scope = _scope(form)
-    need_clients = bool(selected & {"clients", "actions"})
-    need_products = bool(selected & {"unsold", "product_alerts", "actions", "coverage"})
-    need_sellers = bool(selected & {"overview", "sellers", "visits", "actions"})
-    need_base = bool(selected & {"overview", "sales", "sellers", "visits", "clients", "actions", "coverage"})
+    plan = plan_dependencies(selected)
+    need_clients = plan["clients"]
+    need_products = plan["products"]
+    need_sellers = plan["sellers"]
+    need_base = plan["sales"]
     sales = visits = summary = quality = products = operational = exclusions = attention = None
     coverage = seller_rows = ranking = top = lowest = visit_attention = groups = ()
     meeting_rows, client_tables, client_priorities, truck_rows, trucks, product_tables = ([] for _ in range(6))
@@ -266,14 +280,17 @@ def build_print_context(form, *, selected_sections=None, auto_skip=True):
                    assignment_index=overview.build_assignment_index())
     if need_base:
         sales = overview.aggregate_sales(**scope, **indexes)
-        if selected != {"sales"}:
+        if plan["visits"]:
             visits = overview.aggregate_pos_visits(**scope, **indexes)
             summary = overview._present_overview_summary(sales, visits)
-    if "coverage" in selected:
+    if plan["coverage"]:
         quality, coverage, products, operational = follow._data_quality(
             **scope, **indexes, sales_result=sales, visits_result=visits)
     elif need_products:
         products = follow._build_product_sources(**scope, **indexes)[-1]
+    if products is not None and (need_sellers or "actions" in selected):
+        groups = sellers._present_not_sold_groups(products, limit=5)
+        unsold_attention = groups[:5]
     if need_sellers:
         seller_rows = sellers._build_seller_rows(sales=sales, visits=visits)
         ranking = sellers._rank_sellers(seller_rows, "sales")
@@ -281,9 +298,7 @@ def build_print_context(form, *, selected_sections=None, auto_skip=True):
         lowest = sellers._lowest_sales(seller_rows)[:5]
         # Existing success eligibility is retained; only presentation order is reversed.
         visit_attention = tuple(reversed(sellers._rank_sellers(seller_rows, "success")))[:5]
-        groups = sellers._present_not_sold_groups(products, limit=5) if products is not None else ()
         group_by_worker = {g.worker_id: g for g in groups}
-        unsold_attention = groups[:5]
         top_ids = {r.worker_id for r in top}
         low_ids = {r.worker_id for r in lowest}
         visit_ids = {r.worker_id for r in visit_attention}
@@ -331,7 +346,7 @@ def build_print_context(form, *, selected_sections=None, auto_skip=True):
             for row in rows[:3]:
                 if len(client_priorities) < 10:
                     client_priorities.append(dict(name=row.client_name, brand=row.brand_name, reason=reason))
-    if "trucks" in selected or "actions" in selected:
+    if plan["trucks"]:
         truck_rows = fleet._status_rows(**scope, truck_index=indexes["truck_index"], result=operational)
         trucks = [dict(row=r, tone={"ACTIVE": "good", "CONFIRMED_STOPPED": "critical",
                       "POSSIBLE_STOPPED": "attention"}.get(r.status, "muted")) for r in truck_rows]
@@ -350,7 +365,7 @@ def build_print_context(form, *, selected_sections=None, auto_skip=True):
                     ("scope", "النطاق"), ("entity_id", "الرقم"), ("article", "المنتج"),
                     ("supplied_quantity", "المتاح"), ("sold_quantity", "المباع"), ("analytical_gap", "الفجوة"))),
             ])
-    if "coverage" in selected:
+    if plan["coverage"]:
         exclusions = follow._exclusion_summary(**scope)
         quality_tone = "critical" if exclusions.error_count else (
             "attention" if quality.attribution_issue_count or quality.warning_count or exclusions.warning_count else "good")
@@ -371,16 +386,17 @@ def build_print_context(form, *, selected_sections=None, auto_skip=True):
         coverage=coverage, has_approved_data=any(r.included_row_count for r in coverage) if coverage else bool(sales and sales.included_row_count or visits and visits.included_row_count),
         generated_at=timezone.localtime(), selected_brand=form.cleaned_data["brand"], **scope,
         attention_cards=[
-            dict(title="أقل المبيعات", value=len(lowest), note="حسب الترتيب؛ راجع بطاقات البائعين"),
-            dict(title="متابعة الزيارات", value=len(visit_attention), note="أقل نجاح ضمن البائعين المؤهلين للمقارنة"),
-            dict(title="بائعون بمنتجات غير مباعة", value=len(groups), note="أول 5 بائعين مع أهم 5 منتجات أعلاه"),
-            dict(title="شاحنات تتطلب متابعة", value=sum(r.status in {"CONFIRMED_STOPPED", "POSSIBLE_STOPPED", "CONFLICTING_EVIDENCE"} for r in truck_rows), note="راجع حالة كل شاحنة"),
-            dict(title="تكرر عدم الزيارة", value=summary.client_follow_up_count if summary else 0, note="عدد الزبائن وفق معيار المتابعة الحالي"),
+            dict(title="أقل المبيعات", value=len(lowest) if need_sellers else None, note="حسب الترتيب؛ راجع بطاقات البائعين"),
+            dict(title="متابعة الزيارات", value=len(visit_attention) if need_sellers else None, note="أقل نجاح ضمن البائعين المؤهلين للمقارنة"),
+            dict(title="بائعون بمنتجات غير مباعة", value=len(groups) if selected & {"unsold", "product_alerts"} else None, note="أول 5 بائعين مع أهم 5 منتجات أعلاه"),
+            dict(title="شاحنات تتطلب متابعة", value=sum(r.status in {"CONFIRMED_STOPPED", "POSSIBLE_STOPPED", "CONFLICTING_EVIDENCE"} for r in truck_rows) if plan["trucks"] else None, note="راجع حالة كل شاحنة"),
+            dict(title="تكرر عدم الزيارة", value=summary.client_follow_up_count if need_clients and summary else None, note="عدد الزبائن وفق معيار المتابعة الحالي"),
             dict(title="مشكلات الإسناد", value=quality.attribution_issue_count if quality else None, note="تحتاج مراجعة جودة البيانات"),
         ] if "actions" in selected else [],
     )
     context["products_available"] = products is not None
-    context["trucks_available"] = bool(selected & {"trucks", "actions"})
+    context["trucks_available"] = plan["trucks"]
+    context["show_unsold_detail"] = "unsold" in selected
     context["clients_available"] = need_clients
     context["visit_attention_rows"] = visit_attention
     for i, product_table in enumerate(product_tables):
@@ -393,8 +409,7 @@ def build_print_context(form, *, selected_sections=None, auto_skip=True):
                     clients=any(t["rows"] for t in client_tables), trucks=bool(truck_rows),
                     unsold=any(t["rows"] for t in product_tables[:1]) if "unsold" in selected else False,
                     product_alerts=any(t["rows"] for t in product_tables[1 if "unsold" in selected else 0:]),
-                    actions=bool(client_priorities or unsold_attention
-                                 or any(card["value"] for card in context["attention_cards"])),
+                    actions=True,  # The meeting decisions table is always useful.
                     coverage=bool(any(r.source_row_count for r in coverage)
                                   or quality and (quality.attribution_issue_count or quality.warning_count)
                                   or exclusions and (exclusions.warning_count or exclusions.error_count)))
