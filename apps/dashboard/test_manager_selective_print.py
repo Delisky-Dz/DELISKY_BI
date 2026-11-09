@@ -19,6 +19,17 @@ class SelectionValidationTests(SimpleTestCase):
                          {'overview', 'sellers', 'visits', 'actions'})
         self.assertEqual(report.requested_sections(QueryDict()), set(report.SECTION_IDS))
 
+    def test_dependency_planner_actions_add_no_domains(self):
+        quick = report.plan_dependencies(report.PRESETS['quick'])
+        self.assertEqual(quick, dict(clients=False, products=False, sellers=True,
+                                    sales=True, visits=True, trucks=False, coverage=False))
+        self.assertFalse(any(report.plan_dependencies({'actions'}).values()))
+        for section in report.SECTION_IDS:
+            with self.subTest(section=section):
+                self.assertEqual(report.plan_dependencies({section}),
+                                 report.plan_dependencies({section, 'actions'}))
+        self.assertTrue(all(report.plan_dependencies(report.PRESETS['full']).values()))
+
     def test_manual_comma_or_repeated_sections(self):
         for query in ('preset=manual&sections=overview,sellers',
                       'preset=manual&sections=overview&sections=sellers'):
@@ -119,17 +130,83 @@ class SelectivePrintTests(TestCase):
              patch.object(report.follow, '_gap_rows', side_effect=AssertionError('gaps')):
             self.assertEqual(self.generate('unsold').status_code, 200)
 
-    def test_quick_skips_quality_and_large_tables_but_loads_action_dependencies(self):
-        with patch.object(report.follow, '_data_quality', side_effect=AssertionError('quality')), \
-             patch.object(report.follow, '_build_product_sources', wraps=report.follow._build_product_sources) as products, \
-             patch.object(report.fleet, '_status_rows', wraps=report.fleet._status_rows) as trucks:
-            response = self.client.get(self.url, {**self.filters, 'preset': 'quick', 'auto_skip': '0'})
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.context['selected_sections'], set(report.PRESETS['quick']))
-            products.assert_called_once()
-            trucks.assert_called_once()
-            self.assertNotContains(response, 'coverage-quality')
-            self.assertNotContains(response, 'أعلى 10 زبائن بالمبيعات')
+    def test_quick_never_invokes_unselected_heavy_modules(self):
+        forbidden = [(report.clients, name) for name in (
+            '_previous_period', '_trend_rows', '_client_visit_rows')]
+        forbidden += [(report.follow, name) for name in (
+            '_build_product_sources', 'aggregate_items', 'aggregate_opening_stock',
+            'aggregate_chargement', 'combine_product_performance', '_data_quality',
+            '_source_status_rows', 'determine_truck_operational_status')]
+        forbidden += [(report.fleet, '_status_rows'),
+                      (report.fleet, 'determine_truck_operational_status')]
+        with ExitStack() as stack:
+            mocks = [stack.enter_context(patch.object(module, name, side_effect=AssertionError(name)))
+                     for module, name in forbidden]
+            sales = stack.enter_context(patch.object(report.overview, 'aggregate_sales',
+                                                     wraps=report.overview.aggregate_sales))
+            for auto_skip in ('0', '1'):
+                response = self.client.get(self.url, {**self.filters, 'preset': 'quick',
+                                                     'auto_skip': auto_skip})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context['selected_sections'], set(report.PRESETS['quick']))
+                self.assertIn('actions', response.context['render_sections'])
+                self.assertContains(response, 'قرارات اجتماع المتابعة')
+                self.assertNotContains(response, 'أولوية متابعة الزبائن:')
+                self.assertNotContains(response, 'منتجات غير مباعة — أعلى 5 بائعين × أهم 5 منتجات')
+                if auto_skip == '0':
+                    self.assertEqual(response.context['render_sections'], list(report.PRESETS['quick']))
+                    for text in ('إجمالي المبيعات', 'بطاقات اجتماع البائعين', 'متابعة الزيارات', 'نقاط تحتاج تدخل'):
+                        self.assertContains(response, text)
+            self.assertEqual(sales.call_count, 2)  # Exactly one current-period query per report.
+            for mock in mocks:
+                mock.assert_not_called()
+
+    def test_actions_alone_only_renders_decisions_without_loading_domains(self):
+        with patch.object(report.overview, 'aggregate_sales', side_effect=AssertionError('sales')), \
+             patch.object(report.overview, 'aggregate_pos_visits', side_effect=AssertionError('visits')):
+            response = self.generate('actions')
+        self.assertEqual(response.context['render_sections'], ['actions'])
+        self.assertEqual(response.context['attention_cards'], [])
+        self.assertContains(response, 'قرارات اجتماع المتابعة')
+
+    def test_extended_actions_require_the_corresponding_selected_module(self):
+        for section, module, name in (
+            ('clients', report.clients, '_previous_period'),
+            ('unsold', report.follow, '_build_product_sources'),
+            ('product_alerts', report.follow, '_build_product_sources'),
+            ('trucks', report.fleet, '_status_rows'),
+            ('coverage', report.follow, '_data_quality'),
+        ):
+            with self.subTest(section=section), patch.object(module, name, wraps=getattr(module, name)) as call:
+                response = self.generate('overview,actions,' + section, auto_skip='0')
+                self.assertEqual(response.status_code, 200)
+                call.assert_called_once()
+                self.assertEqual(response.context['clients_available'], section == 'clients')
+                self.assertEqual(response.context['trucks_available'], section == 'trucks')
+
+    def test_seller_unsold_details_require_unsold_even_when_products_loaded(self):
+        from types import SimpleNamespace
+        group = SimpleNamespace(worker_id=1, worker_name='Seller', product_count=1,
+                                products=[SimpleNamespace(article='Product', supplied_quantity=10)])
+        with patch.object(report.sellers, '_present_not_sold_groups', return_value=[group]):
+            for product_section in ('coverage', 'product_alerts', 'unsold'):
+                response = self.generate('sellers,actions,' + product_section, auto_skip='0')
+                title = 'منتجات غير مباعة — أعلى 5 بائعين × أهم 5 منتجات'
+                if product_section == 'unsold':
+                    self.assertContains(response, title)
+                else:
+                    self.assertNotContains(response, title)
+
+    def test_product_actions_consume_selected_products_without_loading_seller_sales(self):
+        from types import SimpleNamespace
+        group = SimpleNamespace(worker_name='Seller', product_count=1,
+                                products=[SimpleNamespace(article='Product', supplied_quantity=10)])
+        with patch.object(report.overview, 'aggregate_sales', side_effect=AssertionError('sales')), \
+             patch.object(report.sellers, '_present_not_sold_groups', return_value=[group]):
+            response = self.generate('unsold,actions', auto_skip='0')
+        self.assertEqual(response.context['unsold_attention'][0]['group'], group)
+        self.assertEqual(response.context['attention_cards'][0]['value'], 1)
+        self.assertContains(response, 'متابعة المنتجات حسب البائع:')
 
     def test_full_reuses_base_aggregations(self):
         with patch.object(report.follow, 'aggregate_sales', side_effect=AssertionError('duplicate sales')), \
@@ -140,12 +217,12 @@ class SelectivePrintTests(TestCase):
             products.assert_called_once()
 
     def test_empty_sections_skip_by_default_and_render_when_disabled(self):
-        for auto_skip, expected in (('1', []), ('0', ['clients', 'unsold', 'product_alerts', 'actions'])):
+        for auto_skip, expected in (('1', ['actions']), ('0', ['clients', 'unsold', 'product_alerts', 'actions'])):
             response = self.generate('clients,unsold,product_alerts,actions', auto_skip=auto_skip)
             self.assertEqual(response.status_code, 200)
             self.assertEqual(response.context['render_sections'], expected)
             if auto_skip == '1':
-                self.assertNotContains(response, 'class="report-section')
+                self.assertContains(response, 'قرارات اجتماع المتابعة')
 
     def test_first_selected_section_does_not_force_a_header_only_page(self):
         from pathlib import Path
@@ -221,6 +298,11 @@ class SelectivePrintTests(TestCase):
                 response = self.client.get(self.url, {**self.filters, 'preset': preset})
                 elapsed = perf_counter() - start
                 self.assertEqual(response.status_code, 200)
+                if preset == 'quick':
+                    self.assertEqual(response.context['render_sections'], list(report.PRESETS['quick']))
+                    for text in ('بطاقات اجتماع البائعين', 'متابعة الزيارات', 'قرارات اجتماع المتابعة'):
+                        self.assertContains(response, text)
+                    self.assertNotContains(response, 'منتجات غير مباعة — أعلى 5 بائعين × أهم 5 منتجات')
                 if iteration:
                     samples[preset].append(elapsed)
         self.assertEqual(response.context['overview_summary'].sale_record_count, 200)
