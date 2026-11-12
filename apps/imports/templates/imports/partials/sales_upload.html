@@ -13,6 +13,12 @@
     <input id="sales-files" type="file" name="files" accept=".xlsx" multiple required>
     <button class="primary-button">فحص الدفعة</button>
   </form>
+  {% if sales_upload_formset.is_bound %}
+    <div role="alert">
+      {{ sales_upload_formset.non_form_errors }}
+      {% for legacy_form in sales_upload_formset %}{{ legacy_form.errors }}{% endfor %}
+    </div>
+  {% endif %}
   {% if sales_error %}<p role="alert">{{ sales_error }}</p>{% endif %}
   {% if sales_batch %}
     <h3>نتيجة الدفعة</h3>

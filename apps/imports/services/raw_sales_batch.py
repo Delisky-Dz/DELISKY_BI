@@ -7,6 +7,7 @@ from pathlib import Path
 from django.core import signing
 
 from apps.imports.models import ImportBatch, ImportSourceUpload
+from apps.imports.presenters import issue_message
 
 from .bulk_approval import (
     SNAPSHOT_MAX_AGE, approve_ready_snapshot, can_submit_approval,
@@ -15,7 +16,7 @@ from .bulk_approval import (
 from .excel_reader import DEFAULT_MAX_FILE_SIZE_BYTES
 from .raw_sales_derived_review import create_raw_sales_derived_import_review, RawSalesDerivedReviewError
 from .raw_sales_file import RawSalesFileError, source_truck_code_from_filename
-from .raw_sales_review import RawSalesImportReviewError
+from .raw_sales_review import RawSalesImportReviewError, prepare_raw_sales_review
 from .source_truck_mapping_store import build_source_truck_exclusions, build_source_truck_mapping
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,11 @@ def review_files(files, *, source_system, period_start, period_end, user):
                     source_upload=stored, report_type="SALES", status__in=("APPROVED", "SUPERSEDED"),
                 ).order_by("-pk").first()
                 if previous:
+                    if (previous.period_start, previous.period_end) != (period_start, period_end):
+                        prepare_raw_sales_review(
+                            upload, original_filename=upload.name, truck_mapping=mappings,
+                            period_start=period_start, period_end=period_end,
+                        )
                     row.update(state="DUPLICATE", batch_id=previous.pk, note="سبق اعتماد هذا الملف.")
                     continue
             review = create_raw_sales_derived_import_review(
@@ -80,12 +86,20 @@ def review_files(files, *, source_system, period_start, period_end, user):
                 row.update(state="READY", note=f"تحذيرات: {batch.warning_count}" if batch.warning_count else "")
                 ready.append(batch)
             else:
-                row["note"] = f"أخطاء المراجعة: {batch.error_count}. راجع تفاصيل الملف."
+                blocking = [
+                    issue_message(group["code"]) for group in batch.review_summary.get("issue_groups", [])
+                    if group["severity"] == "ERROR"
+                ]
+                row["note"] = "، ".join(blocking) or f"أخطاء المراجعة: {batch.error_count}."
             reviewed_trucks[truck] = digest.digest()
         except (RawSalesFileError, RawSalesDerivedReviewError, RawSalesImportReviewError) as exc:
             cause = exc.details.get("cause_code", exc.code)
             if cause == "raw_excel_read_failed":
                 row["state"] = "INVALID"
+            details = exc.details
+            while details.get("cause_code"):
+                cause = details["cause_code"]
+                details = details.get("cause_details", {})
             row["note"] = f"{exc.message} ({cause})"
             if exc.code == "sale_outside_period":
                 row["note"] = f"التاريخ {exc.details.get('sale_date')} خارج الفترة في السطر {exc.details.get('excel_row_number')}."
