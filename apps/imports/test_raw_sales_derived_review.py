@@ -33,7 +33,7 @@ CONTENT_TYPE = (
 )
 
 
-class RawSalesDerivedReviewTests(TestCase):
+class SalesReviewFixtures:
     def setUp(self):
         self.media_directory = TemporaryDirectory()
         self.addCleanup(
@@ -159,6 +159,8 @@ class RawSalesDerivedReviewTests(TestCase):
             content_type=CONTENT_TYPE,
         )
 
+
+class RawSalesDerivedReviewTests(SalesReviewFixtures, TestCase):
     def test_creates_reviewed_sales_batch(self):
         payload = self.make_payload(
             filename="DCV-03.xlsx",
