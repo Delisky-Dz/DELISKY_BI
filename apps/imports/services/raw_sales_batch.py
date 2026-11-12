@@ -6,7 +6,7 @@ from pathlib import Path
 
 from django.core import signing
 
-from apps.imports.models import ImportSourceUpload
+from apps.imports.models import ImportBatch, ImportSourceUpload
 
 from .bulk_approval import (
     SNAPSHOT_MAX_AGE, approve_ready_snapshot, can_submit_approval,
@@ -60,6 +60,13 @@ def review_files(files, *, source_system, period_start, period_end, user):
                            source_truck_code_from_filename(stored.original_filename) != truck):
                 row["note"] = "الملف محفوظ مسبقًا لمصدر أو شاحنة أخرى."
                 continue
+            if stored:
+                previous = ImportBatch.objects.filter(
+                    source_upload=stored, report_type="SALES", status__in=("APPROVED", "SUPERSEDED"),
+                ).order_by("-pk").first()
+                if previous:
+                    row.update(state="DUPLICATE", batch_id=previous.pk, note="سبق اعتماد هذا الملف.")
+                    continue
             review = create_raw_sales_derived_import_review(
                 upload, original_filename=upload.name, source_system_code=source_system.code,
                 period_start=period_start, period_end=period_end, uploaded_by=user,

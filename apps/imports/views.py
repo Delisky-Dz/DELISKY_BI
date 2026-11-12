@@ -25,7 +25,8 @@ from .access import accountant_required
 from .forms import (
     ImportUploadForm,
     RawChargementUploadFormSet,
-    RawSalesBatchForm, RawSalesUploadFormSet,
+    RawSalesBatchForm,
+    RawSalesUploadFormSet,
     RawItemsDetailUploadForm,
     RawItemsUploadForm,
     RawOpeningStockUploadForm,
@@ -150,7 +151,6 @@ def _upload_context(section, **values) -> dict:
     return {
         "accountant_section": section,
         "section_title": titles[section],
-        **({"sales_batch_form": RawSalesBatchForm()} if section == "sales" and "sales_batch_form" not in values else {}),
         "section_partial": f"imports/partials/{section}_upload.html",
         **values,
     }
@@ -447,6 +447,7 @@ def raw_sales_upload(request):
             _upload_context(
                 "sales",
                 sales_upload_formset=formset,
+                sales_batch_form=RawSalesBatchForm(),
             ),
         )
 
@@ -483,6 +484,12 @@ def raw_sales_upload(request):
             )
         )
 
+    if len({item.source_system_code for item in import_requests}) > 1:
+        return render(request, "imports/accountant_upload.html", _upload_context(
+            "sales", sales_batch_form=RawSalesBatchForm(),
+            sales_error="اختر مصدرًا واحدًا للدفعة.",
+        ))
+
     result = create_raw_sales_multi_import_reviews(
         tuple(import_requests),
         uploaded_by=request.user,
@@ -494,6 +501,7 @@ def raw_sales_upload(request):
         "imports/accountant_upload.html",
         _upload_context(
             "sales",
+            sales_batch_form=RawSalesBatchForm(),
             sales_upload_formset=(
                 RawSalesUploadFormSet(
                     prefix="sales"
