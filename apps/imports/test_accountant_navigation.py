@@ -33,7 +33,7 @@ class AccountantNavigationTests(TestCase):
         "chargement": "raw_upload_formset",
         "items_detail": "items_detail_upload_form",
         "items": "items_upload_form",
-        "sales": "sales_upload_formset",
+        "sales": "sales_batch_form",
     }
 
     @classmethod

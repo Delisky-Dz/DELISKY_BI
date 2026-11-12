@@ -25,7 +25,7 @@ from .access import accountant_required
 from .forms import (
     ImportUploadForm,
     RawChargementUploadFormSet,
-    RawSalesUploadFormSet,
+    RawSalesBatchForm, RawSalesUploadFormSet,
     RawItemsDetailUploadForm,
     RawItemsUploadForm,
     RawOpeningStockUploadForm,
@@ -56,6 +56,8 @@ from .services.raw_chargement_derived_multi_review import (
     RawChargementDerivedImportRequest,
     create_raw_chargement_derived_multi_import_reviews,
 )
+from .services.raw_sales_batch import import_ready, review_files
+from .services.source_truck_mapping_store import SourceTruckMappingStoreError
 from .services.raw_sales_multi_review import (
     RawSalesImportRequest,
     create_raw_sales_multi_import_reviews,
@@ -148,6 +150,7 @@ def _upload_context(section, **values) -> dict:
     return {
         "accountant_section": section,
         "section_title": titles[section],
+        **({"sales_batch_form": RawSalesBatchForm()} if section == "sales" and "sales_batch_form" not in values else {}),
         "section_partial": f"imports/partials/{section}_upload.html",
         **values,
     }
@@ -410,10 +413,26 @@ def raw_chargement_upload(request):
 @accountant_required
 @require_http_methods(["GET", "POST"])
 def raw_sales_upload(request):
-    if request.method == "GET":
-        return render(request, "imports/accountant_upload.html", _upload_context(
-            "sales", sales_upload_formset=RawSalesUploadFormSet(prefix="sales"),
-        ))
+    if request.method == "GET" or "sales-TOTAL_FORMS" not in request.POST:
+        form = RawSalesBatchForm(request.POST if request.POST.get("action") == "validate" else None)
+        context = _upload_context("sales", sales_batch_form=form)
+        action = request.POST.get("action")
+        if action == "validate" and form.is_valid():
+            files = request.FILES.getlist("files")
+            if not 1 <= len(files) <= 20:
+                form.add_error(None, "اختر من ملف واحد إلى 20 ملفًا.")
+            else:
+                try:
+                    context["sales_batch"] = review_files(files, user=request.user, **form.cleaned_data)
+                except SourceTruckMappingStoreError as exc:
+                    form.add_error(None, exc.message)
+        elif action == "import":
+            try:
+                result = import_ready(request.POST.get("token", ""), request.user)
+                context.update(sales_batch=result, sales_batch_form=RawSalesBatchForm(initial=result["period"]))
+            except signing.BadSignature:
+                context["sales_error"] = "انتهت صلاحية الفحص أو تغيّرت بياناته. افحص الدفعة مجددًا."
+        return render(request, "imports/accountant_upload.html", context)
 
     formset = RawSalesUploadFormSet(
         request.POST,

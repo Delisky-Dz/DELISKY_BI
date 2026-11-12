@@ -537,6 +537,15 @@ class RawSalesUploadForm(RawChargementUploadForm):
     )
 
 
+class RawSalesBatchForm(RawSalesUploadForm):
+    source_file = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["source_system"]
+        field.queryset = field.queryset.filter(code__in=("BIFA_MILA", "AIO_WEB"))
+
+
 RawSalesUploadFormSet = forms.formset_factory(
     RawSalesUploadForm,
     extra=1,

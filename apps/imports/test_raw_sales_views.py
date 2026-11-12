@@ -261,36 +261,10 @@ class RawSalesAccountantViewTests(TestCase):
         self.assertNotIn("recent_batches", response.context)
         self.assertNotIn("upload_form", response.context)
 
-        self.assertIn(
-            "sales_upload_formset",
-            response.context,
-        )
-
-        self.assertContains(
-            response,
-            'action="'
-            + reverse(
-                "imports:raw_sales_upload"
-            )
-            + '"',
-        )
-
-        self.assertContains(
-            response,
-            'name="sales-TOTAL_FORMS"',
-        )
-        self.assertContains(
-            response,
-            'id="sales-form-list"',
-        )
-        self.assertContains(
-            response,
-            'id="sales-add-file"',
-        )
-        self.assertContains(
-            response,
-            'id="sales-empty-form-template"',
-        )
+        self.assertContains(response, 'name="files"')
+        self.assertContains(response, 'multiple')
+        self.assertContains(response, 'name="period_start"', count=1)
+        self.assertContains(response, 'name="period_end"', count=1)
 
     @patch(
         "apps.imports.views."
