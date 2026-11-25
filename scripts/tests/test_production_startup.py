@@ -1,9 +1,12 @@
 """Windows PowerShell 5.1 regressions. Never register tasks or use the live port/database."""
+from datetime import datetime
 import http.server
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import unittest
@@ -36,7 +39,15 @@ class SourceContract(unittest.TestCase):
         source = (SCRIPTS / LAUNCHER).read_text()
         self.assertIn(r'Join-Path $Project ".venv\Scripts\python.exe"', source)
         self.assertNotIn("waitress-serve.exe", source)
-        command = source.split("& $Python -m waitress", 1)[1]
+        self.assertIn("$startInfo.FileName = $Python", source)
+        self.assertIn("$startInfo.UseShellExecute = $false", source)
+        for operation in ("Start-Process", "Start-Job", "Stop-Process", ".Kill("):
+            self.assertNotIn(operation, source)
+        self.assertIn("$maxRecoveryAttempts = 10", source)
+        self.assertIn("$recoveryDelaySeconds = 15", source)
+        self.assertIn("$stableRuntimeSeconds = 300", source)
+        command = source.split("$startInfo.Arguments = @(", 1)[1].split(") -join", 1)[0]
+        self.assertIn("'-m', 'waitress'", command)
         for arg in ('--listen=$Listen', '--threads=4', '--trusted-proxy=127.0.0.1',
                     '--trusted-proxy-headers=x-forwarded-proto', 'config.wsgi:application'):
             self.assertIn('"' + arg + '"', command)
@@ -57,7 +68,7 @@ class WindowsTests(unittest.TestCase):
         path.write_text(content, encoding="utf-8-sig")
         return path
 
-    def test_guards_and_exit_codes(self):
+    def make_launcher(self, *, short_stable_threshold=False):
         git = self.write("git.ps1", """
 if ($args -contains 'branch') { if (Test-Path wrongbranch) { 'dev' } else { 'main' } }
 if ($args -contains 'status' -and (Test-Path dirty)) { ' M changed' }
@@ -66,49 +77,118 @@ if ($args -contains 'rev-parse') {
 }
 exit 0
 """)
-        runtime = self.write("runtime.ps1", f"""
-if ((Get-Location).Path -ne {ps_literal(self.project)}) {{ exit 71 }}
-if ($env:DB_NAME -ne 'delisky_bi' -or $env:DJANGO_SETTINGS_MODULE -ne 'config.settings.production') {{ exit 72 }}
-if ($args[0] -like '*verify_static_manifest.py' -and (Test-Path staticfail)) {{ exit 4 }}
-if ($args -contains 'check' -and (Test-Path checkfail)) {{ exit 5 }}
-if ($args -contains 'config.wsgi:application') {{
-    if ($args[0] -ne '-m' -or $args[1] -ne 'waitress') {{ exit 73 }}
-    'started' | Set-Content child-started
-    if (Test-Path crash) {{ exit 17 }}
-}}
-exit 0
+        subprocess.run([sys.executable, "-m", "venv", "--without-pip", str(self.project / ".venv")],
+                       check=True, capture_output=True)
+        self.write("verify_static_manifest.py", """
+from pathlib import Path
+raise SystemExit(4 if Path('staticfail').exists() else 0)
 """)
-        self.write("verify_static_manifest.py", "")
+        (self.project / "manage.py").write_text("""
+from pathlib import Path
+import os, sys
+assert sys.argv[1:] == ['check', '--settings=config.settings.production']
+assert os.environ['DB_NAME'] == 'delisky_bi'
+assert os.environ['DJANGO_SETTINGS_MODULE'] == 'config.settings.production'
+raise SystemExit(5 if Path('checkfail').exists() else 0)
+""")
+        # A native Python module exercises the actual CreateProcess / WaitForExit path.
+        # It never imports Django, opens a socket or accesses the real task.
+        (self.project / "waitress.py").write_text("""
+from pathlib import Path
+import os, sys, time
+assert sys.argv[1:] == ['--listen=127.0.0.1:8080', '--threads=4', '--trusted-proxy=127.0.0.1',
+                       '--trusted-proxy-headers=x-forwarded-proto', 'config.wsgi:application']
+history = Path('child-started')
+with history.open('a') as f:
+    print(os.getpid(), file=f)
+if Path('hardcrash').exists():
+    Path('hardcrash').unlink()
+    os.kill(os.getpid(), -1)
+if Path('recover').exists():
+    Path('occupied').touch()
+if Path('stable').exists() and len(history.read_text().splitlines()) == 2:
+    time.sleep(2.2)
+raise SystemExit(17 if Path('crash').exists() else 0)
+""")
         source = (SCRIPTS / LAUNCHER).read_text().replace(
-            r'Join-Path $Project ".venv\Scripts\python.exe"', ps_literal(runtime)
-        ).replace(r'"C:\Program Files\Git\cmd\git.exe"', ps_literal(git))
+            r'"C:\Program Files\Git\cmd\git.exe"', ps_literal(git)
+        )
         source = source.replace(
             '[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()',
             '@(if (Test-Path occupied) { [Net.IPEndPoint]::new([Net.IPAddress]::Loopback,8080) })',
         )
-        launcher = self.write(LAUNCHER, source)
-        log = self.project / "logs/production-waitress.log"
-        for marker, reason, exitcode in [
-            ("wrongbranch", "PRODUCTION_BRANCH_GUARD_FAILED", 1),
-            ("dirty", "PRODUCTION_WORKING_TREE_NOT_CLEAN", 1),
-            ("behind", "PRODUCTION_HEAD_GUARD_FAILED", 1),
-            ("staticfail", "PRODUCTION_STATIC_MANIFEST_GUARD_FAILED", 1),
-            ("checkfail", "PRODUCTION_DJANGO_CHECK_FAILED", 1),
-            ("occupied", "WAITRESS_PORT_IN_USE", 1),
-            ("crash", "WAITRESS_EXIT_CODE=17", 17),
-            ("zero", "WAITRESS_EXIT_CODE=0", 1),
+        # Shorten time in the test copy only. Production policy has no environment overrides.
+        for original, fixture in [('$recoveryDelaySeconds = 15', '$recoveryDelaySeconds = 1'),
+                                  ('$maxRecoveryAttempts = 10', '$maxRecoveryAttempts = 2'),
+                                  ('$stableRuntimeSeconds = 300', '$stableRuntimeSeconds = 2')]:
+            self.assertIn(original, source)
+            source = source.replace(original, fixture)
+        return self.write(LAUNCHER, source)
+
+    def test_guards_and_exit_codes(self):
+        launcher = self.make_launcher()
+        for marker, reason in [
+            ("wrongbranch", "PRODUCTION_BRANCH_GUARD_FAILED"),
+            ("dirty", "PRODUCTION_WORKING_TREE_NOT_CLEAN"),
+            ("behind", "PRODUCTION_HEAD_GUARD_FAILED"),
+            ("staticfail", "PRODUCTION_STATIC_MANIFEST_GUARD_FAILED"),
+            ("checkfail", "PRODUCTION_DJANGO_CHECK_FAILED"),
+            ("occupied", "WAITRESS_PORT_IN_USE"),
         ]:
             with self.subTest(marker=marker):
                 flag = self.project / marker
                 flag.touch()
                 result = powershell(launcher)
                 flag.unlink()
-                self.assertEqual(result.returncode, exitcode, result.stdout + result.stderr)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
                 self.assertIn(reason, result.stdout)
-                self.assertIn("STOP_TIMESTAMP=", log.read_text(encoding="utf-8-sig"))
-                started = self.project / "child-started"
-                self.assertEqual(started.exists(), marker in ("crash", "zero"))
-                started.unlink(missing_ok=True)
+                self.assertFalse((self.project / "child-started").exists())
+                self.assertNotIn("RECOVERY_ATTEMPT=", result.stdout)
+
+    def test_zero_and_nonzero_retries_are_delayed_and_bounded(self):
+        launcher = self.make_launcher()
+        for marker, code in [("zero", 0), ("crash", 17)]:
+            with self.subTest(marker=marker):
+                (self.project / marker).touch()
+                result = powershell(launcher)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertEqual(result.stdout.count(f"WAITRESS_EXIT_CODE={code} WAITRESS_EXIT_UNEXPECTED=True"), 3)
+                self.assertIn("RECOVERY_BUDGET_EXHAUSTED", result.stdout)
+                self.assertEqual(re.findall(r"RECOVERY_ATTEMPT=(\d+) RECOVERY_DELAY_SECONDS=1", result.stdout), ["1", "2"])
+                self.assertEqual(result.stdout.count("STATIC_MANIFEST_GUARD=PASS"), 1)
+                self.assertEqual(result.stdout.count("DJANGO_CHECK=PASS"), 1)
+                starts = re.findall(r"CHILD_START_TIMESTAMP=(\S+)", result.stdout)
+                ends = re.findall(r"CHILD_EXIT_TIMESTAMP=(\S+)", result.stdout)
+                self.assertEqual(len(starts), 3)
+                self.assertEqual(len(ends), 3)
+                for start, end in zip(starts[1:], ends):
+                    gap = datetime.fromisoformat(start) - datetime.fromisoformat(end)
+                    self.assertGreaterEqual(gap.total_seconds(), 0.9)
+                log = (self.project / "logs/production-waitress.log").read_text(encoding="utf-8-sig")
+                self.assertIn("STOP_TIMESTAMP=", log)
+
+    def test_native_child_termination_recovers_then_port_collision_stops(self):
+        launcher = self.make_launcher()
+        (self.project / "hardcrash").touch()
+        (self.project / "recover").touch()
+        result = powershell(launcher)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("WAITRESS_EXIT_CODE=-1", result.stdout)
+        self.assertIn("RECOVERY_START_ATTEMPT=1", result.stdout)
+        self.assertIn("WAITRESS_PORT_IN_USE", result.stdout)
+        pids = (self.project / "child-started").read_text().splitlines()
+        self.assertEqual(len(pids), 2)
+        self.assertNotEqual(*pids)
+        self.assertEqual(result.stdout.count("SUPERVISOR_PID="), 1)
+
+    def test_stable_runtime_restores_retry_budget(self):
+        launcher = self.make_launcher(short_stable_threshold=True)
+        (self.project / "stable").touch()
+        result = powershell(launcher)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.count("RECOVERY_BUDGET_RESET=True"), 1)
+        self.assertEqual(re.findall(r"RECOVERY_ATTEMPT=(\d+) RECOVERY_DELAY_SECONDS", result.stdout), ["1", "1", "2"])
+        self.assertIn("RECOVERY_BUDGET_EXHAUSTED", result.stdout)
 
     def test_task_configuration_and_ownership(self):
         shutil.copy(SCRIPTS / DEFINITION, self.scripts)
@@ -144,6 +224,14 @@ if (Test-ManagedWaitressTask $task -AllowLegacy) { throw 'Accepted collision' }
         self.assertNotIn("Remove-Item", removal)
         self.assertIn("New-ScheduledTaskTrigger -AtStartup", source)
         self.assertIn("if (-not $task -or -not (Test-TaskConfiguration $task))", source)
+
+    def test_health_script_only_observes_state(self):
+        source = (SCRIPTS / HEALTH).read_text()
+        self.assertIn("$request.Method = 'HEAD'", source)
+        self.assertIn("--no-optional-locks", source)
+        for operation in ("Start-ScheduledTask", "Stop-ScheduledTask", "Register-ScheduledTask",
+                          "Stop-Process", "Start-Process", "Set-Content", "Remove-Item"):
+            self.assertNotIn(operation, source)
 
     def test_health_http_contract(self):
         class Handler(http.server.BaseHTTPRequestHandler):

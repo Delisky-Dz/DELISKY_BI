@@ -12,12 +12,18 @@ Set-Location -LiteralPath $Project
 $LogDirectory = Join-Path $Project "logs"
 New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
 $LogPath = Join-Path $LogDirectory "production-waitress.log"
-# Simple bounded rotation; IgnoreNew prevents concurrent managed launchers.
-if ((Test-Path -LiteralPath $LogPath) -and
-    (Get-Item -LiteralPath $LogPath).Length -gt 10MB) {
-    Move-Item -LiteralPath $LogPath -Destination "$LogPath.1" -Force
+function Open-WaitressTranscript {
+    param([switch]$AlreadyOpen)
+    if ((Test-Path -LiteralPath $LogPath) -and (Get-Item -LiteralPath $LogPath).Length -gt 10MB) {
+        if ($AlreadyOpen) { Stop-Transcript | Out-Null }
+        Move-Item -LiteralPath $LogPath -Destination "$LogPath.1" -Force
+    }
+    elseif ($AlreadyOpen) { return }
+    Start-Transcript -LiteralPath $LogPath -Append | Out-Null
+    Write-Host "SUPERVISOR_PID=$PID"
 }
-Start-Transcript -LiteralPath $LogPath -Append | Out-Null
+
+Open-WaitressTranscript
 try {
 Write-Host "START_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
 $RequiredBranch = "main"
@@ -145,29 +151,59 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "DJANGO_CHECK=PASS"
-# Enumerating endpoints also detects wildcard listeners without probing or killing a process.
-$listeners = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
-if (@($listeners | Where-Object { $_.Port -eq 8080 -and $_.Address.ToString() -in @("127.0.0.1", "0.0.0.0", "::") }).Count) {
-    throw "WAITRESS_PORT_IN_USE: 127.0.0.1:8080"
-}
+$maxRecoveryAttempts = 10
+$recoveryDelaySeconds = 15
+$stableRuntimeSeconds = 300
+$recoveryAttempt = 0
+$startInfo = New-Object System.Diagnostics.ProcessStartInfo
+$startInfo.FileName = $Python
+$startInfo.WorkingDirectory = $Project
+$startInfo.UseShellExecute = $false
+$startInfo.CreateNoWindow = $true
+$startInfo.Arguments = @(
+    '-m', 'waitress',
+    "--listen=$Listen",
+    "--threads=4",
+    "--trusted-proxy=127.0.0.1",
+    "--trusted-proxy-headers=x-forwarded-proto",
+    "config.wsgi:application"
+) -join ' '
+
 Write-Host "WAITRESS_THREADS=4"
-Write-Host "WAITRESS_STARTING=True"
 Write-Host "LISTEN=$Listen"
 
-& $Python -m waitress `
-    "--listen=$Listen" `
-    "--threads=4" `
-    "--trusted-proxy=127.0.0.1" `
-    "--trusted-proxy-headers=x-forwarded-proto" `
-    "config.wsgi:application"
+while ($true) {
+    # After a synchronous child exit, any remaining listener has unknown ownership.
+    $listeners = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+    if (@($listeners | Where-Object { $_.Port -eq 8080 -and $_.Address.ToString() -in @("127.0.0.1", "0.0.0.0", "::") }).Count) {
+        throw "WAITRESS_PORT_IN_USE: 127.0.0.1:8080"
+    }
 
-$waitressExitCode = $LASTEXITCODE
+    Write-Host "WAITRESS_STARTING=True RECOVERY_START_ATTEMPT=$recoveryAttempt"
+    $runtime = [Diagnostics.Stopwatch]::StartNew()
+    $child = [Diagnostics.Process]::Start($startInfo)
+    try {
+        Write-Host "WAITRESS_CHILD_PID=$($child.Id) CHILD_START_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
+        $child.WaitForExit()
+        $runtime.Stop()
+        $childExitCode = $child.ExitCode
+    }
+    finally { $child.Dispose() }
 
-Write-Host "WAITRESS_EXIT_CODE=$waitressExitCode"
-# This server is expected to stay attached indefinitely, including after logoff.
-if ($waitressExitCode -eq 0) {
-    Write-Host "WAITRESS_UNEXPECTED_RETURN=True"
-    $waitressExitCode = 1
+    Write-Host "CHILD_EXIT_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o')) RUNTIME_SECONDS=$([int][Math]::Floor($runtime.Elapsed.TotalSeconds))"
+    Write-Host "WAITRESS_EXIT_CODE=$childExitCode WAITRESS_EXIT_UNEXPECTED=True"
+    if ($runtime.Elapsed.TotalSeconds -ge $stableRuntimeSeconds) {
+        $recoveryAttempt = 0
+        Write-Host "RECOVERY_BUDGET_RESET=True"
+    }
+    if ($recoveryAttempt -ge $maxRecoveryAttempts) {
+        throw "RECOVERY_BUDGET_EXHAUSTED: $maxRecoveryAttempts consecutive retries"
+    }
+
+    $recoveryAttempt++
+    Write-Host "RECOVERY_ATTEMPT=$recoveryAttempt RECOVERY_DELAY_SECONDS=$recoveryDelaySeconds"
+    Start-Sleep -Seconds $recoveryDelaySeconds
+    Open-WaitressTranscript -AlreadyOpen
 }
 
 }
@@ -175,10 +211,10 @@ catch {
     # Guard messages contain identifiers/paths only; never dump environment.
     Write-Host "FATAL_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
     Write-Host "FATAL=$($_.Exception.Message)"
-    $waitressExitCode = 1
+    $launcherExitCode = 1
 }
 finally {
     Write-Host "STOP_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
     Stop-Transcript | Out-Null
 }
-exit $waitressExitCode
+exit $launcherExitCode
