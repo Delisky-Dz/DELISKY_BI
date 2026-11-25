@@ -10,3 +10,4 @@ media/
 
 # Local database and cleanup backups
 backups/
+/logs/production-waitress.log.1
