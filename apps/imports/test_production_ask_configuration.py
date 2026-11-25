@@ -59,10 +59,14 @@ with patch('dotenv.load_dotenv'), patch('django.db.backends.base.base.BaseDataba
 
     def test_waitress_has_fixed_bounded_capacity_and_existing_guards(self):
         launcher = (settings.BASE_DIR/'scripts/start_production_waitress.ps1').read_text(encoding='utf-8')
-        command = launcher.split('& $Python -m waitress `', 1)[1]
+        startup, supervisor = launcher.split('while ($true)', 1)
+        command = startup.split('$startInfo.Arguments = @(', 1)[1].split(") -join", 1)[0]
+        self.assertIn("'-m', 'waitress'", command)
+        self.assertIn('$child.WaitForExit()', supervisor)
         self.assertIn('"--threads=4"', command)
         self.assertEqual(command.count('--threads'), 1)
         for guard in ['PRODUCTION_BRANCH_GUARD_FAILED', 'PRODUCTION_WORKING_TREE_NOT_CLEAN',
                       'PRODUCTION_HEAD_GUARD_FAILED', 'PRODUCTION_STATIC_MANIFEST_GUARD_FAILED',
                       'PRODUCTION_DJANGO_CHECK_FAILED']:
-            self.assertIn(guard, launcher)
+            self.assertIn(guard, startup)
+            self.assertNotIn(guard, supervisor)

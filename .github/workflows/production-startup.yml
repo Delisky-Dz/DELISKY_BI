@@ -26,5 +26,11 @@ jobs:
             [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
             if ($errors.Count) { throw ($errors | Out-String) }
           }
-      - run: python scripts/tests/test_production_startup.py
+      - name: Install the project Waitress version for the HTTP recovery drill
+        shell: powershell
+        run: |
+          $waitress = @(Get-Content requirements.txt | Where-Object { $_ -match '^waitress==' })
+          if ($waitress.Count -ne 1) { throw 'Expected one pinned Waitress dependency' }
+          python -m pip install $waitress[0]
+      - run: python scripts/tests/test_production_startup.py -v
       - run: git diff --check
