@@ -1,14 +1,18 @@
 """Windows PowerShell 5.1 regressions. Never register tasks or use the live port/database."""
 from datetime import datetime
+import http.client
 import http.server
+import importlib.util
 import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -68,7 +72,7 @@ class WindowsTests(unittest.TestCase):
         path.write_text(content, encoding="utf-8-sig")
         return path
 
-    def make_launcher(self, *, short_stable_threshold=False):
+    def make_launcher(self, *, short_stable_threshold=False, port=None):
         git = self.write("git.ps1", """
 if ($args -contains 'branch') { if (Test-Path wrongbranch) { 'dev' } else { 'main' } }
 if ($args -contains 'status' -and (Test-Path dirty)) { ' M changed' }
@@ -113,10 +117,14 @@ raise SystemExit(17 if Path('crash').exists() else 0)
         source = (SCRIPTS / LAUNCHER).read_text().replace(
             r'"C:\Program Files\Git\cmd\git.exe"', ps_literal(git)
         )
-        source = source.replace(
-            '[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()',
-            '@(if (Test-Path occupied) { [Net.IPEndPoint]::new([Net.IPAddress]::Loopback,8080) })',
-        )
+        if port is None:
+            source = source.replace(
+                '[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()',
+                '@(if (Test-Path occupied) { [Net.IPEndPoint]::new([Net.IPAddress]::Loopback,8080) })',
+            )
+        else:
+            self.assertNotEqual(port, 8080)
+            source = source.replace("8080", str(port))
         # Shorten time in the test copy only. Production policy has no environment overrides.
         for original, fixture in [('$recoveryDelaySeconds = 15', '$recoveryDelaySeconds = 1'),
                                   ('$maxRecoveryAttempts = 10', '$maxRecoveryAttempts = 2'),
@@ -180,6 +188,60 @@ raise SystemExit(17 if Path('crash').exists() else 0)
         self.assertEqual(len(pids), 2)
         self.assertNotEqual(*pids)
         self.assertEqual(result.stdout.count("SUPERVISOR_PID="), 1)
+
+    @unittest.skipUnless(importlib.util.find_spec("waitress"), "project Waitress dependency required")
+    def test_real_waitress_serves_http_again_after_child_crash(self):
+        import waitress
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        launcher = self.make_launcher(port=port)
+        (self.project / "waitress.py").unlink()
+        shutil.copytree(Path(waitress.__file__).parent, self.project / ".venv/Lib/site-packages/waitress")
+        config = self.project / "config"
+        config.mkdir()
+        (config / "__init__.py").touch()
+        (config / "wsgi.py").write_text("""
+import os, threading, time
+from pathlib import Path
+def controlled_crash():
+    # Wait for the test to receive HTTP from this worker. Always bound its lifetime.
+    stop = Path('end-' + str(os.getpid()))
+    deadline = time.monotonic() + 10
+    while not stop.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    os.kill(os.getpid(), -1)
+threading.Thread(target=controlled_crash, daemon=True).start()
+def application(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/plain')])
+    return [str(os.getpid()).encode('ascii')]
+""")
+        with subprocess.Popen(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy",
+                               "RemoteSigned", "-File", str(launcher)], cwd=self.project,
+                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as supervisor:
+            workers = []
+            deadline = time.monotonic() + 40
+            while supervisor.poll() is None and time.monotonic() < deadline:
+                request = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
+                try:
+                    request.request("GET", "/")
+                    response = request.getresponse()
+                    if response.status == 200:
+                        worker = int(response.read())
+                        if worker not in workers:
+                            workers.append(worker)
+                            (self.project / f"end-{worker}").touch()
+                except (OSError, http.client.HTTPException):
+                    pass  # A short outage while the previous child exits is expected.
+                finally:
+                    request.close()
+                time.sleep(0.1)
+            output = supervisor.communicate(timeout=15)[0].decode(errors="replace")
+        self.assertEqual(len(workers), 3, output)
+        self.assertEqual(output.count("WAITRESS_EXIT_CODE=-1"), 3, output)
+        self.assertEqual(output.count("SUPERVISOR_PID="), 1)
+        self.assertIn("RECOVERY_BUDGET_EXHAUSTED", output)
+        self.assertEqual(supervisor.returncode, 1)
 
     def test_stable_runtime_restores_retry_budget(self):
         launcher = self.make_launcher(short_stable_threshold=True)
