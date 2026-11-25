@@ -1,185 +1,91 @@
 param(
     [ValidateSet("Check", "Install")]
     [string]$Mode = "Check",
-
+    [string]$TaskUser,
     [switch]$StartNow
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'production_waitress_task_definition.ps1')
 
-$TaskName = "DELISKY Production Waitress"
-$TaskPath = "\"
-$Project = Split-Path $PSScriptRoot -Parent
-$Launcher = Join-Path $PSScriptRoot "start_production_waitress.ps1"
-$PowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
-$LauncherArguments = (
-    '-NoProfile -ExecutionPolicy Bypass -File "{0}"'
-) -f $Launcher
+function Get-AccountSid {
+    param([string]$Name)
+    if ($Name -match '^S-1-') { return $Name }
+    return ([Security.Principal.NTAccount]$Name).Translate([Security.Principal.SecurityIdentifier]).Value
+}
 
 function Test-TaskConfiguration {
     param($Task)
-    $actions = @($Task.Actions)
+    if (-not (Test-ManagedWaitressTask $Task)) { return $false }
     $triggers = @($Task.Triggers)
+    $settings = $Task.Settings
     return (
-        $actions.Count -eq 1 -and
-        $actions[0].Execute -eq $PowerShell -and
-        $actions[0].Arguments -eq $LauncherArguments -and
-        $actions[0].WorkingDirectory -eq $Project -and
-        $Task.Principal.UserId -in @("SYSTEM", "S-1-5-18") -and
-        $Task.Principal.LogonType -eq "ServiceAccount" -and
-        $triggers.Count -eq 1 -and
-        $triggers[0].CimClass.CimClassName -eq "MSFT_TaskBootTrigger" -and
-        $triggers[0].Delay -eq "PT30S" -and
-        $Task.Settings.Enabled -and
-        $Task.Settings.StartWhenAvailable -and
-        $Task.Settings.MultipleInstances -eq "IgnoreNew" -and
-        $Task.Settings.RestartCount -eq 3 -and
-        $Task.Settings.RestartInterval -eq "PT1M" -and
-        $Task.Settings.ExecutionTimeLimit -eq "PT0S" -and
-        -not $Task.Settings.DisallowStartIfOnBatteries -and
-        -not $Task.Settings.StopIfGoingOnBatteries
+        $Task.Principal.LogonType -eq 'S4U' -and
+        $Task.Principal.RunLevel -eq 'Limited' -and
+        (Get-AccountSid $Task.Principal.UserId) -eq $ExpectedSid -and
+        $triggers.Count -eq 1 -and $triggers[0].Enabled -and
+        $triggers[0].CimClass.CimClassName -eq 'MSFT_TaskBootTrigger' -and
+        $triggers[0].Delay -eq 'PT30S' -and
+        $settings.Enabled -and $settings.StartWhenAvailable -and
+        $settings.MultipleInstances -eq 'IgnoreNew' -and
+        $settings.RestartCount -eq 10 -and $settings.RestartInterval -eq 'PT1M' -and
+        $settings.ExecutionTimeLimit -eq 'PT0S' -and
+        -not $settings.DisallowStartIfOnBatteries -and -not $settings.StopIfGoingOnBatteries
     )
 }
 
-function Test-IsAdministrator {
+$task = Get-WaitressTask
+if (-not $TaskUser) {
+    if ($Mode -eq 'Install') { throw 'Supply -TaskUser COMPUTER\local-user for unattended operation.' }
+    if (-not $task) { throw 'WAITRESS_TASK_NOT_FOUND' }
+    $TaskUser = $task.Principal.UserId
+}
+$ExpectedSid = Get-AccountSid $TaskUser
+# Resolve a real local user, excluding built-in Administrator and service identities.
+$localUser = Get-LocalUser -SID ([Security.Principal.SecurityIdentifier]$ExpectedSid)
+if (-not $localUser.Enabled -or $ExpectedSid -notlike 'S-1-5-21-*' -or $ExpectedSid -like '*-500') {
+    throw 'An enabled local deployment or service user is required.'
+}
+
+if ($Mode -eq 'Install') {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-
-    return $principal.IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator
-    )
+    if (-not ([Security.Principal.WindowsPrincipal]$identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'ADMINISTRATOR_PRIVILEGES_REQUIRED'
+    }
+    if ($task -and -not (Test-ManagedWaitressTask $task -AllowLegacy)) { throw 'TASK_NAME_COLLISION' }
+    if (-not $task -or -not (Test-TaskConfiguration $task)) {
+        if ($task -and $task.State -in @('Running', 'Queued')) { throw 'Stop the managed task before repairing it.' }
+        $action = New-ScheduledTaskAction -Execute $PowerShell -Argument $LauncherArguments -WorkingDirectory $Project
+        $trigger = New-ScheduledTaskTrigger -AtStartup
+        $trigger.Delay = 'PT30S'
+        $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 10 `
+            -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew `
+            -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+        $principal = New-ScheduledTaskPrincipal -UserId $ExpectedSid -LogonType S4U -RunLevel Limited
+        $register = @{
+            TaskPath = $TaskPath; TaskName = $TaskName; Action = $action; Trigger = $trigger
+            Settings = $settings; Principal = $principal; Description = $TaskDescription
+        }
+        Register-ScheduledTask @register -Force:([bool]$task) | Out-Null
+        $task = Get-WaitressTask
+    }
 }
-
-Write-Host "=== DELISKY WAITRESS TASK ==="
-Write-Host "MODE=$Mode"
+if (-not $task -or -not (Test-TaskConfiguration $task)) { throw 'WAITRESS_TASK_CONFIGURATION_MISMATCH' }
+Write-Host "TASK_NAME=$TaskName"
+Write-Host "RUN_AS=$($localUser.Name) SID=$ExpectedSid S4U Limited"
+Write-Host "ACTION=$PowerShell $LauncherArguments"
 Write-Host "PROJECT=$Project"
-Write-Host "LAUNCHER_EXISTS=$(Test-Path -LiteralPath $Launcher)"
-Write-Host "POWERSHELL_EXISTS=$(Test-Path -LiteralPath $PowerShell)"
-
-if (-not (Test-Path -LiteralPath $Launcher)) {
-    throw "WAITRESS_LAUNCHER_NOT_FOUND: $Launcher"
-}
-
-if (-not (Test-Path -LiteralPath $PowerShell)) {
-    throw "POWERSHELL_NOT_FOUND: $PowerShell"
-}
-
-$configurationMatches = $false
-$actionMatches = $false
-if ($Mode -eq "Check") {
-    try {
-        $task = Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
-        $info = Get-ScheduledTaskInfo -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
-        $action = @($task.Actions)[0]
-
-        $actionMatches = (
-            $action.Execute -eq $PowerShell -and
-            $action.Arguments -eq $LauncherArguments -and
-            $action.WorkingDirectory -eq $Project
-        )
-
-        Write-Host "TASK_FOUND=True"
-        Write-Host "TASK_STATE=$($task.State)"
-        Write-Host "RUN_AS=$($task.Principal.UserId)"
-        Write-Host "LAST_RUN_TIME=$($info.LastRunTime)"
-        Write-Host "LAST_TASK_RESULT=$($info.LastTaskResult)"
-        Write-Host "ACTION_MATCHES_EXPECTED=$actionMatches"
-        $configurationMatches = Test-TaskConfiguration -Task $task
-        Write-Host "CONFIGURATION_MATCHES_EXPECTED=$configurationMatches"
-        Write-Host "ACTION_EXECUTE=$($action.Execute)"
-        Write-Host "ACTION_ARGUMENTS=$($action.Arguments)"
-        Write-Host "ACTION_WORKING_DIRECTORY=$($action.WorkingDirectory)"
-    }
-    catch {
-        Write-Host "TASK_CHECK_FAILED=True"
-        Write-Host "TASK_CHECK_ERROR=$($_.Exception.Message)"
-        Write-Host (
-            "Run this script from an Administrator PowerShell for " +
-            "authoritative task visibility."
-        )
-    }
-
-    if (-not $actionMatches -or -not $configurationMatches) { throw "WAITRESS_TASK_CHECK_FAILED" }
-    exit 0
-}
-
-if (-not (Test-IsAdministrator)) {
-    throw "ADMINISTRATOR_PRIVILEGES_REQUIRED"
-}
-
-$action = New-ScheduledTaskAction `
-    -Execute $PowerShell `
-    -Argument $LauncherArguments `
-    -WorkingDirectory $Project
-
-$trigger = New-ScheduledTaskTrigger -AtStartup
-$trigger.Delay = "PT30S"
-
-$settings = New-ScheduledTaskSettingsSet `
-    -StartWhenAvailable `
-    -RestartCount 3 `
-    -RestartInterval (New-TimeSpan -Minutes 1) `
-    -AllowStartIfOnBatteries `
-    -DontStopIfGoingOnBatteries `
-    -ExecutionTimeLimit ([TimeSpan]::Zero) `
-    -MultipleInstances IgnoreNew
-
-$principal = New-ScheduledTaskPrincipal `
-    -UserId "SYSTEM" `
-    -LogonType ServiceAccount `
-    -RunLevel Limited
-
-Register-ScheduledTask `
-    -TaskPath $TaskPath -TaskName $TaskName `
-    -Action $action `
-    -Trigger $trigger `
-    -Settings $settings `
-    -Principal $principal `
-    -Description (
-        "Starts DELISKY Production Waitress only after branch, working-tree, " +
-        "origin/main, static-manifest and Django safety checks pass."
-    ) `
-    -Force |
-    Out-Null
-
-Write-Host "TASK_INSTALLED=True"
-Write-Host "TASK_PATH=$TaskPath"
-Write-Host "RESTART_POLICY=3 attempts at 1 minute"
-
+Write-Host 'STARTUP=Boot + 30 seconds'
+Write-Host 'RESTART_POLICY=10 retries at 1 minute'
+Write-Host "MULTIPLE_INSTANCES=$($task.Settings.MultipleInstances)"
+Write-Host "ENABLED=$($task.Settings.Enabled)"
 if ($StartNow) {
+    if ($Mode -ne 'Install') { throw 'StartNow requires Install mode.' }
     Start-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName
-    Start-Sleep -Seconds 5
 }
-
-$task = Get-ScheduledTask -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
-$info = Get-ScheduledTaskInfo -TaskPath $TaskPath -TaskName $TaskName -ErrorAction Stop
-$installedAction = @($task.Actions)[0]
-
-$actionMatches = (
-    $installedAction.Execute -eq $PowerShell -and
-    $installedAction.Arguments -eq $LauncherArguments -and
-    $installedAction.WorkingDirectory -eq $Project
-)
-
-Write-Host "TASK_STATE=$($task.State)"
-Write-Host "RUN_AS=$($task.Principal.UserId)"
+$info = Get-ScheduledTaskInfo -TaskPath $TaskPath -TaskName $TaskName
+Write-Host "TASK_STATE=$((Get-WaitressTask).State)"
 Write-Host "LAST_RUN_TIME=$($info.LastRunTime)"
 Write-Host "LAST_TASK_RESULT=$($info.LastTaskResult)"
-Write-Host "ACTION_MATCHES_EXPECTED=$actionMatches"
-
-if (-not $actionMatches -or -not (Test-TaskConfiguration -Task $task)) {
-    throw "WAITRESS_TASK_CONFIGURATION_MISMATCH"
-}
-
-if ($StartNow) {
-    if ($task.State -eq "Running") {
-        Write-Host "START_SMOKE=PASS"
-    }
-    elseif ($info.LastTaskResult -ne 0) {
-        throw (
-            "WAITRESS_TASK_START_FAILED: " +
-            "$($info.LastTaskResult)"
-        )
-    }
-}
+Write-Host 'CONFIGURATION_MATCHES_EXPECTED=True'

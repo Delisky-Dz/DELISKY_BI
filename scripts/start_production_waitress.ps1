@@ -1,4 +1,5 @@
 param(
+    [ValidateSet("127.0.0.1:8080")]
     [string]$Listen = "127.0.0.1:8080"
 )
 
@@ -20,7 +21,6 @@ Start-Transcript -LiteralPath $LogPath -Append | Out-Null
 try {
 Write-Host "START_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
 $RequiredBranch = "main"
-$Waitress = Join-Path $Project ".venv\Scripts\waitress-serve.exe"
 $Python = Join-Path $Project ".venv\Scripts\python.exe"
 $StaticVerifier = Join-Path $Project "scripts\verify_static_manifest.py"
 $Git = "C:\Program Files\Git\cmd\git.exe"
@@ -42,7 +42,7 @@ function Invoke-GitText {
     )
 
     $output = @(
-        & $Git -C $Project @Arguments 2>&1
+        & $Git --no-optional-locks -C $Project @Arguments 2>&1
     )
     $exitCode = $LASTEXITCODE
 
@@ -62,7 +62,6 @@ Write-Host "PROJECT=$Project"
 Write-Host "REQUIRED_BRANCH=$RequiredBranch"
 
 foreach ($requiredFile in @(
-    $Waitress,
     $Python,
     $StaticVerifier
 )) {
@@ -146,11 +145,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "DJANGO_CHECK=PASS"
+# Enumerating endpoints also detects wildcard listeners without probing or killing a process.
+$listeners = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners()
+if (@($listeners | Where-Object { $_.Port -eq 8080 -and $_.Address.ToString() -in @("127.0.0.1", "0.0.0.0", "::") }).Count) {
+    throw "WAITRESS_PORT_IN_USE: 127.0.0.1:8080"
+}
 Write-Host "WAITRESS_THREADS=4"
 Write-Host "WAITRESS_STARTING=True"
 Write-Host "LISTEN=$Listen"
 
-& $Waitress `
+& $Python -m waitress `
     "--listen=$Listen" `
     "--threads=4" `
     "--trusted-proxy=127.0.0.1" `
@@ -160,6 +164,11 @@ Write-Host "LISTEN=$Listen"
 $waitressExitCode = $LASTEXITCODE
 
 Write-Host "WAITRESS_EXIT_CODE=$waitressExitCode"
+# This server is expected to stay attached indefinitely, including after logoff.
+if ($waitressExitCode -eq 0) {
+    Write-Host "WAITRESS_UNEXPECTED_RETURN=True"
+    $waitressExitCode = 1
+}
 
 }
 catch {
@@ -169,6 +178,7 @@ catch {
     $waitressExitCode = 1
 }
 finally {
+    Write-Host "STOP_TIMESTAMP=$([DateTimeOffset]::Now.ToString('o'))"
     Stop-Transcript | Out-Null
 }
 exit $waitressExitCode

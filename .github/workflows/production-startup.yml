@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/*waitress*.ps1'
+      - 'scripts/check_production_health.ps1'
       - 'scripts/tests/test_production_startup.py'
       - '.github/workflows/production-startup.yml'
 permissions:
@@ -19,7 +20,7 @@ jobs:
       - name: Parse production scripts
         shell: powershell
         run: |
-          Get-ChildItem scripts/*waitress*.ps1 | ForEach-Object {
+          Get-ChildItem scripts/*waitress*.ps1,scripts/check_production_health.ps1 | ForEach-Object {
             $tokens = $null
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errors) | Out-Null
