@@ -8,6 +8,7 @@ on:
     branches:
       - main
     paths:
+      - "apps/accounts/**"
       - "apps/dashboard/**"
       - "apps/analytics/**"
       - "config/**"
@@ -61,6 +62,12 @@ jobs:
 
       - name: Django system check
         run: python manage.py check --settings=config.settings.development
+
+      - name: Accounts, host separation and production security tests
+        run: >-
+          python manage.py test apps.accounts apps.website.test_host_separation
+          apps.imports.test_production_settings_safety apps.imports.test_production_runtime_safety
+          --settings=config.settings.development -v 2
 
       - name: Focused manager dashboard tests
         run: python manage.py test apps.dashboard.test_manager_dashboard_restructure --settings=config.settings.development -v 2
