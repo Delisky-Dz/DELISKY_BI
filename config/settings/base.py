@@ -170,6 +170,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Authentication routing
 
+CSRF_FAILURE_VIEW = "apps.accounts.views.csrf_failure"
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:route"
 LOGOUT_REDIRECT_URL = "accounts:login"

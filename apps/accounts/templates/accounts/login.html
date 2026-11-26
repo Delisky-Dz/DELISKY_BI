@@ -51,6 +51,18 @@
                         </p>
                     </header>
 
+                    {% for message in messages %}
+                        {% if message.extra_tags == "login_expired" %}
+                            <div class="auth-alert" role="alert">
+                                <span aria-hidden="true">!</span>
+                                <div>
+                                    <strong>{{ message }}</strong>
+                                    <p>أدخل بياناتك من جديد لتسجيل الدخول.</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+
                     {% if form.non_field_errors %}
                         <div
                             class="auth-alert"
